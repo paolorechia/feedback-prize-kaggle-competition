@@ -6,6 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import KFold
 
 
+output_dir = "./"
 data_dir = "/data/feedback-prize/"
 train_filepath = os.path.join(data_dir, "train.csv")
 challenge_df_filepath = os.path.join(data_dir, "test.csv")
@@ -46,13 +47,17 @@ for attr in attributes:
     df_train[f"{attr}_label"] = df_train.apply(
         lambda x: labels[str(getattr(x, attr))], axis=1
     )
-    print("Attribute: ", attr, " unique values: ", df_train[f"{attr}_label"].value_counts())
+    print(
+        "Attribute: ",
+        attr,
+        " unique values: ",
+        df_train[f"{attr}_label"].value_counts(),
+    )
 
 X = df_train.full_text
 n_splits = 5
 kfold = KFold(n_splits=n_splits, random_state=None, shuffle=False)
 i = 0
-
 
 
 # Mean columnwise root mean squared error
@@ -81,6 +86,11 @@ for train_index, test_index in kfold.split(X):
         y_train = label_dfs[attribute]["train"]
         y_test = label_dfs[attribute]["test"]
 
+        weights = {}
+        for label in y_train.unique():
+            # print(y_train.value_counts())
+            weights[label] = 1 / y_train.value_counts()[label]
+
         pipeline = Pipeline(
             [
                 ("vect", CountVectorizer()),
@@ -88,7 +98,11 @@ for train_index, test_index in kfold.split(X):
                 (
                     "clf",
                     RandomForestClassifier(
-                        max_depth=5, n_estimators=20, max_features=1, random_state=42,
+                        max_depth=5,
+                        n_estimators=20,
+                        max_features=1,
+                        random_state=42,
+                        class_weight=weights,
                     ),
                 ),
             ]
@@ -132,6 +146,7 @@ for attribute in attributes:
     predictions = trained_classifiers[attribute].predict(challenge_X)
     df_challenge[attribute] = [reverse_labels[pred] for pred in predictions]
 
-df_challenge.drop("full_text", axis=1)
+df_challenge.drop(columns=["full_text"], inplace=True)
 print(df_challenge.head())
-df_challenge.to_csv("submission.csv", index=False)
+output_path = os.path.join(output_dir, "submission.csv")
+df_challenge.to_csv(output_path, index=False, float_format="%.1f")
