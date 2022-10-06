@@ -3,12 +3,23 @@ from sentence_transformers.losses import CosineSimilarityLoss
 
 from setfit import SetFitModel, SetFitTrainer
 
-dataset = load_dataset("SetFit/SentEval-CR")
+dataset = load_dataset(
+    "csv",
+    data_files={
+        "train": "small_sets/cohesion.csv",
+        "test": "small_sets/full_sampled_set.csv",
+    },
+)
 
-# Select N examples per class (8 in this case)
-train_ds = dataset["train"].shuffle(seed=42).select(range(8 * 2))
+dataset["train"] = dataset["train"].rename_column("cohesion_label", "label")
+dataset["train"] = dataset["train"].rename_column("full_text", "text")
+
+dataset["test"] = dataset["test"].rename_column("cohesion_label", "label")
+dataset["test"] = dataset["test"].rename_column("full_text", "text")
+
+
+train_ds = dataset["train"]
 test_ds = dataset["test"]
-
 
 print(train_ds)
 print(test_ds)
@@ -22,13 +33,12 @@ trainer = SetFitTrainer(
     eval_dataset=test_ds,
     loss_class=CosineSimilarityLoss,
     batch_size=16,
-    num_epochs=20,
+    num_epochs=1,
     column_mapping={
         "text": "text",
         "label": "label",
     },
 )
-# Train and evaluate!
+# Train!
 trainer.train()
-metrics = trainer.evaluate()
-print(metrics)
+trainer.model._save_pretrained("./setfits")

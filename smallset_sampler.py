@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from pprint import pprint
+from utils import attributes, labels, reverse_labels
 
 output_dir = "./small_sets/"
 data_dir = "/data/feedback-prize/"
@@ -13,29 +14,6 @@ df_challenge = pd.read_csv(challenge_df_filepath)
 
 print(df_train.columns)
 print(df_train.head())
-
-attributes = [
-    "cohesion",
-    "syntax",
-    "vocabulary",
-    "phraseology",
-    "grammar",
-    "conventions",
-]
-
-
-labels = {
-    "1.0": "terrible",
-    "1.5": "bad",
-    "2.0": "poor",
-    "2.5": "fair",
-    "3.0": "average",
-    "3.5": "good",
-    "4.0": "great",
-    "4.5": "excellent",
-    "5.0": "perfect",
-}
-reverse_labels = {v: float(k) for k, v in labels.items()}
 
 # pyplot.show()
 for attr in attributes:
