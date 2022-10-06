@@ -1,3 +1,8 @@
+"""
+Baseline without balancing the data achieves a score of 0.63 (MCRMSE).
+Applying class weights to the random forest model decreaes the score to 1.41 (lower is better) 
+"""
+
 import os
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
