@@ -55,6 +55,12 @@ class MCRMSECalculator:
         self._sum = 0.0
         self._samples = 0
 
+    def compute_columns(self, class_labels, predictions):
+        for idx, labels in enumerate(class_labels):
+            preds = predictions[idx]
+            self.compute_column(labels, preds)
+        self._samples = len(class_labels)
+
     def compute_column(self, labels, predictions):
         points = zip(labels, predictions)
         column_sum = 0.0
