@@ -1,7 +1,19 @@
-from datasets import load_dataset
-from sentence_transformers.losses import CosineSimilarityLoss
+import logging
+import math
+import sys
+from typing import TYPE_CHECKING
 
+import numpy as np
+from datasets import load_dataset
+from sentence_transformers import InputExample, losses
+from sentence_transformers.datasets import SentenceLabelDataset
+from sentence_transformers.losses import CosineSimilarityLoss
+from sentence_transformers.losses.BatchHardTripletLoss import (
+    BatchHardTripletLossDistanceFunction,
+)
 from setfit import SetFitModel
+from setfit.modeling import SupConLoss, sentence_pairs_generation
+from torch.utils.data import DataLoader
 
 dataset = load_dataset(
     "csv",
@@ -26,29 +38,15 @@ print(test_ds)
 # Load SetFit model from Hub
 model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
 
-import math
-from typing import TYPE_CHECKING
-
-import numpy as np
-from sentence_transformers import InputExample, losses
-from sentence_transformers.datasets import SentenceLabelDataset
-from sentence_transformers.losses.BatchHardTripletLoss import (
-    BatchHardTripletLossDistanceFunction,
-)
-from torch.utils.data import DataLoader
-
-from setfit import logging
-from setfit.modeling import SupConLoss, sentence_pairs_generation
-
 
 if TYPE_CHECKING:
     from datasets import Dataset
-
     from setfit.modeling import SetFitModel
 
-
-logging.set_verbosity_info()
+logging.basicConfig(level=logging.INFO)
 logger = logging.get_logger(__name__)
+# Add handler to sys stdout
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 def train(
@@ -58,12 +56,12 @@ def train(
     loss_class=CosineSimilarityLoss,
     metric: str = "accuracy",
     num_iterations: int = 20,
-    num_epochs=2,
+    num_epochs=10,
     batch_size: int = 16,
     learning_rate: float = 2e-5,
     column_mapping={
         "text": "text",
-        "label": "label",
+        "cohesion": "label",
     },
 ):
     # sentence-transformers adaptation
@@ -139,4 +137,4 @@ def train(
 
 
 # Let's see what happens
-train()
+train(num_iterations=1, num_epochs=1, batch_size=16, learning_rate=2e-5)
