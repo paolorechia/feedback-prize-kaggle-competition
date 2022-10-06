@@ -10,9 +10,8 @@ data_dir = "/data/feedback-prize/"
 train_filepath = os.path.join(data_dir, "train.csv")
 challenge_df_filepath = os.path.join(data_dir, "test.csv")
 
-model_path = "./models/cohesion/test_linear_regression_1epoch"
-is_regression = "linear_regression" in model_path
-
+model_path = "./models/cohesion/LinearRegression_20_epoch_2"
+is_regression = "LinearRegression" in model_path
 
 model = SetFitModel.from_pretrained(model_path)
 

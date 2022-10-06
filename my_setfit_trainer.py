@@ -73,13 +73,13 @@ def train(
         warmup_steps=warmup_steps,
         show_progress_bar=True,
     )
-    model._save_pretrained(f"./models/cohesion/{experiment_name}_epoch_{current_epoch}")
-
     # Train the final classifier
     model.fit(x_train, y_train)
 
     # Evalute the model
     score = evaluate(model, is_regression, test_dataframe)
+    model._save_pretrained(f"./models/cohesion/{experiment_name}_epoch_{current_epoch}")
+
     epoch_results.append(score)
 
     while current_epoch < num_epochs:
@@ -91,10 +91,11 @@ def train(
             optimizer_params={"lr": learning_rate},
             show_progress_bar=True,
         )
+        model.fit(x_train, y_train)
+        score = evaluate(model, is_regression, test_dataframe)
         model._save_pretrained(
             f"./models/cohesion/{experiment_name}_epoch_{current_epoch}"
         )
-        score = evaluate(model, is_regression, test_dataframe)
         epoch_results.append(score)
     return epoch_results
 
