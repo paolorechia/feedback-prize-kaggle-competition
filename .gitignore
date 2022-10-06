@@ -1,5 +1,14 @@
-# Byte-compiled / optimized / DLL files
+# Secrets
+.mongo_url
+.mongo_api_key
+
+# Generated data
+models/
+small_sets/
+*_predictions.csv
 submission.csv
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class

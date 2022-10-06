@@ -11,11 +11,19 @@ from setfit import SetFitModel
 from setfit.modeling import sentence_pairs_generation
 from torch.utils.data import DataLoader
 
-from utils import MCRMSECalculator, reverse_labels
+from utils import (
+    MCRMSECalculator,
+    fit_float_score_to_nearest_valid_point,
+    reverse_labels,
+)
 
 if TYPE_CHECKING:
     from datasets import Dataset
     from setfit.modeling import SetFitModel
+
+from mongo_api import MongoDataAPIClient
+
+MongoDataAPIClient()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,6 +44,9 @@ def train(
     head_model=None,
     is_regression=False,
 ):
+    # Init score tracker
+    mongo_api = MongoDataAPIClient()
+
     # sentence-transformers adaptation
     batch_size = batch_size
     x_train = train_dataset["text"]
@@ -78,7 +89,11 @@ def train(
 
     # Evalute the model
     score = evaluate(model, is_regression, test_dataframe)
-    model._save_pretrained(f"./models/cohesion/{experiment_name}_epoch_{current_epoch}")
+
+    current_name = f"{experiment_name}_epoch_{current_epoch}"
+
+    model._save_pretrained(f"./models/cohesion/{current_name}")
+    mongo_api.register_score(current_name, score)
 
     epoch_results.append(score)
 
@@ -93,9 +108,10 @@ def train(
         )
         model.fit(x_train, y_train)
         score = evaluate(model, is_regression, test_dataframe)
-        model._save_pretrained(
-            f"./models/cohesion/{experiment_name}_epoch_{current_epoch}"
-        )
+        current_name = f"{experiment_name}_epoch_{current_epoch}"
+
+        model._save_pretrained(f"./models/cohesion/{current_name}")
+        mongo_api.register_score(current_name, score)
         epoch_results.append(score)
     return epoch_results
 
@@ -104,7 +120,11 @@ def evaluate(model, is_regression, test_df):
     print("Evaluating on test dataset...")
     t0 = datetime.now()
     test_df["cohesion_predictions"] = model.predict(test_df["full_text"].tolist())
-    if not is_regression:
+    if is_regression:
+        test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
+            lambda x: fit_float_score_to_nearest_valid_point(x)
+        )
+    else:
         test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
             lambda x: reverse_labels[x]
         )

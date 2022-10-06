@@ -21,6 +21,35 @@ labels = {
 }
 reverse_labels = {v: float(k) for k, v in labels.items()}
 
+
+def fit_float_score_to_nearest_valid_point(float_score: float):
+    """Fit float score to nearest valid point."""
+    valid_points = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+    return min(valid_points, key=lambda x: abs(x - float_score))
+
+
+def test_fit_float_score_to_nearest_valid_point():
+    """Tests function"""
+    assert fit_float_score_to_nearest_valid_point(0.0) == 1.0
+    assert fit_float_score_to_nearest_valid_point(0.9) == 1.0
+    assert fit_float_score_to_nearest_valid_point(1.1) == 1.0
+    assert fit_float_score_to_nearest_valid_point(1.24) == 1.0
+    assert fit_float_score_to_nearest_valid_point(1.27) == 1.5
+    assert fit_float_score_to_nearest_valid_point(1.74) == 1.5
+    assert fit_float_score_to_nearest_valid_point(1.76) == 2.0
+    assert fit_float_score_to_nearest_valid_point(2.26) == 2.5
+    assert fit_float_score_to_nearest_valid_point(2.76) == 3.0
+    assert fit_float_score_to_nearest_valid_point(3.3) == 3.5
+    assert fit_float_score_to_nearest_valid_point(3.6) == 3.5
+    assert fit_float_score_to_nearest_valid_point(3.76) == 4.0
+    assert fit_float_score_to_nearest_valid_point(4.2) == 4.0
+    assert fit_float_score_to_nearest_valid_point(4.3) == 4.5
+    assert fit_float_score_to_nearest_valid_point(4.6) == 4.5
+    assert fit_float_score_to_nearest_valid_point(4.76) == 5.0
+    assert fit_float_score_to_nearest_valid_point(5.0) == 5.0
+    assert fit_float_score_to_nearest_valid_point(10.0) == 5.0
+
+
 class MCRMSECalculator:
     def __init__(self):
         self._sum = 0.0

@@ -1,6 +1,4 @@
 import requests
-import json
-
 
 class MongoDataAPIClient:
     def __init__(self):
