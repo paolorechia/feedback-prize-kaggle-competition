@@ -24,7 +24,9 @@ test_ds = dataset["test"]
 print(train_ds)
 print(test_ds)
 # Load SetFit model from Hub
-model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
+model = SetFitModel.from_pretrained(
+    "sentence-transformers/paraphrase-mpnet-base-v2"
+)
 
 # Create trainer
 trainer = SetFitTrainer(
@@ -33,7 +35,7 @@ trainer = SetFitTrainer(
     eval_dataset=test_ds,
     loss_class=CosineSimilarityLoss,
     batch_size=16,
-    num_epochs=24,
+    num_epochs=2,
     column_mapping={
         "text": "text",
         "label": "label",
@@ -41,4 +43,4 @@ trainer = SetFitTrainer(
 )
 # Train!
 trainer.train()
-trainer.model._save_pretrained("./setfits")
+trainer.model._save_pretrained("./models/cohesion/test_multilabel_2epochs")
