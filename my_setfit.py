@@ -5,15 +5,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from datasets import load_dataset
-from sentence_transformers import InputExample, losses
-from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses import CosineSimilarityLoss
-from sentence_transformers.losses.BatchHardTripletLoss import (
-    BatchHardTripletLossDistanceFunction,
-)
 from setfit import SetFitModel
-from setfit.modeling import SupConLoss, sentence_pairs_generation
+from setfit.modeling import sentence_pairs_generation
 from torch.utils.data import DataLoader
+from sklearn.linear_model import LinearRegression
 
 dataset = load_dataset(
     "csv",
@@ -23,10 +19,10 @@ dataset = load_dataset(
     },
 )
 
-dataset["train"] = dataset["train"].rename_column("cohesion_label", "label")
+dataset["train"] = dataset["train"].rename_column("cohesion", "label")
 dataset["train"] = dataset["train"].rename_column("full_text", "text")
 
-dataset["test"] = dataset["test"].rename_column("cohesion_label", "label")
+dataset["test"] = dataset["test"].rename_column("cohesion", "label")
 dataset["test"] = dataset["test"].rename_column("full_text", "text")
 
 
@@ -58,12 +54,17 @@ def train(
     num_epochs=10,
     batch_size: int = 16,
     learning_rate: float = 2e-5,
+    head_model = None
 ):
     # sentence-transformers adaptation
     batch_size = batch_size
     x_train = train_dataset["text"]
     y_train = train_dataset["label"]
     train_examples = []
+
+    # Overwrite default head model
+    if head_model:
+        model.model_head = head_model
 
     for _ in range(num_iterations):
         train_examples = sentence_pairs_generation(
@@ -98,4 +99,11 @@ def train(
 
 
 # Let's see what happens
-train(num_iterations=1, num_epochs=1, batch_size=16, learning_rate=2e-5)
+train(
+    num_iterations=1,
+    num_epochs=1,
+    batch_size=16,
+    learning_rate=2e-5,
+    head_model=LinearRegression()
+)
+model._save_pretrained("./models/cohesion/test_linear_regression_1epoch")
