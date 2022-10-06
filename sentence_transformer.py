@@ -33,7 +33,7 @@ trainer = SetFitTrainer(
     eval_dataset=test_ds,
     loss_class=CosineSimilarityLoss,
     batch_size=16,
-    num_epochs=1,
+    num_epochs=24,
     column_mapping={
         "text": "text",
         "label": "label",
