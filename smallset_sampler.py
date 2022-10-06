@@ -90,3 +90,8 @@ for key, item in sampled_sets.items():
     sampled_sets[key].to_csv(f"{output_dir}{key}.csv", index=False)
 
 full_sampled_set.to_csv(f"{output_dir}full_sampled_set.csv", index=False)
+
+
+# print sampled sets values counts to double check results 
+for attr, sampled_set in sampled_sets.items():
+    print("attr ", sampled_set[attr].value_counts())

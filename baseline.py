@@ -47,7 +47,6 @@ labels = {
 }
 reverse_labels = {v: float(k) for k, v in labels.items()}
 
-# pyplot.show()
 for attr in attributes:
     df_train[f"{attr}_label"] = df_train.apply(
         lambda x: labels[str(getattr(x, attr))], axis=1
