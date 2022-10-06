@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from setfit.modeling import SetFitModel
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.get_logger(__name__)
+logger = logging.getLogger(__name__)
 # Add handler to sys stdout
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
@@ -54,66 +54,27 @@ def train(
     train_dataset: "Dataset" = train_ds,
     eval_dataset: "Dataset" = test_ds,
     loss_class=CosineSimilarityLoss,
-    metric: str = "accuracy",
     num_iterations: int = 20,
     num_epochs=10,
     batch_size: int = 16,
     learning_rate: float = 2e-5,
-    column_mapping={
-        "text": "text",
-        "cohesion": "label",
-    },
 ):
     # sentence-transformers adaptation
     batch_size = batch_size
     x_train = train_dataset["text"]
     y_train = train_dataset["label"]
-    if loss_class in [
-        losses.BatchAllTripletLoss,
-        losses.BatchHardTripletLoss,
-        losses.BatchSemiHardTripletLoss,
-        losses.BatchHardSoftMarginTripletLoss,
-        SupConLoss,
-    ]:
-        train_examples = [
-            InputExample(texts=[text], label=label)
-            for text, label in zip(x_train, y_train)
-        ]
-        train_data_sampler = SentenceLabelDataset(train_examples)
+    train_examples = []
 
-        batch_size = min(batch_size, len(train_data_sampler))
-        train_dataloader = DataLoader(
-            train_data_sampler, batch_size=batch_size, drop_last=True
+    for _ in range(num_iterations):
+        train_examples = sentence_pairs_generation(
+            np.array(x_train), np.array(y_train), train_examples
         )
 
-        if loss_class is losses.BatchHardSoftMarginTripletLoss:
-            train_loss = loss_class(
-                model=model,
-                distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
-            )
-        elif loss_class is SupConLoss:
-            train_loss = loss_class(model=model)
-        else:
-            train_loss = loss_class(
-                model=model,
-                distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
-                margin=0.25,
-            )
-
-        train_steps = len(train_dataloader) * num_epochs
-    else:
-        train_examples = []
-
-        for _ in range(num_iterations):
-            train_examples = sentence_pairs_generation(
-                np.array(x_train), np.array(y_train), train_examples
-            )
-
-        train_dataloader = DataLoader(
-            train_examples, shuffle=True, batch_size=batch_size
-        )
-        train_loss = loss_class(model.model_body)
-        train_steps = len(train_dataloader)
+    train_dataloader = DataLoader(
+        train_examples, shuffle=True, batch_size=batch_size
+    )
+    train_loss = loss_class(model.model_body)
+    train_steps = len(train_dataloader)
 
     logger.info("Using loss class: {}".format(loss_class))
     logger.info("***** Running training *****")
