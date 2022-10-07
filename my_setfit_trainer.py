@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from pandas import DataFrame
-from sentence_transformers.losses import CosineSimilarityLoss
+from sentence_transformers.losses import CosineSimilarityLoss, ContrastiveLoss
 from setfit import SetFitModel
 from setfit.modeling import sentence_pairs_generation
 from torch.utils.data import DataLoader

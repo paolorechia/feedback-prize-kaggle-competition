@@ -9,16 +9,16 @@ from my_setfit_trainer import train
 from utils import attributes
 
 # # Use cohesion instead
-# train_df = pd.read_csv("small_sets/cohesion.csv")
+# train_df = pd.read_csv("small_sets/cohesion_extremes.csv")
 
 # train_df["cohesion_binary_label"] = train_df.apply(
 #     lambda x: "average_or_below_average" if x.cohesion <= 3.0 else "above_average", axis=1
 # )
-# train_df.to_csv("small_sets/cohesion_binary.csv", index=False)
-# import sys
-# sys.exit(0)
+# train_df.to_csv("small_sets/cohesion_extremes_binary.csv", index=False)
 
-test_df = pd.read_csv(f"small_sets/full_sampled_set.csv")
+
+# test_df = pd.read_csv(f"small_sets/full_sampled_set.csv")
+test_df  = pd.read_csv("/data/feedback-prize/train.csv")
 test_df["cohesion_binary_label"] = test_df.apply(
     lambda x: "average_or_below_average" if x.cohesion <= 3.0 else "above_average", axis=1
 )
@@ -49,7 +49,7 @@ for attribute in attributes:
 
     # Load SetFit model from Hub
     model = SetFitModel.from_pretrained(
-        "sentence-transformers/paraphrase-mpnet-base-v2"
+        "sentence-transformers/all-MiniLM-L6-v2"
     )
 
     # First level
@@ -78,7 +78,7 @@ for attribute in attributes:
     # Let's see what happens
 
     num_iters = 20
-    num_epochs = 5
+    num_epochs = 10
     batch_size = 16
     learning_rate = 2e-5
     unique_id = uuid4()
@@ -98,7 +98,7 @@ for attribute in attributes:
         learning_rate=learning_rate,
         head_model=head_model,
         is_regression=is_regression,
-        binary_labels=True
+        binary_labels=True,
     )
 
     for idx, epoch in enumerate(epoch_results):

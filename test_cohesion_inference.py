@@ -18,7 +18,7 @@ data_dir = "/data/feedback-prize/"
 train_filepath = os.path.join(data_dir, "train.csv")
 challenge_df_filepath = os.path.join(data_dir, "test.csv")
 
-experiment_name = "cohesion_LinearRegression_10_87dc1fd1-0e96-4317-8aa7-2bf2cf29a29f_epoch_20"
+experiment_name = "cohesion_SGDRegressor_20_8d556cda-279d-4b0a-bed4-c843a78d6581_epoch_2"
 model_path = f"/data/feedback-prize/models/{experiment_name}"
 is_regression = "LinearRegression" in model_path or "SGDRegressor" in model_path
 

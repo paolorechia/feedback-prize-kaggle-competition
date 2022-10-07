@@ -6,20 +6,27 @@ from setfit import SetFitModel
 from sklearn.linear_model import LinearRegression, LogisticRegression, SGDRegressor
 
 from my_setfit_trainer import train
-from utils import attributes
+from utils import attributes, labels
 
-test_df = pd.read_csv("small_sets/full_sampled_set.csv")
+# test_df = pd.read_csv("small_sets/full_sampled_set.csv")
+full_df_path = "/data/feedback-prize/train.csv"
+intermediate_df_path = "/data/feedback-prize/intermediate.csv"
+
+test_df = pd.read_csv(full_df_path)
+test_df["cohesion_label"] = test_df.apply(lambda x: labels[str(x.cohesion)], axis=1)
+test_df.to_csv(intermediate_df_path, index=False)
+
+# Train on whole dataset (probably overfitting)
 for attribute in attributes:
     print("Bootstraping setfit training for attribute: ", attribute)
     dataset = load_dataset(
         "csv",
         data_files={
-            "train": f"small_sets/{attribute}.csv",
-            "test": "small_sets/full_sampled_set.csv",
+            "train": intermediate_df_path,
         },
     )
 
-    head_model = LinearRegression()
+    head_model = SGDRegressor()
     is_regression = isinstance(head_model, LinearRegression) or isinstance(
         head_model, SGDRegressor
     )
@@ -33,15 +40,14 @@ for attribute in attributes:
 
     train_ds = dataset["train"]
 
+    model_name = "all-MiniLM-L6-v2"
     # Load SetFit model from Hub
-    model = SetFitModel.from_pretrained(
-        "sentence-transformers/paraphrase-mpnet-base-v2"
-    )
+    model = SetFitModel.from_pretrained(f"sentence-transformers/{model_name}")
 
     # Let's see what happens
 
-    num_iters = 10
-    num_epochs = 20
+    num_iters = 20
+    num_epochs = 1
     batch_size = 16
     learning_rate = 2e-5
     unique_id = uuid4()
