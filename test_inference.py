@@ -20,12 +20,12 @@ challenge_df_filepath = os.path.join(data_dir, "test.csv")
 train_df = pd.read_csv(train_filepath)
 
 attribute_experiments = {
-    "cohesion": "cohesion_SGDRegressor_1_3024c1a4-e9a9-4633-b827-cf823ad33fbf_epoch_8",
-    "syntax": "syntax_SGDRegressor_1_cff46e69-c9fb-4fb9-8e0f-317970261922_epoch_2",
-    "vocabulary": "vocabulary_SGDRegressor_1_49accbc7-4ed2-44b4-a3cc-725ad9a134d2_epoch_5",
-    "phraseology": "phraseology_SGDRegressor_1_2d0be900-d674-4b72-a5a1-e5278dd719d7_epoch_3",
-    "grammar": "grammar_SGDRegressor_1_424fe4d1-7441-4ffe-9f2b-9b5a4107eca7_epoch_10",
-    "conventions": "conventions_SGDRegressor_1_43eefaf6-9f6a-4d67-9e5b-5f1b4480dc62_epoch_11",
+    "cohesion": "cohesion_LinearRegression_10_87dc1fd1-0e96-4317-8aa7-2bf2cf29a29f_epoch_20",
+    "syntax": "syntax_LinearRegression_10_5d6ce138-ea24-41f2-b652-61c099b13070_epoch_1",
+    "vocabulary": "vocabulary_LinearRegression_10_8c00aa80-fc17-4be2-83be-5b043b88b109_epoch_14",
+    "phraseology": "phraseology_LinearRegression_10_016fdaf3-f0a3-4010-b5ac-2085337f120b_epoch_20",
+    "grammar": "grammar_LinearRegression_10_1bf9a006-5dd3-46fc-b7d1-686cd20265fc_epoch_19",
+    "conventions": "conventions_LinearRegression_10_20460b6c-bb36-408c-9276-08c8257d2ff2_epoch_7",
 }
 
 models = {k: {} for k in attribute_experiments.keys()}
@@ -78,7 +78,4 @@ full_preds_df = pd.read_csv("full_predictions.csv")
 mcrmse_calculator = MCRMSECalculator()
 mcrmse_calculator.compute_score_for_df(full_preds_df)
 score = mcrmse_calculator.get_score()
-print(score)
-# mongo_api.register_score(
-#     f"full_dataset_{str(list(attribute_experiments.values()))}", score
-# )
+print("MCRMSE score: ", score)

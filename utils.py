@@ -20,7 +20,8 @@ labels = {
     "5.0": "perfect",
 }
 reverse_labels = {v: float(k) for k, v in labels.items()}
-
+reverse_labels["average_or_below_average"] = 1.75
+reverse_labels["above_average"] = 3.75
 
 def fit_float_score_to_nearest_valid_point(float_score: float):
     """Fit float score to nearest valid point."""

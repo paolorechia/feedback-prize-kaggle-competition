@@ -18,7 +18,7 @@ data_dir = "/data/feedback-prize/"
 train_filepath = os.path.join(data_dir, "train.csv")
 challenge_df_filepath = os.path.join(data_dir, "test.csv")
 
-experiment_name = "cohesion_SGDRegressor_1_3024c1a4-e9a9-4633-b827-cf823ad33fbf_epoch_8"
+experiment_name = "cohesion_LinearRegression_10_87dc1fd1-0e96-4317-8aa7-2bf2cf29a29f_epoch_20"
 model_path = f"/data/feedback-prize/models/{experiment_name}"
 is_regression = "LinearRegression" in model_path or "SGDRegressor" in model_path
 
@@ -54,4 +54,4 @@ mcrmse_calculator.compute_column(
 )
 score = mcrmse_calculator.get_score()
 print(score)
-mongo_api.register_score("full_dataset_{}", score)
+# mongo_api.register_score("full_dataset_{}", score)

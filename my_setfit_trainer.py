@@ -43,6 +43,7 @@ def train(
     learning_rate: float = 2e-5,
     head_model=None,
     is_regression=False,
+    binary_labels=False,
 ):
     # Init score tracker
     mongo_api = MongoDataAPIClient()
@@ -88,12 +89,13 @@ def train(
     model.fit(x_train, y_train)
 
     # Evalute the model
-    score = evaluate(model, is_regression, test_dataframe)
+    score = evaluate(model, is_regression, test_dataframe, binary_labels)
 
     current_name = f"{experiment_name}_epoch_{current_epoch}"
 
     model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-    mongo_api.register_score(current_name, score)
+    if not binary_labels:
+        mongo_api.register_score(current_name, score)
 
     epoch_results.append(score)
 
@@ -107,35 +109,52 @@ def train(
             show_progress_bar=True,
         )
         model.fit(x_train, y_train)
-        score = evaluate(model, is_regression, test_dataframe)
+        score = evaluate(model, is_regression, test_dataframe, binary_labels)
         current_name = f"{experiment_name}_epoch_{current_epoch}"
 
         model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-        mongo_api.register_score(current_name, score)
+        if not binary_labels:
+            mongo_api.register_score(current_name, score)
         epoch_results.append(score)
     return epoch_results
 
 
-def evaluate(model, is_regression, test_df):
+def evaluate(model, is_regression, test_df, binary_labels=False):
     print("Evaluating on test dataset...")
     t0 = datetime.now()
-    test_df["cohesion_predictions"] = model.predict(test_df["full_text"].tolist())
-    if is_regression:
-        test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
-            lambda x: round_border_score(x)
-        )
+
+    if binary_labels:
+        test_df["cohesion_binary_prediction"] = model.predict(test_df["full_text"].tolist())
+        accuracy = 0.0
+        hits = 0
+        errors = 0
+        for index, row in test_df.iterrows():
+            if row["cohesion_binary_prediction"] == row["cohesion_binary_label"]:
+                hits += 1
+            else:
+                errors += 1
+
+        accuracy = hits / (hits + errors)
+        print("Accuracy: ", accuracy)
+        return accuracy
     else:
-        test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
-            lambda x: reverse_labels[x]
+        test_df["cohesion_predictions"] = model.predict(test_df["full_text"].tolist())
+        if is_regression:
+            test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
+                lambda x: round_border_score(x)
+            )
+        else:
+            test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
+                lambda x: reverse_labels[x]
+            )
+
+        t1 = datetime.now()
+        print(f"Time taken to predict: {t1 - t0}")
+
+        mcrmse_calculator = MCRMSECalculator()
+        mcrmse_calculator.compute_column(
+            test_df["cohesion"], test_df["cohesion_predictions"]
         )
-
-    t1 = datetime.now()
-    print(f"Time taken to predict: {t1 - t0}")
-
-    mcrmse_calculator = MCRMSECalculator()
-    mcrmse_calculator.compute_column(
-        test_df["cohesion"], test_df["cohesion_predictions"]
-    )
-    score = mcrmse_calculator.get_score()
-    print("MCRMSE score: ", score)
-    return score
+        score = mcrmse_calculator.get_score()
+        print("MCRMSE score: ", score)
+        return score
