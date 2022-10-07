@@ -28,6 +28,14 @@ def fit_float_score_to_nearest_valid_point(float_score: float):
     return min(valid_points, key=lambda x: abs(x - float_score))
 
 
+def round_border_score(float_score: float):
+    if float_score < 1.0:
+        return 1.0
+    if float_score > 5.0:
+        return 5.0
+    return float_score
+
+
 def test_fit_float_score_to_nearest_valid_point():
     """Tests function"""
     assert fit_float_score_to_nearest_valid_point(0.0) == 1.0
@@ -56,6 +64,7 @@ class MCRMSECalculator:
         self._samples = 0
 
     def compute_columns(self, class_labels, predictions):
+        """Need to fix this function"""
         for idx, labels in enumerate(class_labels):
             preds = predictions[idx]
             self.compute_column(labels, preds)

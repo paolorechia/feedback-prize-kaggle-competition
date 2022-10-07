@@ -7,7 +7,7 @@ from setfit import SetFitModel
 from mongo_api import MongoDataAPIClient
 from utils import (
     MCRMSECalculator,
-    fit_float_score_to_nearest_valid_point,
+    round_border_score,
     reverse_labels,
 )
 
@@ -18,8 +18,8 @@ data_dir = "/data/feedback-prize/"
 train_filepath = os.path.join(data_dir, "train.csv")
 challenge_df_filepath = os.path.join(data_dir, "test.csv")
 
-experiment_name = "cohesion_SGDRegressor_4_850b88fc-6f21-469e-a6b1-99e22da0ce5f_epoch_2"
-model_path = f"./models/cohesion/{experiment_name}"
+experiment_name = "cohesion_SGDRegressor_1_3024c1a4-e9a9-4633-b827-cf823ad33fbf_epoch_8"
+model_path = f"/data/feedback-prize/models/{experiment_name}"
 is_regression = "LinearRegression" in model_path or "SGDRegressor" in model_path
 
 model = SetFitModel.from_pretrained(model_path)
@@ -31,7 +31,7 @@ t0 = datetime.now()
 train_df["cohesion_predictions"] = model.predict(train_df["full_text"].tolist())
 if is_regression:
     train_df["cohesion_predictions"] = train_df["cohesion_predictions"].apply(
-        lambda x: fit_float_score_to_nearest_valid_point(x)
+        lambda x: round_border_score(x)
     )
 else:
     train_df["cohesion_predictions"] = train_df["cohesion_predictions"].apply(

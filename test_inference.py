@@ -7,8 +7,8 @@ from setfit import SetFitModel
 from mongo_api import MongoDataAPIClient
 from utils import (
     MCRMSECalculator,
-    fit_float_score_to_nearest_valid_point,
     reverse_labels,
+    round_border_score,
 )
 
 mongo_api = MongoDataAPIClient()
@@ -35,7 +35,7 @@ print("Predicting full dataset...")
 t0 = datetime.now()
 for attribute, value in attribute_experiments.items():
     print("Processing attribute: ", attribute)
-    model_path = f"./models/cohesion/{value}"
+    model_path = f"/data/feedback-prize/models/{value}"
     is_regression = "LinearRegression" in model_path or "SGDRegressor" in model_path
     models[attribute]["is_regression"] = is_regression
     model = SetFitModel.from_pretrained(model_path)
@@ -45,7 +45,7 @@ for attribute, value in attribute_experiments.items():
     if is_regression:
         train_df[f"{attribute}_predictions"] = train_df[
             f"{attribute}_predictions"
-        ].apply(lambda x: fit_float_score_to_nearest_valid_point(x))
+        ].apply(lambda x: round_border_score(x))
     else:
         train_df[f"{attribute}_predictions"] = train_df[
             f"{attribute}_predictions"

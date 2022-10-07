@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 from utils import (
     MCRMSECalculator,
-    fit_float_score_to_nearest_valid_point,
+    round_border_score,
     reverse_labels,
 )
 
@@ -92,7 +92,7 @@ def train(
 
     current_name = f"{experiment_name}_epoch_{current_epoch}"
 
-    model._save_pretrained(f"./models/cohesion/{current_name}")
+    model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
     mongo_api.register_score(current_name, score)
 
     epoch_results.append(score)
@@ -110,7 +110,7 @@ def train(
         score = evaluate(model, is_regression, test_dataframe)
         current_name = f"{experiment_name}_epoch_{current_epoch}"
 
-        model._save_pretrained(f"./models/cohesion/{current_name}")
+        model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
         mongo_api.register_score(current_name, score)
         epoch_results.append(score)
     return epoch_results
@@ -122,7 +122,7 @@ def evaluate(model, is_regression, test_df):
     test_df["cohesion_predictions"] = model.predict(test_df["full_text"].tolist())
     if is_regression:
         test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
-            lambda x: fit_float_score_to_nearest_valid_point(x)
+            lambda x: round_border_score(x)
         )
     else:
         test_df["cohesion_predictions"] = test_df["cohesion_predictions"].apply(
