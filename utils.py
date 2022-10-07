@@ -63,13 +63,16 @@ class MCRMSECalculator:
         self._sum = 0.0
         self._samples = 0
 
-    def compute_columns(self, class_labels, predictions):
-        """Need to fix this function"""
-        for idx, labels in enumerate(class_labels):
-            preds = predictions[idx]
-            self.compute_column(labels, preds)
-        self._samples = len(class_labels)
-
+    def compute_score_for_df(self, df):
+        for index, row in df.iterrows():
+            inner_sum = 0.0
+            for attribute in attributes:
+                inner_sum += (row[attribute] - row[f"{attribute}_predictions"]) ** 2
+            inner_sum /= len(attributes)
+            self._sum += inner_sum 
+            self._samples += 1
+    
+            
     def compute_column(self, labels, predictions):
         points = zip(labels, predictions)
         column_sum = 0.0

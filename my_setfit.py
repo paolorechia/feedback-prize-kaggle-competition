@@ -19,7 +19,7 @@ for attribute in attributes:
         },
     )
 
-    head_model = SGDRegressor()
+    head_model = LinearRegression()
     is_regression = isinstance(head_model, LinearRegression) or isinstance(
         head_model, SGDRegressor
     )
@@ -40,8 +40,8 @@ for attribute in attributes:
 
     # Let's see what happens
 
-    num_iters = 1
-    num_epochs = 11
+    num_iters = 10
+    num_epochs = 20
     batch_size = 16
     learning_rate = 2e-5
     unique_id = uuid4()

@@ -76,24 +76,7 @@ print(train_df.head())
 
 full_preds_df = pd.read_csv("full_predictions.csv")
 mcrmse_calculator = MCRMSECalculator()
-mcrmse_calculator.compute_columns(
-    class_labels=[
-        full_preds_df["cohesion"],
-        full_preds_df["syntax"],
-        full_preds_df["vocabulary"],
-        full_preds_df["phraseology"],
-        full_preds_df["grammar"],
-        full_preds_df["conventions"],
-    ],
-    predictions=[
-        full_preds_df["cohesion_predictions"],
-        full_preds_df["syntax_predictions"],
-        full_preds_df["vocabulary_predictions"],
-        full_preds_df["phraseology_predictions"],
-        full_preds_df["grammar_predictions"],
-        full_preds_df["conventions_predictions"],
-    ],
-)
+mcrmse_calculator.compute_score_for_df(full_preds_df)
 score = mcrmse_calculator.get_score()
 print(score)
 # mongo_api.register_score(
