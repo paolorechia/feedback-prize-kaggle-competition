@@ -3,7 +3,15 @@ from uuid import uuid4
 import pandas as pd
 from datasets import load_dataset
 from setfit import SetFitModel
+from setfit.modeling import SupConLoss
 from sklearn.linear_model import LinearRegression, LogisticRegression, SGDRegressor
+from sentence_transformers.losses import (
+    BatchHardTripletLoss,
+    BatchAllTripletLoss,
+    BatchHardTripletLoss,
+    BatchSemiHardTripletLoss,
+    BatchHardSoftMarginTripletLoss,
+)
 
 from my_setfit_trainer import train
 from utils import attributes, labels
@@ -48,7 +56,7 @@ for attribute in attributes:
     # Let's see what happens
 
     num_iters = 20
-    num_epochs = 5
+    num_epochs = 10
     batch_size = 128
     learning_rate = 2e-5
     unique_id = uuid4()
@@ -68,6 +76,7 @@ for attribute in attributes:
         learning_rate=learning_rate,
         head_model=head_model,
         is_regression=is_regression,
+        loss_class=BatchSemiHardTripletLoss,
     )
 
     for idx, epoch in enumerate(epoch_results):
