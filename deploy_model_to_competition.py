@@ -7,7 +7,7 @@ from utils import attributes
 models_dir = "/data/feedback-prize/models/"
 kaggle_datasets_dir = "/data/feedback-prize/kaggle-datasets"
 models_to_deploy = [
-    "syntax_SGDRegressor_20_01cd7668-e6c3-43f6-9897-4e47d6538462_epoch_6"
+    "syntax_SGDRegressor_20_01cd7668-e6c3-43f6-9897-4e47d6538462_epoch_13"
 ]
 for model_name in models_to_deploy:
     print("Deploying model: ", model_name)
@@ -32,6 +32,17 @@ for model_name in models_to_deploy:
 
     print("Copying {} to {}".format(head_origin_path, head_destiny_path))
     shutil.copy(head_origin_path, head_destiny_path)
+    with open(f"{dataset_path}/pytorch_model.bin.md5", "w") as outfile:
+        subprocess.run(
+            ["md5sum", pytorch_destiny_path],
+            stdout=outfile,
+        )
+
+    with open(f"{dataset_path}/model_head.pkl.md5", "w") as outfile:
+        subprocess.run(
+            ["md5sum", head_destiny_path],
+            stdout=outfile,
+        )
 
     subprocess.run(
         [

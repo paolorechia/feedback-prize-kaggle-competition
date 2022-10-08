@@ -17,7 +17,7 @@ test_df["cohesion_label"] = test_df.apply(lambda x: labels[str(x.cohesion)], axi
 test_df.to_csv(intermediate_df_path, index=False)
 
 # Train on whole dataset (probably overfitting)
-attributes = ["syntax"]
+attributes = ["cohesion"]
 for attribute in attributes:
     print("Bootstraping setfit training for attribute: ", attribute)
     dataset = load_dataset(
@@ -48,8 +48,8 @@ for attribute in attributes:
     # Let's see what happens
 
     num_iters = 20
-    num_epochs = 20
-    batch_size = 16
+    num_epochs = 5
+    batch_size = 128
     learning_rate = 2e-5
     unique_id = uuid4()
     experiment_name = "{}_{}_{}_{}".format(
