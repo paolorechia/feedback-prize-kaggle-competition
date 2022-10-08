@@ -11,6 +11,7 @@ from sentence_transformers.losses import (
     BatchHardTripletLoss,
     BatchSemiHardTripletLoss,
     BatchHardSoftMarginTripletLoss,
+    CosineSimilarityLoss,
 )
 
 from my_setfit_trainer import train
@@ -51,17 +52,24 @@ for attribute in attributes:
 
     model_name = "all-MiniLM-L6-v2"
     # Load SetFit model from Hub
-    model = SetFitModel.from_pretrained(f"sentence-transformers/{model_name}")
+    # model_ = f"sentence-transformers/{model_name}"
+    # Use pretrained model from local path
+    model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
+    model = SetFitModel.from_pretrained(model_)
 
     # Let's see what happens
-
+    loss_function = CosineSimilarityLoss
     num_iters = 20
-    num_epochs = 10
+    num_epochs = 3
     batch_size = 128
     learning_rate = 2e-5
     unique_id = uuid4()
-    experiment_name = "{}_{}_{}_{}".format(
-        attribute, head_model.__class__.__name__, num_iters, unique_id
+    experiment_name = "checkpointed_{}_{}_{}_{}_{}".format(
+        attribute,
+        head_model.__class__.__name__,
+        num_iters,
+        unique_id,
+        loss_function.__name__,
     )
 
     print("Running experiment {}".format(experiment_name))
@@ -76,7 +84,7 @@ for attribute in attributes:
         learning_rate=learning_rate,
         head_model=head_model,
         is_regression=is_regression,
-        loss_class=BatchSemiHardTripletLoss,
+        loss_class=loss_function,
     )
 
     for idx, epoch in enumerate(epoch_results):
