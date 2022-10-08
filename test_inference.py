@@ -20,12 +20,12 @@ challenge_df_filepath = os.path.join(data_dir, "test.csv")
 train_df = pd.read_csv(train_filepath)
 
 attribute_experiments = {
-    "cohesion": "cohesion_LinearRegression_10_87dc1fd1-0e96-4317-8aa7-2bf2cf29a29f_epoch_20",
-    "syntax": "syntax_LinearRegression_10_5d6ce138-ea24-41f2-b652-61c099b13070_epoch_1",
-    "vocabulary": "vocabulary_LinearRegression_10_8c00aa80-fc17-4be2-83be-5b043b88b109_epoch_14",
-    "phraseology": "phraseology_LinearRegression_10_016fdaf3-f0a3-4010-b5ac-2085337f120b_epoch_20",
-    "grammar": "grammar_LinearRegression_10_1bf9a006-5dd3-46fc-b7d1-686cd20265fc_epoch_19",
-    "conventions": "conventions_LinearRegression_10_20460b6c-bb36-408c-9276-08c8257d2ff2_epoch_7",
+    "cohesion": "cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1",
+    "syntax": "syntax_SGDRegressor_20_253724a6-e4b5-4c23-9b37-57632d492fae_epoch_1",
+    "vocabulary": "vocabulary_SGDRegressor_20_a4790b8f-bd5a-466d-8a0b-52e0e7ff0532_epoch_1",
+    "phraseology": "phraseology_SGDRegressor_20_799732cf-a9a8-47e6-81ed-af8eed2ef979_epoch_1",
+    "grammar": "grammar_SGDRegressor_20_e6d11781-d6c6-4d11-b901-5a43bba39ff3_epoch_1",
+    "conventions": "conventions_SGDRegressor_20_16f5a1ea-6255-43d7-8129-6b2241f1f3db_epoch_1",
 }
 
 models = {k: {} for k in attribute_experiments.keys()}
