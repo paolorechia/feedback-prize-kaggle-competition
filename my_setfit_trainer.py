@@ -6,9 +6,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from pandas import DataFrame
+from sentence_transformers import InputExample, losses
+from sentence_transformers.datasets import SentenceLabelDataset
+from sentence_transformers.losses.BatchHardTripletLoss import (
+    BatchHardTripletLossDistanceFunction,
+)
 from sentence_transformers.losses import CosineSimilarityLoss, ContrastiveLoss
 from setfit import SetFitModel
-from setfit.modeling import sentence_pairs_generation
+from setfit.modeling import sentence_pairs_generation, SupConLoss
 from torch.utils.data import DataLoader
 
 from utils import (
@@ -22,6 +27,9 @@ if TYPE_CHECKING:
     from setfit.modeling import SetFitModel
 
 from mongo_api import MongoDataAPIClient
+
+logging.set_verbosity_info()
+logger = logging.get_logger(__name__)
 
 MongoDataAPIClient()
 
@@ -59,14 +67,51 @@ def train(
     if head_model:
         model.model_head = head_model
 
-    for _ in range(num_iterations):
-        train_examples = sentence_pairs_generation(
-            np.array(x_train), np.array(y_train), train_examples
+    # sentence-transformers adaptation
+    if loss_class in [
+        losses.BatchAllTripletLoss,
+        losses.BatchHardTripletLoss,
+        losses.BatchSemiHardTripletLoss,
+        losses.BatchHardSoftMarginTripletLoss,
+        SupConLoss,
+    ]:
+        train_examples = [
+            InputExample(texts=[text], label=label)
+            for text, label in zip(x_train, y_train)
+        ]
+        train_data_sampler = SentenceLabelDataset(train_examples)
+
+        batch_size = min(batch_size, len(train_data_sampler))
+        train_dataloader = DataLoader(
+            train_data_sampler, batch_size=batch_size, drop_last=True
         )
 
-    train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-    train_loss = loss_class(model.model_body)
-    train_steps = len(train_dataloader)
+        if loss_class is losses.BatchHardSoftMarginTripletLoss:
+            train_loss = loss_class(
+                model=model,
+                distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
+            )
+        elif loss_class is SupConLoss:
+            train_loss = loss_class(model=model)
+        else:
+            train_loss = loss_class(
+                model=model,
+                distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
+                margin=0.25,
+            )
+
+        train_steps = len(train_dataloader) * num_epochs
+    else:
+        for _ in range(num_iterations):
+            train_examples = sentence_pairs_generation(
+                np.array(x_train), np.array(y_train), train_examples
+            )
+
+        train_dataloader = DataLoader(
+            train_examples, shuffle=True, batch_size=batch_size
+        )
+        train_loss = loss_class(model.model_body)
+        train_steps = len(train_dataloader)
 
     logger.info("Using loss class: {}".format(loss_class))
     logger.info("***** Running training *****")
@@ -124,7 +169,9 @@ def evaluate(model, is_regression, test_df, binary_labels=False):
     t0 = datetime.now()
 
     if binary_labels:
-        test_df["cohesion_binary_prediction"] = model.predict(test_df["full_text"].tolist())
+        test_df["cohesion_binary_prediction"] = model.predict(
+            test_df["full_text"].tolist()
+        )
         accuracy = 0.0
         hits = 0
         errors = 0
