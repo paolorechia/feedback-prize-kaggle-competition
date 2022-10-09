@@ -11,6 +11,7 @@ from sklearn.linear_model import (
     SGDRegressor,
     OrthogonalMatchingPursuit,
     BayesianRidge,
+    LogisticRegression,
 )
 from sklearn.model_selection import StratifiedShuffleSplit
 from sentence_transformers.losses import (
@@ -23,7 +24,7 @@ from sentence_transformers.losses import (
 )
 
 from my_setfit_trainer import train
-from utils import attributes, labels
+from utils import attributes, labels, reverse_labels
 
 ##################################################################################
 ########### Model/Training Config
@@ -33,7 +34,7 @@ model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
-head_model = LassoCV()
+head_model = LogisticRegression()
 loss_function = CosineSimilarityLoss
 num_iters = 20
 num_epochs = 1
@@ -42,6 +43,12 @@ learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
 test_size = 0.2
+is_regression = (
+    isinstance(head_model, SGDRegressor)
+    or isinstance(head_model, RidgeCV)
+    or isinstance(head_model, LassoCV)
+    or isinstance(head_model, ElasticNet)
+)
 
 ##################################################################################
 ########## Load data
@@ -55,7 +62,14 @@ full_df = pd.read_csv(full_df_path)
 ########### Train!
 for attribute in attributes:
     X = full_df["full_text"]
-    y = full_df[attribute]
+    full_df[f"{attribute}_label"] = full_df.apply(
+        lambda x: labels[str(x[attribute])], axis=1
+    )
+    if is_regression:
+        y = full_df[attribute]
+
+    else:
+        y = full_df[f"{attribute}_label"]
 
     sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=10)
     train_index, test_index = next(sss.split(X, y))
@@ -66,9 +80,23 @@ for attribute in attributes:
     y_train = y.filter(items=train_index, axis=0)
     y_test = y.filter(items=test_index, axis=0)
 
-    train_df = pd.DataFrame({"full_text": X_train, attribute: y_train})
-    test_df = pd.DataFrame({"full_text": X_test, attribute: y_test})
+    if is_regression:
+        train_df = pd.DataFrame({"full_text": X_train, attribute: y_train})
+        test_df = pd.DataFrame({"full_text": X_test, attribute: y_test})
 
+    else:
+        train_df = pd.DataFrame(
+            {"full_text": X_train, f"{attribute}_label": y_train, attribute: y_train}
+        )
+        train_df[attribute] = train_df[f"{attribute}_label"].apply(
+            lambda x: reverse_labels[x]
+        )
+        test_df = pd.DataFrame(
+            {"full_text": X_test, f"{attribute}_label": y_test, attribute: y_test}
+        )
+        test_df[attribute] = test_df[f"{attribute}_label"].apply(
+            lambda x: reverse_labels[x]
+        )
     train_df.to_csv(intermediate_df_path, index=False)
 
     print("Bootstraping setfit training for attribute: ", attribute)
@@ -77,13 +105,6 @@ for attribute in attributes:
         data_files={
             "train": intermediate_df_path,
         },
-    )
-
-    is_regression = (
-        isinstance(head_model, SGDRegressor)
-        or isinstance(head_model, RidgeCV)
-        or isinstance(head_model, LassoCV)
-        or isinstance(head_model, ElasticNet)
     )
 
     dataset["train"] = dataset["train"].rename_column("full_text", "text")
@@ -120,29 +141,7 @@ for attribute in attributes:
         batch_size=batch_size,
         learning_rate=learning_rate,
         head_model=head_model,
-        head_models_to_compare=[
-            # OrthogonalMatchingPursuit(),
-            # BayesianRidge(),
-            # ElasticNet(),
-            # LassoCV(max_iter=10000),
-            # RidgeCV(alphas=[1e-1, 1.0, 10.0, 100.0, 1000.0, 10000.0]),
-            SGDRegressor(loss="squared_loss"),
-            SGDRegressor(loss="squared_loss", penalty="elasticnet"),
-            SGDRegressor(loss="huber"),
-            SGDRegressor(loss="huber", penalty="elasticnet"),
-            SGDRegressor(loss="squared_loss", penalty="elasticnet", alpha=0.01),
-            SGDRegressor(loss="squared_loss", alpha=0.01),
-            SGDRegressor(loss="huber", alpha=0.01),
-            SGDRegressor(loss="huber", penalty="elasticnet", alpha=0.01),
-            SGDRegressor(loss="squared_loss", alpha=0.001),
-            SGDRegressor(loss="squared_loss", penalty="elasticnet", alpha=0.001),
-            SGDRegressor(loss="huber", alpha=0.001),
-            SGDRegressor(loss="huber", penalty="elasticnet", alpha=0.001),
-            SGDRegressor(loss="squared_loss", alpha=0.00001),
-            SGDRegressor(loss="squared_loss", penalty="elasticnet", alpha=0.0001),
-            SGDRegressor(loss="huber", alpha=0.0001),
-            SGDRegressor(loss="huber", penalty="elasticnet", alpha=0.0001),
-        ],
+        head_models_to_compare=[],
         is_regression=is_regression,
         loss_class=loss_function,
         save_results=False,

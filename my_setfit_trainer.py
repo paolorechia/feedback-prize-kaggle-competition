@@ -151,7 +151,7 @@ def train(
             optimizer_params={"lr": learning_rate},
             show_progress_bar=True,
         )
-        
+
         model.fit(x_train, y_train)
 
         # Evalute the model
@@ -213,6 +213,7 @@ def evaluate(model, is_regression, test_df, attribute, binary_labels=False):
             test_df[f"{attribute}_predictions"] = test_df[
                 f"{attribute}_predictions"
             ].apply(lambda x: reverse_labels[x])
+
 
         t1 = datetime.now()
         print(f"Time taken to predict: {t1 - t0}")
