@@ -51,6 +51,8 @@ def train(
     head_model=None,
     is_regression=False,
     binary_labels=False,
+    head_models_to_compare=None,
+    save_results=True,
 ):
     # Init score tracker
     mongo_api = MongoDataAPIClient()
@@ -93,28 +95,49 @@ def train(
         show_progress_bar=True,
     )
     # Train the final classifier
-    model.fit(x_train, y_train)
+    if head_models_to_compare:
+        for head_model in head_models_to_compare:
+            model.model_head = head_model
+            model.fit(x_train, y_train)
+            # Evalute the model
+            train_score = evaluate(
+                model, is_regression, train_dataframe, attribute, binary_labels
+            )
+            test_score = evaluate(
+                model, is_regression, test_dataframe, attribute, binary_labels
+            )
+            print(
+                """
+            Head model: {}
+            Train score: {}
+            Test score: {}
+            """.format(
+                    head_model, train_score, test_score
+                )
+            )
+    else:
+        model.fit(x_train, y_train)
 
-    # Evalute the model
-    train_score = evaluate(
-        model, is_regression, train_dataframe, attribute, binary_labels
-    )
-    test_score = evaluate(
-        model, is_regression, test_dataframe, attribute, binary_labels
-    )
-    print(
-        """
-    Train score: {}
-    Test score: {}
-    """.format(
-            train_score, test_score
+        # Evalute the model
+        train_score = evaluate(
+            model, is_regression, train_dataframe, attribute, binary_labels
         )
-    )
+        test_score = evaluate(
+            model, is_regression, test_dataframe, attribute, binary_labels
+        )
+        print(
+            """
+        Train score: {}
+        Test score: {}
+        """.format(
+                train_score, test_score
+            )
+        )
 
     current_name = f"{experiment_name}_epoch_{current_epoch}"
 
-    model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-    if not binary_labels:
+    if save_results:
+        model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
         mongo_api.register_score(current_name, train_score, test_score)
 
     epoch_results.append((train_score, test_score))
@@ -128,6 +151,7 @@ def train(
             optimizer_params={"lr": learning_rate},
             show_progress_bar=True,
         )
+        
         model.fit(x_train, y_train)
 
         # Evalute the model
@@ -147,8 +171,8 @@ def train(
         )
         current_name = f"{experiment_name}_epoch_{current_epoch}"
 
-        model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-        if not binary_labels:
+        if save_results:
+            model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
             mongo_api.register_score(current_name, train_score, test_score)
         epoch_results.append((train_score, test_score))
     return epoch_results

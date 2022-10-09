@@ -4,7 +4,14 @@ import pandas as pd
 from datasets import load_dataset
 from setfit import SetFitModel
 from setfit.modeling import SupConLoss
-from sklearn.linear_model import LinearRegression, LogisticRegression, SGDRegressor
+from sklearn.linear_model import (
+    ElasticNet,
+    LassoCV,
+    RidgeCV,
+    SGDRegressor,
+    OrthogonalMatchingPursuit,
+    BayesianRidge,
+)
 from sklearn.model_selection import StratifiedShuffleSplit
 from sentence_transformers.losses import (
     BatchHardTripletLoss,
@@ -26,15 +33,15 @@ model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
-head_model = SGDRegressor()
+head_model = LassoCV()
 loss_function = CosineSimilarityLoss
 num_iters = 20
 num_epochs = 1
 batch_size = 128
 learning_rate = 2e-5
 unique_id = uuid4()
-# attributes = ["cohesion"]
-test_size = 0.8
+attributes = ["cohesion"]
+test_size = 0.5
 
 ##################################################################################
 ########## Load data
@@ -72,8 +79,11 @@ for attribute in attributes:
         },
     )
 
-    is_regression = isinstance(head_model, LinearRegression) or isinstance(
-        head_model, SGDRegressor
+    is_regression = (
+        isinstance(head_model, SGDRegressor)
+        or isinstance(head_model, RidgeCV)
+        or isinstance(head_model, LassoCV)
+        or isinstance(head_model, ElasticNet)
     )
 
     dataset["train"] = dataset["train"].rename_column("full_text", "text")
@@ -110,8 +120,18 @@ for attribute in attributes:
         batch_size=batch_size,
         learning_rate=learning_rate,
         head_model=head_model,
+        head_models_to_compare=[
+            OrthogonalMatchingPursuit(),
+            BayesianRidge(),
+            ElasticNet(),
+            LassoCV(max_iter=10000),
+            RidgeCV(alphas=[1e-1, 1.0, 10.0, 100.0, 1000.0, 10000.0]),
+            SGDRegressor(),
+            SGDRegressor(loss="huber"),
+        ],
         is_regression=is_regression,
         loss_class=loss_function,
+        save_results=False,
     )
 
     for idx, epoch in enumerate(epoch_results):
