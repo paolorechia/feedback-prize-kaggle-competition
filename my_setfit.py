@@ -28,12 +28,13 @@ model_ = f"sentence-transformers/{model_name}"
 model = SetFitModel.from_pretrained(model_)
 head_model = SGDRegressor()
 loss_function = CosineSimilarityLoss
-num_iters = 5
-num_epochs = 3
+num_iters = 10
+num_epochs = 5
 batch_size = 128
 learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
+test_size = 0.5
 
 ##################################################################################
 ########## Load/Prepare datasets
@@ -46,7 +47,7 @@ full_df.to_csv(intermediate_df_path, index=False)
 X = full_df["full_text"]
 y = full_df["cohesion"]
 
-sss = StratifiedShuffleSplit(n_splits=1, test_size=0.8, random_state=10)
+sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=10)
 train_index, test_index = next(sss.split(X, y))
 
 X_train = X.filter(items=train_index, axis=0)
@@ -84,12 +85,13 @@ for attribute in attributes:
 
     train_ds = dataset["train"]
 
-    experiment_name = "{}_{}_{}_{}_{}".format(
+    experiment_name = "{}_{}_{}_{}_{}_{}".format(
         attribute,
         head_model.__class__.__name__,
         num_iters,
         unique_id,
         loss_function.__name__,
+        test_size,
     )
 
     print("Running experiment {}".format(experiment_name))

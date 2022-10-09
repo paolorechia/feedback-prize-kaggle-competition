@@ -7,7 +7,7 @@ from utils import attributes
 models_dir = "/data/feedback-prize/models/"
 kaggle_datasets_dir = "/data/feedback-prize/kaggle-datasets"
 models_to_deploy = [
-    "checkpointed_cohesion_SGDRegressor_20_6b6ea75f-7b00-497f-9f90-9d2eeac57848_<class 'sentence_transformers.losses.CosineSimilarityLoss.CosineSimilarityLoss'>_epoch_2"
+    "cohesion_SGDRegressor_10_a7497bbd-f9ad-4b9b-92bb-99778ba6ecd0_CosineSimilarityLoss_0.5_epoch_3"
 ]
 for model_name in models_to_deploy:
     print("Deploying model: ", model_name)
