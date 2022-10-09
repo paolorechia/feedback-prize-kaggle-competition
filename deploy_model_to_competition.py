@@ -44,6 +44,9 @@ for model_name in models_to_deploy:
             stdout=outfile,
         )
 
+    with open(f"{dataset_path}/model_name.txt", "w") as outfile:
+        outfile.write(model_name)
+
     subprocess.run(
         [
             "kaggle",

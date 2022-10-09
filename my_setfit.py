@@ -28,42 +28,42 @@ model_ = f"sentence-transformers/{model_name}"
 model = SetFitModel.from_pretrained(model_)
 head_model = SGDRegressor()
 loss_function = CosineSimilarityLoss
-num_iters = 10
-num_epochs = 5
+num_iters = 20
+num_epochs = 1
 batch_size = 128
 learning_rate = 2e-5
 unique_id = uuid4()
-attributes = ["cohesion"]
-test_size = 0.5
+# attributes = ["cohesion"]
+test_size = 0.8
 
 ##################################################################################
-########## Load/Prepare datasets
+########## Load data
 full_df_path = "/data/feedback-prize/train.csv"
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 
 full_df = pd.read_csv(full_df_path)
-full_df["cohesion_label"] = full_df.apply(lambda x: labels[str(x.cohesion)], axis=1)
-full_df.to_csv(intermediate_df_path, index=False)
-X = full_df["full_text"]
-y = full_df["cohesion"]
-
-sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=10)
-train_index, test_index = next(sss.split(X, y))
-
-X_train = X.filter(items=train_index, axis=0)
-X_test = X.filter(items=test_index, axis=0)
-y_train = y.filter(items=train_index, axis=0)
-y_test = y.filter(items=test_index, axis=0)
-
-train_df = pd.DataFrame({"full_text": X_train, "cohesion": y_train})
-test_df = pd.DataFrame({"full_text": X_test, "cohesion": y_test})
-
-train_df.to_csv(intermediate_df_path, index=False)
 
 
 ##################################################################################
 ########### Train!
 for attribute in attributes:
+    X = full_df["full_text"]
+    y = full_df[attribute]
+
+    sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=10)
+    train_index, test_index = next(sss.split(X, y))
+
+    X_train = X.filter(items=train_index, axis=0)
+    X_test = X.filter(items=test_index, axis=0)
+
+    y_train = y.filter(items=train_index, axis=0)
+    y_test = y.filter(items=test_index, axis=0)
+
+    train_df = pd.DataFrame({"full_text": X_train, attribute: y_train})
+    test_df = pd.DataFrame({"full_text": X_test, attribute: y_test})
+
+    train_df.to_csv(intermediate_df_path, index=False)
+
     print("Bootstraping setfit training for attribute: ", attribute)
     dataset = load_dataset(
         "csv",
@@ -85,13 +85,16 @@ for attribute in attributes:
 
     train_ds = dataset["train"]
 
-    experiment_name = "{}_{}_{}_{}_{}_{}".format(
-        attribute,
-        head_model.__class__.__name__,
-        num_iters,
-        unique_id,
-        loss_function.__name__,
-        test_size,
+    experiment_name = (
+        "{}_head:{}_iters:{}_batchSize:{}_lossFunction:{}_testSize:{}_id:{}".format(
+            attribute,
+            head_model.__class__.__name__,
+            num_iters,
+            batch_size,
+            loss_function.__name__,
+            test_size,
+            str(unique_id)[0:4],
+        )
     )
 
     print("Running experiment {}".format(experiment_name))
