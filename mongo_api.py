@@ -46,6 +46,15 @@ class MongoDataAPIClient:
         }
         return self._call_api("insertOne", data)
 
+    def register_competition_score(self, experiment_name, competition_score):
+        data = {
+            "filter": {
+                "experiment_name": experiment_name,
+            },
+            "update": {"$set": {"competition_score": competition_score}},
+        }
+        return self._call_api("updateOne", data)
+
     def find_experiments(self, experiment_name):
         data = {"filter": {"experiment_name": experiment_name}}
         return self._call_api("find", data)

@@ -7,7 +7,12 @@ from utils import attributes
 models_dir = "/data/feedback-prize/models/"
 kaggle_datasets_dir = "/data/feedback-prize/kaggle-datasets"
 models_to_deploy = [
-    "cohesion_SGDRegressor_10_a7497bbd-f9ad-4b9b-92bb-99778ba6ecd0_CosineSimilarityLoss_0.5_epoch_3"
+    "cohesion_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
+    "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
+    "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
+    "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
+    "grammar_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
+    "conventions_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1"
 ]
 for model_name in models_to_deploy:
     print("Deploying model: ", model_name)
