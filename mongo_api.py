@@ -1,5 +1,6 @@
 import requests
 
+
 class MongoDataAPIClient:
     def __init__(self):
         with open(".mongo_api_key", "r") as fp:
@@ -34,8 +35,15 @@ class MongoDataAPIClient:
             return None
         return response.json()
 
-    def register_score(self, experiment_name, score):
-        data = {"document": {"experiment_name": experiment_name, "score": score}}
+    def register_score(self, experiment_name, train_score, test_score):
+        data = {
+            "document": {
+                "experiment_name": experiment_name,
+                "score": train_score,
+                "test_score": test_score,
+                "train_score": train_score,
+            }
+        }
         return self._call_api("insertOne", data)
 
     def find_experiments(self, experiment_name):
