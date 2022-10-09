@@ -41,7 +41,7 @@ batch_size = 128
 learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
-test_size = 0.5
+test_size = 0.2
 
 ##################################################################################
 ########## Load data
@@ -121,13 +121,27 @@ for attribute in attributes:
         learning_rate=learning_rate,
         head_model=head_model,
         head_models_to_compare=[
-            OrthogonalMatchingPursuit(),
-            BayesianRidge(),
-            ElasticNet(),
-            LassoCV(max_iter=10000),
-            RidgeCV(alphas=[1e-1, 1.0, 10.0, 100.0, 1000.0, 10000.0]),
-            SGDRegressor(),
+            # OrthogonalMatchingPursuit(),
+            # BayesianRidge(),
+            # ElasticNet(),
+            # LassoCV(max_iter=10000),
+            # RidgeCV(alphas=[1e-1, 1.0, 10.0, 100.0, 1000.0, 10000.0]),
+            SGDRegressor(loss="squared_loss"),
+            SGDRegressor(loss="squared_loss", penalty="elasticnet"),
             SGDRegressor(loss="huber"),
+            SGDRegressor(loss="huber", penalty="elasticnet"),
+            SGDRegressor(loss="squared_loss", penalty="elasticnet", alpha=0.01),
+            SGDRegressor(loss="squared_loss", alpha=0.01),
+            SGDRegressor(loss="huber", alpha=0.01),
+            SGDRegressor(loss="huber", penalty="elasticnet", alpha=0.01),
+            SGDRegressor(loss="squared_loss", alpha=0.001),
+            SGDRegressor(loss="squared_loss", penalty="elasticnet", alpha=0.001),
+            SGDRegressor(loss="huber", alpha=0.001),
+            SGDRegressor(loss="huber", penalty="elasticnet", alpha=0.001),
+            SGDRegressor(loss="squared_loss", alpha=0.00001),
+            SGDRegressor(loss="squared_loss", penalty="elasticnet", alpha=0.0001),
+            SGDRegressor(loss="huber", alpha=0.0001),
+            SGDRegressor(loss="huber", penalty="elasticnet", alpha=0.0001),
         ],
         is_regression=is_regression,
         loss_class=loss_function,
