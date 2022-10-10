@@ -22,7 +22,7 @@ from utils import attributes, labels, reverse_labels
 
 
 models_dir = "/data/feedback-prize/models"
-pretrained_model = "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:16_lossFunction:CosineSimilarityLoss_testSize:0.9_id:4ee6_epoch_1"
+pretrained_model = "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d1a5_epoch_4"
 model_ = os.path.join(models_dir, pretrained_model)
 attribute = "cohesion"
 head_models_to_try = [
@@ -58,17 +58,19 @@ test_df[f"{attribute}_label"] = test_df.apply(
 )
 
 scores = []
+X_train = train_df["full_text"]
+embeddings = model.model_body.encode(X_train)
+
 for head_model in head_models_to_try:
     is_regression = "Logistic" not in str(type(head_model))
 
-    X_train = train_df["full_text"]
     if is_regression:
         y_train = train_df[attribute]
     else:
         y_train = train_df[f"{attribute}_label"]
 
     model.model_head = head_model
-    model.fit(X_train, y_train)
+    model.model_head.fit(embeddings, y_train)
     train_score = evaluate(model, is_regression, train_df, attribute)
     test_score = evaluate(model, is_regression, test_df, attribute)
     print(

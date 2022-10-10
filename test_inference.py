@@ -33,7 +33,7 @@ train_df = pd.read_csv(train_filepath)
 
 
 attribute_experiments = {
-    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:LassoCV_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.8_id:1c67_epoch_1",
+    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d1a5_epoch_4",
     # "syntax": "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
@@ -58,11 +58,9 @@ for attribute, value in attribute_experiments.items():
     if is_chunked_model:
         for index, row in train_df.iterrows():
             text_id = row["text_id"]
-            if text_id not in sentences:
-                print("Not found text ID: ", text_id)
-                prediction = model.predict(row["full_text"])
-            else:
-                prediction = np.mean(model.predict(sentences[text_id]))
+            prediction = np.mean(
+                [round_border_score(p) for p in model.predict(sentences[text_id])]
+            )
             train_df.loc[index, f"{attribute}_predictions"] = prediction
     else:
         train_df[f"{attribute}_predictions"] = model.predict(

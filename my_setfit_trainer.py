@@ -141,7 +141,7 @@ def train(
         train_score = evaluate(
             model, is_regression, train_dataframe, attribute, binary_labels
         )
-        if test_chunks:
+        if test_chunks is not None:
             test_score = evaluate(
                 model,
                 is_regression,
@@ -204,6 +204,7 @@ def evaluate(model, is_regression, test_df, attribute, binary_labels=False, is_s
             test_df[f"{attribute}_predictions"] = model.predict(
                 test_df["full_text"].tolist()
             )
+
         if is_regression:
             test_df[f"{attribute}_predictions"] = test_df[
                 f"{attribute}_predictions"
