@@ -28,7 +28,7 @@ from sklearn.linear_model import (
 from sklearn.model_selection import StratifiedShuffleSplit
 
 from my_setfit_trainer import train
-from utils import attributes, labels, reverse_labels
+from utils import attributes, labels, reverse_labels, split_df_into_sentences, break_sentences
 
 ##################################################################################
 ########### Model/Training Config
@@ -59,22 +59,17 @@ is_regression = (
     or isinstance(head_model, OrthogonalMatchingPursuit)
     or isinstance(head_model, BayesianRidge)
     or isinstance(head_model, AdaBoostRegressor)
-    or isinstance(head_model, GradientBoostingRegressor)
-    or isinstance(head_model, RandomForestRegressor)
+# print(train_df.head())
+# Assert that are no NaNs in the dataframe
 )
 
 ##################################################################################
 ########## Load data
-if use_chunked_sentences:
-    full_df_path = "/data/feedback-prize/sentence_chunked_train.csv"
-    intermediate_df_path = "/data/feedback-prize/sentence_fold/intermediate.csv"
-    fold_df_path = "/data/feedback-prize/sentence_fold/"
-    text_label = "sentence_text"
-else:
-    full_df_path = "/data/feedback-prize/train.csv"
-    intermediate_df_path = "/data/feedback-prize/fold/intermediate.csv"
-    fold_df_path = "/data/feedback-prize/"
-    text_label = "full_text"
+
+full_df_path = "/data/feedback-prize/train.csv"
+intermediate_df_path = "/data/feedback-prize/fold/intermediate.csv"
+fold_df_path = "/data/feedback-prize/"
+text_label = "full_text"
 
 full_df = pd.read_csv(full_df_path)
 
@@ -124,6 +119,8 @@ for attribute in attributes:
         test_df[attribute] = test_df[f"{attribute}_label"].apply(
             lambda x: reverse_labels[x]
         )
+    sentence_df = split_df_into_sentences(train_df)
+    chunks_df = break_sentences(sentence_df)
     train_df.to_csv(intermediate_df_path, index=False)
 
     train_df.to_csv(fold_df_path + f"train_{attribute}.csv", index=False)
