@@ -1,3 +1,9 @@
+import pandas as pd
+from tqdm import tqdm
+
+minimum_chunk_length = 10
+setfit_model_max_length = 256
+
 attributes = [
     "cohesion",
     "syntax",
@@ -22,6 +28,7 @@ labels = {
 reverse_labels = {v: float(k) for k, v in labels.items()}
 reverse_labels["average_or_below_average"] = 1.75
 reverse_labels["above_average"] = 3.75
+
 
 def fit_float_score_to_nearest_valid_point(float_score: float):
     """Fit float score to nearest valid point."""
@@ -70,10 +77,9 @@ class MCRMSECalculator:
             for attribute in attributes:
                 inner_sum += (row[attribute] - row[f"{attribute}_predictions"]) ** 2
             inner_sum /= len(attributes)
-            self._sum += inner_sum 
+            self._sum += inner_sum
             self._samples += 1
-    
-            
+
     def compute_column(self, labels, predictions):
         points = zip(labels, predictions)
         column_sum = 0.0
@@ -84,3 +90,146 @@ class MCRMSECalculator:
 
     def get_score(self):
         return self._sum / self._samples
+
+
+def break_sentences(
+    train_df, setfit_model_max_length, minimum_chunk_length
+) -> pd.DataFrame:
+    assert train_df.isna().values.any() == False
+
+    broken_sentences = pd.DataFrame()
+    train_df["sentence_length"] = train_df.apply(lambda x: len(x.sentence_text), axis=1)
+    train_df["too_long"] = train_df.apply(
+        lambda x: x.sentence_length > setfit_model_max_length, axis=1
+    )
+    train_df["too_short"] = train_df.apply(
+        lambda x: x.sentence_length <= minimum_chunk_length, axis=1
+    )
+    print("Prior to chunking: ")
+    print(train_df["too_long"].value_counts())
+    print(train_df[train_df.too_long == True].sentence_length.describe())
+    print(train_df["too_short"].value_counts())
+    print(train_df[train_df.too_short == True].sentence_length.describe())
+    print("Cohesion values:")
+    print(train_df.cohesion.unique())
+
+    print("Chunking sentences...")
+    print("Length of train_df: ", len(train_df))
+    for index, row in tqdm(
+        iterable=train_df[train_df.too_long == True].iterrows(),
+        total=len(train_df[train_df.too_long == True]),
+    ):
+        sentence_chunks = []
+        sentence = row["sentence_text"]
+        max_length = setfit_model_max_length
+        while len(sentence) > max_length:
+            new_chunk = sentence[:max_length]
+            if type(new_chunk) == str and len(new_chunk) >= minimum_chunk_length:
+                new_sentence_row = pd.DataFrame(
+                    columns=train_df.columns,
+                    data=[
+                        [
+                            row["text_id"],
+                            new_chunk,
+                            len(new_chunk),
+                            row["cohesion"],
+                            row["syntax"],
+                            row["vocabulary"],
+                            row["phraseology"],
+                            row["grammar"],
+                            row["conventions"],
+                            False,
+                            False,
+                        ]
+                    ],
+                )
+                broken_sentences = pd.concat([broken_sentences, new_sentence_row])
+            sentence = sentence[max_length:]
+
+    print("Chunked df: ")
+    print(broken_sentences.head())
+
+    broken_sentences["too_long"] = broken_sentences.apply(
+        lambda x: x.sentence_length > setfit_model_max_length, axis=1
+    )
+    broken_sentences["too_short"] = broken_sentences.apply(
+        lambda x: x.sentence_length <= minimum_chunk_length, axis=1
+    )
+    print("Cohesion values:")
+    print(broken_sentences.cohesion.unique())
+    # All chunks should respect the length limit
+    assert broken_sentences.too_long.values.any() == False
+
+    # Merge shorter sentences with the new chunks
+    merged_df = pd.concat(
+        [
+            train_df[train_df.too_long == False][train_df.too_short == False],
+            broken_sentences,
+        ]
+    )
+    print("After merging chunked sentences: ")
+    merged_df.to_csv("/data/feedback-prize/sentence_chunked_train.csv", index=False)
+    print(len(merged_df))
+    print("Too long values")
+    assert merged_df.too_long.values.any() == False
+    print(merged_df[merged_df.too_long == True].sentence_length.describe())
+
+    print("Too short values")
+    assert merged_df.too_short.values.any() == False
+    print(merged_df[merged_df.too_short == True].sentence_length.describe())
+    print(merged_df.cohesion.unique())
+
+    return merged_df
+
+
+def split_df_into_sentences(train_df: pd.DataFrame) -> pd.DataFrame:
+    def split_text_into_sentences(text):
+        sentences = text.split(".")
+        return sentences
+
+    new_columns = [
+        "text_id",
+        "sentence_text",
+        "sentence_length",
+        "cohesion",
+        "syntax",
+        "vocabulary",
+        "phraseology",
+        "grammar",
+        "conventions",
+    ]
+    # iterate over each row in the dataframe
+    sentence_train_dataframe = pd.DataFrame(columns=new_columns)
+
+    print("Length of train_df: ", len(train_df))
+    for index, row in tqdm(train_df.iterrows()):
+        # get the text
+        text = row["full_text"]
+        # split the text into sentences
+        sentences = split_text_into_sentences(text)
+        # iterate over each sentence
+        for sentence in sentences:
+            # create a new row in the dataframe
+            if len(sentence) > 0:
+                sentence_train_dataframe = pd.concat(
+                    [
+                        sentence_train_dataframe,
+                        pd.DataFrame(
+                            columns=new_columns,
+                            data=[
+                                [
+                                    row["text_id"],
+                                    sentence,
+                                    len(sentence),
+                                    row["cohesion"],
+                                    row["syntax"],
+                                    row["vocabulary"],
+                                    row["phraseology"],
+                                    row["grammar"],
+                                    row["conventions"],
+                                ]
+                            ],
+                        ),
+                    ]
+                )
+    return sentence_train_dataframe

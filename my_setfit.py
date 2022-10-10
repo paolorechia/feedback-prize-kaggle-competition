@@ -41,15 +41,15 @@ model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
-head_model = SGDRegressor()
+head_model = LassoCV()
 loss_function = CosineSimilarityLoss
-num_iters = 1
-num_epochs = 1
-batch_size = 16
+num_iters = 20
+num_epochs = 2
+batch_size = 128
 learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
-test_size = 0.9
+test_size = 0.8
 use_chunked_sentences = True
 is_regression = (
     isinstance(head_model, SGDRegressor)
@@ -83,6 +83,8 @@ full_df = pd.read_csv(full_df_path)
 ########### Train!
 for attribute in attributes:
     X = full_df[text_label]
+    ids = full_df["text_id"]
+
     print(full_df[attribute].unique())
     full_df[f"{attribute}_label"] = full_df.apply(
         lambda x: labels[str(x[attribute])], axis=1
@@ -98,6 +100,9 @@ for attribute in attributes:
 
     X_train = X.filter(items=train_index, axis=0)
     X_test = X.filter(items=test_index, axis=0)
+
+    train_ids = ids.filter(items=train_index, axis=0)
+    test_ids = ids.filter(items=test_index, axis=0)
 
     y_train = y.filter(items=train_index, axis=0)
     y_test = y.filter(items=test_index, axis=0)

@@ -22,7 +22,7 @@ from utils import attributes, labels, reverse_labels
 
 
 models_dir = "/data/feedback-prize/models"
-pretrained_model = "cohesion_head:SGDRegressor_iters:20_batchSize:32_lossFunction:CosineSimilarityLoss_testSize:0.8_id:07e0_epoch_1"
+pretrained_model = "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:16_lossFunction:CosineSimilarityLoss_testSize:0.9_id:4ee6_epoch_1"
 model_ = os.path.join(models_dir, pretrained_model)
 attribute = "cohesion"
 head_models_to_try = [
@@ -40,7 +40,11 @@ head_models_to_try = [
 
 
 model = SetFitModel.from_pretrained(model_)
-fold_df_path = "/data/feedback-prize/"
+use_chunked_sentences = True
+if use_chunked_sentences:
+    fold_df_path = "/data/feedback-prize/sentence_fold"
+else:
+    fold_df_path = "/data/feedback-prize/"
 train_path = os.path.join(fold_df_path, f"train_{attribute}.csv")
 test_path = os.path.join(fold_df_path, f"test_{attribute}.csv")
 
