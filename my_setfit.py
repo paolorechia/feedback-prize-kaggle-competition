@@ -28,7 +28,13 @@ from sklearn.linear_model import (
 from sklearn.model_selection import StratifiedShuffleSplit
 
 from my_setfit_trainer import train
-from utils import attributes, labels, reverse_labels, split_df_into_sentences, break_sentences
+from utils import (
+    attributes,
+    labels,
+    reverse_labels,
+    split_df_into_sentences,
+    break_sentences,
+)
 
 ##################################################################################
 ########### Model/Training Config
@@ -36,16 +42,18 @@ from utils import attributes, labels, reverse_labels, split_df_into_sentences, b
 # model_name = "all-mpnet-base-v2"
 # model_name = "all-distilroberta-v1"
 model_name = "all-MiniLM-L6-v2"
+setfit_model_max_length = 256
+minimum_chunk_length = 32
 
 model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
-head_model = LassoCV()
+head_model = SGDRegressor()
 loss_function = CosineSimilarityLoss
 num_iters = 20
-num_epochs = 2
-batch_size = 128
+num_epochs = 1
+batch_size = 512
 learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
@@ -59,15 +67,15 @@ is_regression = (
     or isinstance(head_model, OrthogonalMatchingPursuit)
     or isinstance(head_model, BayesianRidge)
     or isinstance(head_model, AdaBoostRegressor)
-# print(train_df.head())
-# Assert that are no NaNs in the dataframe
+    # print(train_df.head())
+    # Assert that are no NaNs in the dataframe
 )
 
 ##################################################################################
 ########## Load data
 
 full_df_path = "/data/feedback-prize/train.csv"
-intermediate_df_path = "/data/feedback-prize/fold/intermediate.csv"
+intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 fold_df_path = "/data/feedback-prize/"
 text_label = "full_text"
 
@@ -78,8 +86,6 @@ full_df = pd.read_csv(full_df_path)
 ########### Train!
 for attribute in attributes:
     X = full_df[text_label]
-    ids = full_df["text_id"]
-
     print(full_df[attribute].unique())
     full_df[f"{attribute}_label"] = full_df.apply(
         lambda x: labels[str(x[attribute])], axis=1
@@ -93,37 +99,33 @@ for attribute in attributes:
     sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=10)
     train_index, test_index = next(sss.split(X, y))
 
-    X_train = X.filter(items=train_index, axis=0)
-    X_test = X.filter(items=test_index, axis=0)
+    print("Splitting train and test")
+    train_df = full_df.filter(items=train_index, axis=0)
+    test_df = full_df.filter(items=test_index, axis=0)
 
-    train_ids = ids.filter(items=train_index, axis=0)
-    test_ids = ids.filter(items=test_index, axis=0)
-
-    y_train = y.filter(items=train_index, axis=0)
-    y_test = y.filter(items=test_index, axis=0)
-
-    if is_regression:
-        train_df = pd.DataFrame({"full_text": X_train, attribute: y_train})
-        test_df = pd.DataFrame({"full_text": X_test, attribute: y_test})
-
-    else:
-        train_df = pd.DataFrame(
-            {"full_text": X_train, f"{attribute}_label": y_train, attribute: y_train}
-        )
+    if not is_regression:
         train_df[attribute] = train_df[f"{attribute}_label"].apply(
             lambda x: reverse_labels[x]
-        )
-        test_df = pd.DataFrame(
-            {"full_text": X_test, f"{attribute}_label": y_test, attribute: y_test}
         )
         test_df[attribute] = test_df[f"{attribute}_label"].apply(
             lambda x: reverse_labels[x]
         )
-    sentence_df = split_df_into_sentences(train_df)
-    chunks_df = break_sentences(sentence_df)
-    train_df.to_csv(intermediate_df_path, index=False)
 
+    print("Calling util functions...")
+    sentence_df = split_df_into_sentences(train_df)
+    chunks_df = break_sentences(
+        sentence_df, setfit_model_max_length, minimum_chunk_length
+    )
+    chunks_df.rename(columns={"sentence_text": "full_text"}, inplace=True)
+    print("Saving intermediate CSV")
+    chunks_df.to_csv(intermediate_df_path, index=False)
+
+    print("Saving fold CSVs")
     train_df.to_csv(fold_df_path + f"train_{attribute}.csv", index=False)
+
+    test_chunks_df = break_sentences(
+        split_df_into_sentences(test_df), setfit_model_max_length, minimum_chunk_length
+    )
     test_df.to_csv(fold_df_path + f"test_{attribute}.csv", index=False)
 
     print("Bootstraping setfit training for attribute: ", attribute)
@@ -162,13 +164,14 @@ for attribute in attributes:
         train_dataset=train_ds,
         train_dataframe=train_df,
         test_dataframe=test_df,
+        test_chunks=test_chunks_df,
+        loss_class=loss_function,
         num_iterations=num_iters,
         num_epochs=num_epochs,
         batch_size=batch_size,
         learning_rate=learning_rate,
         head_model=head_model,
         is_regression=is_regression,
-        loss_class=loss_function,
         save_results=True,
     )
 

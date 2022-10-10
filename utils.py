@@ -161,23 +161,25 @@ def break_sentences(
     assert broken_sentences.too_long.values.any() == False
 
     # Merge shorter sentences with the new chunks
+    A = train_df[train_df.too_long == False]
+    A = A[A.too_short == False]
     merged_df = pd.concat(
         [
-            train_df[train_df.too_long == False][train_df.too_short == False],
+            A,
             broken_sentences,
         ]
     )
     print("After merging chunked sentences: ")
     merged_df.to_csv("/data/feedback-prize/sentence_chunked_train.csv", index=False)
     print(len(merged_df))
-    print("Too long values")
+    # print("Too long values")
     assert merged_df.too_long.values.any() == False
-    print(merged_df[merged_df.too_long == True].sentence_length.describe())
+    # print(merged_df[merged_df.too_long == True].sentence_length.describe())
 
     print("Too short values")
     assert merged_df.too_short.values.any() == False
-    print(merged_df[merged_df.too_short == True].sentence_length.describe())
-    print(merged_df.cohesion.unique())
+    # print(merged_df[merged_df.too_short == True].sentence_length.describe())
+    # print(merged_df.cohesion.unique())
 
     return merged_df
 

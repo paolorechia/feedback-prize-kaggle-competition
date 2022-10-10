@@ -38,6 +38,7 @@ def train(
     train_dataframe: DataFrame,
     test_dataframe: DataFrame,
     loss_class=CosineSimilarityLoss,
+    test_chunks: DataFrame = None,
     num_iterations: int = 20,
     num_epochs=10,
     batch_size: int = 16,
@@ -94,9 +95,19 @@ def train(
     train_score = evaluate(
         model, is_regression, train_dataframe, attribute, binary_labels
     )
-    test_score = evaluate(
-        model, is_regression, test_dataframe, attribute, binary_labels
-    )
+    if test_chunks is not None:
+        test_score = evaluate(
+            model,
+            is_regression,
+            test_chunks,
+            attribute,
+            binary_labels,
+            is_sentences=True,
+        )
+    else:
+        test_score = evaluate(
+            model, is_regression, test_dataframe, attribute, binary_labels
+        )
     print(
         """
     Train score: {}
@@ -104,7 +115,7 @@ def train(
     """.format(
             train_score, test_score
         )
-        )
+    )
 
     current_name = f"{experiment_name}_epoch_{current_epoch}"
 
@@ -130,9 +141,20 @@ def train(
         train_score = evaluate(
             model, is_regression, train_dataframe, attribute, binary_labels
         )
-        test_score = evaluate(
-            model, is_regression, test_dataframe, attribute, binary_labels
-        )
+        if test_chunks:
+            test_score = evaluate(
+                model,
+                is_regression,
+                test_chunks,
+                attribute,
+                binary_labels,
+                is_sentences=True,
+            )
+
+        else:
+            test_score = evaluate(
+                model, is_regression, test_dataframe, attribute, binary_labels
+            )
         print(
             """
         Train score: {}
@@ -150,7 +172,7 @@ def train(
     return epoch_results
 
 
-def evaluate(model, is_regression, test_df, attribute, binary_labels=False):
+def evaluate(model, is_regression, test_df, attribute, binary_labels=False, is_sentences=False):
     print("Evaluating on test dataset...")
     t0 = datetime.now()
 
@@ -174,9 +196,14 @@ def evaluate(model, is_regression, test_df, attribute, binary_labels=False):
         print("Accuracy: ", accuracy)
         return accuracy
     else:
-        test_df[f"{attribute}_predictions"] = model.predict(
-            test_df["full_text"].tolist()
-        )
+        if is_sentences:
+            test_df[f"{attribute}_predictions"] = model.predict(
+                test_df["sentence_text"].tolist()
+            )
+        else:
+            test_df[f"{attribute}_predictions"] = model.predict(
+                test_df["full_text"].tolist()
+            )
         if is_regression:
             test_df[f"{attribute}_predictions"] = test_df[
                 f"{attribute}_predictions"

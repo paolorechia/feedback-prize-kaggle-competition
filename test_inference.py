@@ -26,14 +26,14 @@ if is_chunked_model:
             sentences[text_id] = [text_id]
 
 
-train_filepath = os.path.join(data_dir, "sentence_fold", "test.csv")
+train_filepath = os.path.join(data_dir, "test_cohesion.csv")
 challenge_df_filepath = os.path.join(data_dir, "test.csv")
 
 train_df = pd.read_csv(train_filepath)
 
 
 attribute_experiments = {
-    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:16_lossFunction:CosineSimilarityLoss_testSize:0.9_id:4ee6_epoch_1",
+    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:LassoCV_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.8_id:1c67_epoch_1",
     # "syntax": "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
