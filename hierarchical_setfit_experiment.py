@@ -2,16 +2,15 @@ from uuid import uuid4
 
 import pandas as pd
 from datasets import load_dataset
-from setfit import SetFitModel
-from sklearn.linear_model import LogisticRegression, LinearRegression, SGDRegressor
-from setfit.modeling import SupConLoss
-from sklearn.linear_model import LinearRegression, LogisticRegression, SGDRegressor
 from sentence_transformers.losses import (
     BatchAllTripletLoss,
+    BatchHardSoftMarginTripletLoss,
     BatchHardTripletLoss,
     BatchSemiHardTripletLoss,
-    BatchHardSoftMarginTripletLoss,
 )
+from setfit import SetFitModel
+from setfit.modeling import SupConLoss
+from sklearn.linear_model import LinearRegression, LogisticRegression, SGDRegressor
 
 from my_setfit_trainer import train
 from utils import attributes
@@ -26,9 +25,10 @@ from utils import attributes
 
 
 # test_df = pd.read_csv(f"small_sets/full_sampled_set.csv")
-test_df  = pd.read_csv("/data/feedback-prize/train.csv")
+test_df = pd.read_csv("/data/feedback-prize/train.csv")
 test_df["cohesion_binary_label"] = test_df.apply(
-    lambda x: "average_or_below_average" if x.cohesion <= 3.0 else "above_average", axis=1
+    lambda x: "average_or_below_average" if x.cohesion <= 3.0 else "above_average",
+    axis=1,
 )
 attributes = ["cohesion"]
 
@@ -51,20 +51,20 @@ for attribute in attributes:
     if is_regression:
         dataset["train"] = dataset["train"].rename_column(attribute, "label")
     else:
-        dataset["train"] = dataset["train"].rename_column(f"{attribute}_binary_label", "label")
+        dataset["train"] = dataset["train"].rename_column(
+            f"{attribute}_binary_label", "label"
+        )
 
     train_ds = dataset["train"]
 
     # Load SetFit model from Hub
-    model = SetFitModel.from_pretrained(
-        "sentence-transformers/all-MiniLM-L6-v2"
-    )
+    model = SetFitModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
 
     # First level
     # 1.0 1.5 2.0 2.5 3.0
     # 3.5 4.0 4.5 5.0
     # Second level (lower)
-    # 1.0 1.5 2.0 
+    # 1.0 1.5 2.0
     # 2.5 3.0
     # Third level (upper-lower)
     # 1.0
@@ -72,16 +72,16 @@ for attribute in attributes:
     # Fourth level :(, e.g., for lower level needs 4 layers - How good should accuracy be?
 
     # Second level (upper)
-    # 3.5 4.0 
+    # 3.5 4.0
     # 4.5 5.0
     # Third level, e.g., for upper level needs 3 layers, how good should accuracy be?
 
     # A good accuracy to start with an hierarchical chain of models is 0.95
     # Because by the end, your actual accuracy will drop to 0.81 and 0.85
-    #>>> (0.95)**3
-    #0.8573749999999999
-    #>>> (0.95)**4
-    #0.8145062499999999
+    # >>> (0.95)**3
+    # 0.8573749999999999
+    # >>> (0.95)**4
+    # 0.8145062499999999
 
     # Let's see what happens
 
@@ -107,7 +107,7 @@ for attribute in attributes:
         head_model=head_model,
         is_regression=is_regression,
         binary_labels=True,
-        loss_class=BatchHardTripletLoss
+        loss_class=BatchHardTripletLoss,
     )
 
     for idx, epoch in enumerate(epoch_results):

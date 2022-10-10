@@ -2,26 +2,30 @@ from uuid import uuid4
 
 import pandas as pd
 from datasets import load_dataset
-from setfit import SetFitModel
-from setfit.modeling import SupConLoss
-from sklearn.linear_model import (
-    ElasticNet,
-    LassoCV,
-    RidgeCV,
-    SGDRegressor,
-    OrthogonalMatchingPursuit,
-    BayesianRidge,
-    LogisticRegression,
-)
-from sklearn.model_selection import StratifiedShuffleSplit
 from sentence_transformers.losses import (
-    BatchHardTripletLoss,
     BatchAllTripletLoss,
+    BatchHardSoftMarginTripletLoss,
     BatchHardTripletLoss,
     BatchSemiHardTripletLoss,
-    BatchHardSoftMarginTripletLoss,
     CosineSimilarityLoss,
 )
+from setfit import SetFitModel
+from setfit.modeling import SupConLoss
+from sklearn.ensemble import (
+    AdaBoostRegressor,
+    GradientBoostingRegressor,
+    RandomForestRegressor,
+)
+from sklearn.linear_model import (
+    BayesianRidge,
+    ElasticNet,
+    LassoCV,
+    LogisticRegression,
+    OrthogonalMatchingPursuit,
+    RidgeCV,
+    SGDRegressor,
+)
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from my_setfit_trainer import train
 from utils import attributes, labels, reverse_labels
@@ -34,7 +38,7 @@ model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
-head_model = LogisticRegression()
+head_model = RandomForestRegressor()
 loss_function = CosineSimilarityLoss
 num_iters = 20
 num_epochs = 1
@@ -48,12 +52,18 @@ is_regression = (
     or isinstance(head_model, RidgeCV)
     or isinstance(head_model, LassoCV)
     or isinstance(head_model, ElasticNet)
+    or isinstance(head_model, OrthogonalMatchingPursuit)
+    or isinstance(head_model, BayesianRidge)
+    or isinstance(head_model, AdaBoostRegressor)
+    or isinstance(head_model, GradientBoostingRegressor)
+    or isinstance(head_model, RandomForestRegressor)
 )
 
 ##################################################################################
 ########## Load data
 full_df_path = "/data/feedback-prize/train.csv"
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
+fold_df_path = "/data/feedback-prize/"
 
 full_df = pd.read_csv(full_df_path)
 
@@ -98,6 +108,9 @@ for attribute in attributes:
             lambda x: reverse_labels[x]
         )
     train_df.to_csv(intermediate_df_path, index=False)
+
+    train_df.to_csv(fold_df_path + f"train_{attribute}.csv", index=False)
+    test_df.to_csv(fold_df_path + f"test_{attribute}.csv", index=False)
 
     print("Bootstraping setfit training for attribute: ", attribute)
     dataset = load_dataset(

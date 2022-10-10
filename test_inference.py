@@ -5,11 +5,7 @@ import pandas as pd
 from setfit import SetFitModel
 
 from mongo_api import MongoDataAPIClient
-from utils import (
-    MCRMSECalculator,
-    reverse_labels,
-    round_border_score,
-)
+from utils import MCRMSECalculator, reverse_labels, round_border_score
 
 mongo_api = MongoDataAPIClient()
 
@@ -25,7 +21,7 @@ attribute_experiments = {
     "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     "grammar": "grammar_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
-    "conventions": "conventions_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1"
+    "conventions": "conventions_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
 }
 
 models = {k: {} for k in attribute_experiments.keys()}

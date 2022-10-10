@@ -6,21 +6,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from pandas import DataFrame
-from sentence_transformers import InputExample, losses
-from sentence_transformers.datasets import SentenceLabelDataset
+from sentence_transformers.losses import CosineSimilarityLoss
 from sentence_transformers.losses.BatchHardTripletLoss import (
     BatchHardTripletLossDistanceFunction,
 )
-from sentence_transformers.losses import CosineSimilarityLoss
 from setfit import SetFitModel
-from setfit.modeling import sentence_pairs_generation, SupConLoss
+from setfit.modeling import SupConLoss, sentence_pairs_generation
 from torch.utils.data import DataLoader
 
-from utils import (
-    MCRMSECalculator,
-    round_border_score,
-    reverse_labels,
-)
+from utils import MCRMSECalculator, reverse_labels, round_border_score
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -65,7 +59,7 @@ def train(
 
     epoch_results = []
     # Overwrite default head model
-    if head_model:
+    if head_model is not None:
         model.model_head = head_model
 
     for _ in range(num_iterations):
@@ -213,7 +207,6 @@ def evaluate(model, is_regression, test_df, attribute, binary_labels=False):
             test_df[f"{attribute}_predictions"] = test_df[
                 f"{attribute}_predictions"
             ].apply(lambda x: reverse_labels[x])
-
 
         t1 = datetime.now()
         print(f"Time taken to predict: {t1 - t0}")

@@ -4,12 +4,12 @@ Applying class weights to the random forest model decreaes the score to 1.41 (lo
 """
 
 import os
-import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import KFold
 
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.model_selection import KFold
+from sklearn.pipeline import Pipeline
 
 output_dir = "./"
 data_dir = "/data/feedback-prize/"
