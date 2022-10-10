@@ -1,5 +1,3 @@
-from distutils.log import Log
-from operator import is_
 import os
 
 import pandas as pd
@@ -24,7 +22,7 @@ from utils import attributes, labels, reverse_labels
 
 
 models_dir = "/data/feedback-prize/models"
-pretrained_model = "cohesion_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.2_id:c8cf_epoch_1"
+pretrained_model = "cohesion_head:SGDRegressor_iters:20_batchSize:32_lossFunction:CosineSimilarityLoss_testSize:0.8_id:07e0_epoch_1"
 model_ = os.path.join(models_dir, pretrained_model)
 attribute = "cohesion"
 head_models_to_try = [

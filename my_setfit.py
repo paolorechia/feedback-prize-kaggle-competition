@@ -33,20 +33,24 @@ from utils import attributes, labels, reverse_labels
 ##################################################################################
 ########### Model/Training Config
 
+# model_name = "all-mpnet-base-v2"
+# model_name = "all-distilroberta-v1"
 model_name = "all-MiniLM-L6-v2"
+
 model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
 head_model = SGDRegressor()
 loss_function = CosineSimilarityLoss
-num_iters = 20
+num_iters = 1
 num_epochs = 1
-batch_size = 128
+batch_size = 16
 learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
-test_size = 0.2
+test_size = 0.9
+use_chunked_sentences = True
 is_regression = (
     isinstance(head_model, SGDRegressor)
     or isinstance(head_model, RidgeCV)
@@ -61,9 +65,16 @@ is_regression = (
 
 ##################################################################################
 ########## Load data
-full_df_path = "/data/feedback-prize/train.csv"
-intermediate_df_path = "/data/feedback-prize/intermediate.csv"
-fold_df_path = "/data/feedback-prize/"
+if use_chunked_sentences:
+    full_df_path = "/data/feedback-prize/sentence_chunked_train.csv"
+    intermediate_df_path = "/data/feedback-prize/sentence_fold/intermediate.csv"
+    fold_df_path = "/data/feedback-prize/sentence_fold/"
+    text_label = "sentence_text"
+else:
+    full_df_path = "/data/feedback-prize/train.csv"
+    intermediate_df_path = "/data/feedback-prize/fold/intermediate.csv"
+    fold_df_path = "/data/feedback-prize/"
+    text_label = "full_text"
 
 full_df = pd.read_csv(full_df_path)
 
@@ -71,7 +82,8 @@ full_df = pd.read_csv(full_df_path)
 ##################################################################################
 ########### Train!
 for attribute in attributes:
-    X = full_df["full_text"]
+    X = full_df[text_label]
+    print(full_df[attribute].unique())
     full_df[f"{attribute}_label"] = full_df.apply(
         lambda x: labels[str(x[attribute])], axis=1
     )
@@ -129,16 +141,15 @@ for attribute in attributes:
 
     train_ds = dataset["train"]
 
-    experiment_name = (
-        "{}_head:{}_iters:{}_batchSize:{}_lossFunction:{}_testSize:{}_id:{}".format(
-            attribute,
-            head_model.__class__.__name__,
-            num_iters,
-            batch_size,
-            loss_function.__name__,
-            test_size,
-            str(unique_id)[0:4],
-        )
+    experiment_name = "{}_model:{}_head:{}_iters:{}_batchSize:{}_lossFunction:{}_testSize:{}_id:{}".format(
+        attribute,
+        model_name,
+        head_model.__class__.__name__,
+        num_iters,
+        batch_size,
+        loss_function.__name__,
+        test_size,
+        str(unique_id)[0:4],
     )
 
     print("Running experiment {}".format(experiment_name))
