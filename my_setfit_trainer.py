@@ -45,7 +45,6 @@ def train(
     head_model=None,
     is_regression=False,
     binary_labels=False,
-    head_models_to_compare=None,
     save_results=True,
 ):
     # Init score tracker
@@ -89,43 +88,22 @@ def train(
         show_progress_bar=True,
     )
     # Train the final classifier
-    if head_models_to_compare:
-        for head_model in head_models_to_compare:
-            model.model_head = head_model
-            model.fit(x_train, y_train)
-            # Evalute the model
-            train_score = evaluate(
-                model, is_regression, train_dataframe, attribute, binary_labels
-            )
-            test_score = evaluate(
-                model, is_regression, test_dataframe, attribute, binary_labels
-            )
-            print(
-                """
-            Head model: {}
-            Train score: {}
-            Test score: {}
-            """.format(
-                    head_model, train_score, test_score
-                )
-            )
-    else:
-        model.fit(x_train, y_train)
+    model.fit(x_train, y_train)
 
-        # Evalute the model
-        train_score = evaluate(
-            model, is_regression, train_dataframe, attribute, binary_labels
+    # Evalute the model
+    train_score = evaluate(
+        model, is_regression, train_dataframe, attribute, binary_labels
+    )
+    test_score = evaluate(
+        model, is_regression, test_dataframe, attribute, binary_labels
+    )
+    print(
+        """
+    Train score: {}
+    Test score: {}
+    """.format(
+            train_score, test_score
         )
-        test_score = evaluate(
-            model, is_regression, test_dataframe, attribute, binary_labels
-        )
-        print(
-            """
-        Train score: {}
-        Test score: {}
-        """.format(
-                train_score, test_score
-            )
         )
 
     current_name = f"{experiment_name}_epoch_{current_epoch}"

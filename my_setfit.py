@@ -38,7 +38,7 @@ model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
-head_model = RandomForestRegressor()
+head_model = SGDRegressor()
 loss_function = CosineSimilarityLoss
 num_iters = 20
 num_epochs = 1
@@ -154,10 +154,9 @@ for attribute in attributes:
         batch_size=batch_size,
         learning_rate=learning_rate,
         head_model=head_model,
-        head_models_to_compare=[],
         is_regression=is_regression,
         loss_class=loss_function,
-        save_results=False,
+        save_results=True,
     )
 
     for idx, epoch in enumerate(epoch_results):
