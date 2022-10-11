@@ -1,4 +1,21 @@
 import requests
+from dataclasses import dataclass
+
+
+# TODO: use dataclass in the code
+@dataclass
+class Experiment:
+    experiment_name: str
+    model_body: str
+    model_head: str
+    num_iters: int
+    batch_size: int
+    loss_function: str
+    test_size: float
+    train_score: float
+    test_score: float
+    epochs: int
+
 
 
 class MongoDataAPIClient:

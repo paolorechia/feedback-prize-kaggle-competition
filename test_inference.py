@@ -33,7 +33,7 @@ train_df = pd.read_csv(train_filepath)
 
 
 attribute_experiments = {
-    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d1a5_epoch_4",
+    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d1a5_epoch_1",
     # "syntax": "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",

@@ -49,15 +49,15 @@ model_ = f"sentence-transformers/{model_name}"
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
 
 model = SetFitModel.from_pretrained(model_)
-head_model = SGDRegressor()
+head_model = RidgeCV()
 loss_function = CosineSimilarityLoss
-num_iters = 20
+num_iters = 10
 num_epochs = 10
 batch_size = 512
 learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
-test_size = 0.8
+test_size = 0.5
 use_chunked_sentences = True
 is_regression = (
     isinstance(head_model, SGDRegressor)
@@ -74,7 +74,10 @@ is_regression = (
 ##################################################################################
 ########## Load data
 
-full_df_path = "/data/feedback-prize/train.csv"
+# Training with small balanced sample set of data
+full_df_path = "./small_sets/full_sampled_set.csv"
+
+# full_df_path = "/data/feedback-prize/train.csv"
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 fold_df_path = "/data/feedback-prize/"
 text_label = "full_text"
