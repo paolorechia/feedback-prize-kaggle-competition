@@ -1,7 +1,6 @@
-from cgitb import text
 import os
 from datetime import datetime
-
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from setfit import SetFitModel
@@ -16,24 +15,28 @@ data_dir = "/data/feedback-prize/"
 is_chunked_model = True
 sentences = {}
 if is_chunked_model:
+    print("Loading sentences from train.csv")
     chunked_train_filepath = os.path.join(data_dir, "sentence_chunked_train.csv")
     chunked_df = pd.read_csv(chunked_train_filepath)
-    for index, row in chunked_df.iterrows():
+    for index, row in tqdm(iterable=chunked_df.iterrows(), total=len(chunked_df)):
         text_id = row["text_id"]
         if text_id in sentences:
             sentences[text_id].append(row["sentence_text"])
         else:
             sentences[text_id] = [text_id]
+    print("Loaded")
 
+# Tets on full dataset
+train_filepath = os.path.join(data_dir, "train.csv")
 
-train_filepath = os.path.join(data_dir, "test_cohesion.csv")
-challenge_df_filepath = os.path.join(data_dir, "test.csv")
+# Test on fold
+# train_filepath = os.path.join(data_dir, "test_cohesion.csv")
 
 train_df = pd.read_csv(train_filepath)
 
 
 attribute_experiments = {
-    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:SGDRegressor_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d1a5_epoch_1",
+    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:RidgeCV_iters:20_batchSize:512_lossFunction:CosineSimilarityLoss_testSize:0.5_id:cf8a_epoch_24",
     # "syntax": "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
@@ -46,7 +49,9 @@ is_regression = True
 
 print("Predicting full dataset...")
 t0 = datetime.now()
-for attribute, value in attribute_experiments.items():
+for attribute, value in tqdm(
+    iterable=attribute_experiments.items(), total=len(attribute_experiments)
+):
     print("Processing attribute: ", attribute)
     model_path = f"/data/feedback-prize/models/{value}"
     is_regression = "LinearRegression" in model_path or "SGDRegressor" in model_path
@@ -56,7 +61,8 @@ for attribute, value in attribute_experiments.items():
 
     # For now chunked model only supports regression models
     if is_chunked_model:
-        for index, row in train_df.iterrows():
+        print("Predicting chunked model for attribute: ", attribute)
+        for index, row in tqdm(iterable=train_df.iterrows(), total=len(train_df)):
             text_id = row["text_id"]
             prediction = np.mean(
                 [round_border_score(p) for p in model.predict(sentences[text_id])]
@@ -103,6 +109,7 @@ else:
     ].to_csv("full_predictions.csv", index=False)
 print(train_df.head())
 
+print("Computing score...")
 full_preds_df = pd.read_csv("full_predictions.csv")
 mcrmse_calculator = MCRMSECalculator()
 if is_chunked_model:

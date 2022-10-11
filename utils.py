@@ -93,7 +93,7 @@ class MCRMSECalculator:
 
 
 def break_sentences(
-    train_df, setfit_model_max_length, minimum_chunk_length
+    train_df, setfit_model_max_length, minimum_chunk_length, binary_label=None
 ) -> pd.DataFrame:
     assert train_df.isna().values.any() == False
 
@@ -114,7 +114,7 @@ def break_sentences(
     print(train_df.cohesion.unique())
 
     print("Chunking sentences...")
-    print("Length of train_df: ", len(train_df))
+    print("Length of df: ", len(train_df))
     for index, row in tqdm(
         iterable=train_df[train_df.too_long == True].iterrows(),
         total=len(train_df[train_df.too_long == True]),
@@ -125,23 +125,25 @@ def break_sentences(
         while len(sentence) > max_length:
             new_chunk = sentence[:max_length]
             if type(new_chunk) == str and len(new_chunk) >= minimum_chunk_length:
+                data = [
+                    row["text_id"],
+                    new_chunk,
+                    len(new_chunk),
+                    row["cohesion"],
+                    row["syntax"],
+                    row["vocabulary"],
+                    row["phraseology"],
+                    row["grammar"],
+                    row["conventions"],
+                    False,
+                    False,
+                ]
+                if binary_label:
+                    data.append(row[binary_label])
+
                 new_sentence_row = pd.DataFrame(
                     columns=train_df.columns,
-                    data=[
-                        [
-                            row["text_id"],
-                            new_chunk,
-                            len(new_chunk),
-                            row["cohesion"],
-                            row["syntax"],
-                            row["vocabulary"],
-                            row["phraseology"],
-                            row["grammar"],
-                            row["conventions"],
-                            False,
-                            False,
-                        ]
-                    ],
+                    data=[data],
                 )
                 broken_sentences = pd.concat([broken_sentences, new_sentence_row])
             sentence = sentence[max_length:]
@@ -170,7 +172,6 @@ def break_sentences(
         ]
     )
     print("After merging chunked sentences: ")
-    merged_df.to_csv("/data/feedback-prize/sentence_chunked_train.csv", index=False)
     print(len(merged_df))
     # print("Too long values")
     assert merged_df.too_long.values.any() == False
@@ -184,7 +185,7 @@ def break_sentences(
     return merged_df
 
 
-def split_df_into_sentences(train_df: pd.DataFrame) -> pd.DataFrame:
+def split_df_into_sentences(train_df: pd.DataFrame, binary_label=None) -> pd.DataFrame:
     def split_text_into_sentences(text):
         sentences = text.split(".")
         return sentences
@@ -200,11 +201,14 @@ def split_df_into_sentences(train_df: pd.DataFrame) -> pd.DataFrame:
         "grammar",
         "conventions",
     ]
+    if binary_label:
+        new_columns.append(binary_label)
+
     # iterate over each row in the dataframe
     sentence_train_dataframe = pd.DataFrame(columns=new_columns)
 
-    print("Length of train_df: ", len(train_df))
-    for index, row in tqdm(train_df.iterrows()):
+    print("Length of df: ", len(train_df))
+    for index, row in tqdm(iterable=train_df.iterrows(), total=len(train_df)):
         # get the text
         text = row["full_text"]
         # split the text into sentences
@@ -213,24 +217,25 @@ def split_df_into_sentences(train_df: pd.DataFrame) -> pd.DataFrame:
         for sentence in sentences:
             # create a new row in the dataframe
             if len(sentence) > 0:
+                data = [
+                    row["text_id"],
+                    sentence,
+                    len(sentence),
+                    row["cohesion"],
+                    row["syntax"],
+                    row["vocabulary"],
+                    row["phraseology"],
+                    row["grammar"],
+                    row["conventions"],
+                ]
+                if binary_label:
+                    data.append(row[binary_label])
                 sentence_train_dataframe = pd.concat(
                     [
                         sentence_train_dataframe,
                         pd.DataFrame(
                             columns=new_columns,
-                            data=[
-                                [
-                                    row["text_id"],
-                                    sentence,
-                                    len(sentence),
-                                    row["cohesion"],
-                                    row["syntax"],
-                                    row["vocabulary"],
-                                    row["phraseology"],
-                                    row["grammar"],
-                                    row["conventions"],
-                                ]
-                            ],
+                            data=[data],
                         ),
                     ]
                 )

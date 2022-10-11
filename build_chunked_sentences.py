@@ -12,3 +12,4 @@ minimum_chunk_length = 32
 broken_sentences = break_sentences(
     train_df, setfit_model_max_length, minimum_chunk_length
 )
+broken_sentences.to_csv("/data/feedback-prize/sentence_chunked_train.csv", index=False)

@@ -51,13 +51,13 @@ model_ = f"sentence-transformers/{model_name}"
 model = SetFitModel.from_pretrained(model_)
 head_model = RidgeCV()
 loss_function = CosineSimilarityLoss
-num_iters = 10
-num_epochs = 10
+num_iters = 20
+num_epochs = 24
 batch_size = 512
 learning_rate = 2e-5
 unique_id = uuid4()
 attributes = ["cohesion"]
-test_size = 0.5
+test_size = 0.8
 use_chunked_sentences = True
 is_regression = (
     isinstance(head_model, SGDRegressor)
@@ -77,6 +77,7 @@ is_regression = (
 # Training with small balanced sample set of data
 full_df_path = "./small_sets/full_sampled_set.csv"
 
+# Training with full dataset
 # full_df_path = "/data/feedback-prize/train.csv"
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 fold_df_path = "/data/feedback-prize/"

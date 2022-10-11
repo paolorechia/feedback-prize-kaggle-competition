@@ -1,4 +1,5 @@
 import logging
+import warnings
 import math
 import sys
 from datetime import datetime
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from datasets import Dataset
     from setfit.modeling import SetFitModel
 
-from mongo_api import MongoDataAPIClient
+from mongo_api import MongoDataAPIClient, Experiment
 
 MongoDataAPIClient()
 
@@ -38,6 +39,7 @@ def train(
     train_dataframe: DataFrame,
     test_dataframe: DataFrame,
     loss_class=CosineSimilarityLoss,
+    experiment: Experiment = None,
     test_chunks: DataFrame = None,
     num_iterations: int = 20,
     num_epochs=10,
@@ -93,21 +95,23 @@ def train(
 
     # Evalute the model
     train_score = evaluate(
-        model, is_regression, train_dataframe, attribute, binary_labels
+        model,
+        is_regression,
+        train_dataframe,
+        attribute,
+        binary_labels,
+        test_chunks=test_chunks,
+        is_sentences=True,
     )
-    if test_chunks is not None:
-        test_score = evaluate(
-            model,
-            is_regression,
-            test_chunks,
-            attribute,
-            binary_labels,
-            is_sentences=True,
-        )
-    else:
-        test_score = evaluate(
-            model, is_regression, test_dataframe, attribute, binary_labels
-        )
+    test_score = evaluate(
+        model,
+        is_regression,
+        test_dataframe,
+        attribute,
+        binary_labels,
+        test_chunks=test_chunks,
+        is_sentences=True,
+    )
     print(
         """
     Train score: {}
@@ -121,11 +125,17 @@ def train(
 
     if save_results:
         model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-        mongo_api.register_score(current_name, train_score, test_score)
+        if experiment:
+            experiment.train_score = train_score
+            experiment.test_score = test_score
+            mongo_api.register_experiment(experiment=experiment)
+        else:
+            mongo_api.register_score(current_name, train_score, test_score)
 
     epoch_results.append((train_score, test_score))
 
     while current_epoch < num_epochs:
+        learning_rate = learning_rate * 0.9
         current_epoch += 1
         model.model_body.fit(
             train_objectives=[(train_dataloader, train_loss)],
@@ -133,28 +143,21 @@ def train(
             steps_per_epoch=train_steps,
             optimizer_params={"lr": learning_rate},
             show_progress_bar=True,
+            warmup_steps=0,
         )
 
         model.fit(x_train, y_train)
 
         # Evalute the model
         train_score = evaluate(
-            model, is_regression, train_dataframe, attribute, binary_labels
+            model,
+            is_regression,
+            train_dataframe,
+            attribute,
+            binary_labels,
+            is_sentences=True,
+            test_chunks=test_chunks,
         )
-        if test_chunks is not None:
-            test_score = evaluate(
-                model,
-                is_regression,
-                test_chunks,
-                attribute,
-                binary_labels,
-                is_sentences=True,
-            )
-
-        else:
-            test_score = evaluate(
-                model, is_regression, test_dataframe, attribute, binary_labels
-            )
         print(
             """
         Train score: {}
@@ -167,18 +170,32 @@ def train(
 
         if save_results:
             model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-            mongo_api.register_score(current_name, train_score, test_score)
+            if experiment:
+                experiment.train_score = train_score
+                experiment.test_score = test_score
+                mongo_api.register_experiment(experiment=experiment)
+            else:
+                mongo_api.register_score(current_name, train_score, test_score)
         epoch_results.append((train_score, test_score))
     return epoch_results
 
 
-def evaluate(model, is_regression, test_df, attribute, binary_labels=False, is_sentences=False):
+def evaluate(
+    model,
+    is_regression,
+    test_df,
+    attribute,
+    binary_labels=False,
+    is_sentences=False,
+    test_chunks=None,
+):
     print("Evaluating on test dataset...")
     t0 = datetime.now()
+    text_label = "sentence_text" if is_sentences else "full_text"
 
     if binary_labels:
         test_df[f"{attribute}_binary_prediction"] = model.predict(
-            test_df["full_text"].tolist()
+            test_df[text_label].tolist()
         )
         accuracy = 0.0
         hits = 0
@@ -196,14 +213,9 @@ def evaluate(model, is_regression, test_df, attribute, binary_labels=False, is_s
         print("Accuracy: ", accuracy)
         return accuracy
     else:
-        if is_sentences:
-            test_df[f"{attribute}_predictions"] = model.predict(
-                test_df["sentence_text"].tolist()
-            )
-        else:
-            test_df[f"{attribute}_predictions"] = model.predict(
-                test_df["full_text"].tolist()
-            )
+        test_df[f"{attribute}_predictions"] = model.predict(
+            test_df[text_label].tolist()
+        )
 
         if is_regression:
             test_df[f"{attribute}_predictions"] = test_df[

@@ -1,21 +1,29 @@
 import requests
 from dataclasses import dataclass
-
+import warnings
 
 # TODO: use dataclass in the code
 @dataclass
 class Experiment:
     experiment_name: str
-    model_body: str
-    model_head: str
+    base_model: str
+    head_model: str
     num_iters: int
     batch_size: int
     loss_function: str
     test_size: float
     train_score: float
     test_score: float
+    metric: str
     epochs: int
-
+    unique_id: str
+    learning_rate: float
+    test_size: float
+    attribute: str
+    use_binary: bool
+    use_sentences: bool
+    setfit_model_max_length: int
+    minimum_chunk_length: int
 
 
 class MongoDataAPIClient:
@@ -52,7 +60,34 @@ class MongoDataAPIClient:
             return None
         return response.json()
 
+    def register_experiment(self, experiment: Experiment):
+        data = {
+            "document": {
+                "experiment_name": experiment.experiment_name,
+                "base_model": experiment.base_model,
+                "head_model": experiment.head_model,
+                "num_iters": experiment.num_iters,
+                "batch_size": experiment.batch_size,
+                "loss_function": experiment.loss_function,
+                "test_size": experiment.test_size,
+                "train_score": experiment.train_score,
+                "test_score": experiment.test_score,
+                "metric": experiment.metric,
+                "epochs": experiment.epochs,
+                "unique_id": experiment.unique_id,
+                "learning_rate": experiment.learning_rate,
+                "test_size": experiment.test_size,
+                "attribute": experiment.attribute,
+                "use_binary": experiment.use_binary,
+                "use_sentences": experiment.use_sentences,
+                "setfit_model_max_length": experiment.setfit_model_max_length,
+                "minimum_chunk_length": experiment.minimum_chunk_length,
+            }
+        }
+        return self._call_api("insertOne", data)
+
     def register_score(self, experiment_name, train_score, test_score):
+        warnings.warn("Deprecation warning: Use register_experiment instead")
         data = {
             "document": {
                 "experiment_name": experiment_name,
