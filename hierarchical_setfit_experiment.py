@@ -28,16 +28,16 @@ import sys
 # >>> (0.95)**4
 # 0.8145062499999999
 
-attention_probs_dropout_prob = 0.4
-hidden_dropout_prob = 0.4
-num_iters = 1
-num_epochs = 25
+attention_probs_dropout_prob = 0.2
+hidden_dropout_prob = 0.2
+num_iters = 20
+num_epochs = 10
 learning_rate = 2e-5
 unique_id = uuid4()
 test_size = 0.9
 attributes = ["cohesion"]
 use_sentences = True
-batch_size = 16
+batch_size = 512
 
 # model_ = "all-mpnet-base-v2"
 # setfit_model_max_length = 384
@@ -100,8 +100,8 @@ experiment = Experiment(
     metric="accuracy",
     train_score=0.0,
     test_score=0.0,
-    attention_probs_dropout_prob = 0.4,
-    hidden_dropout_prob = 0.4
+    attention_probs_dropout_prob = attention_probs_dropout_prob,
+    hidden_dropout_prob = hidden_dropout_prob,
 )
 print(experiment)
 for attribute in attributes:
