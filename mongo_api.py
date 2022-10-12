@@ -24,6 +24,8 @@ class Experiment:
     use_sentences: bool
     setfit_model_max_length: int
     minimum_chunk_length: int
+    attention_probs_dropout_prob: float
+    hidden_dropout_prob: float
 
 
 class MongoDataAPIClient:
@@ -82,6 +84,8 @@ class MongoDataAPIClient:
                 "use_sentences": experiment.use_sentences,
                 "setfit_model_max_length": experiment.setfit_model_max_length,
                 "minimum_chunk_length": experiment.minimum_chunk_length,
+                "attention_probs_dropout_prob": experiment.attention_probs_dropout_prob,
+                "hidden_dropout_prob": experiment.hidden_dropout_prob,
             }
         }
         return self._call_api("insertOne", data)

@@ -18,24 +18,8 @@ from my_setfit_trainer import train
 from utils import attributes, split_df_into_sentences, break_sentences
 
 from mongo_api import Experiment
-
+import json
 import sys
-
-# First level
-# 1.0 1.5 2.0 2.5 3.0
-# 3.5 4.0 4.5 5.0
-# Second level (lower)
-# 1.0 1.5 2.0
-# 2.5 3.0
-# Third level (upper-lower)
-# 1.0
-# 1.5 2.0
-# Fourth level :(, e.g., for lower level needs 4 layers - How good should accuracy be?
-
-# Second level (upper)
-# 3.5 4.0
-# 4.5 5.0
-# Third level, e.g., for upper level needs 3 layers, how good should accuracy be?
 
 # A good accuracy to start with an hierarchical chain of models is 0.95
 # Because by the end, your actual accuracy will drop to 0.81 and 0.85
@@ -44,19 +28,16 @@ import sys
 # >>> (0.95)**4
 # 0.8145062499999999
 
-# Let's see what happens
-
-# # Use cohesion instead
-# train_df = pd.read_csv("small_sets/cohesion_extremes.csv")
-
-# train_df["cohesion_binary_label"] = train_df.apply(
-#     lambda x: "average_or_below_average" if x.cohesion <= 3.0 else "above_average", axis=1
-# )
-# train_df.to_csv("small_sets/cohesion_extremes_binary.csv", index=False)
-
-
-# test_df = pd.read_csv(f"small_sets/full_sampled_set.csv")
-# Load SetFit model from Hub
+attention_probs_dropout_prob = 0.4
+hidden_dropout_prob = 0.4
+num_iters = 1
+num_epochs = 25
+learning_rate = 2e-5
+unique_id = uuid4()
+test_size = 0.9
+attributes = ["cohesion"]
+use_sentences = True
+batch_size = 16
 
 # model_ = "all-mpnet-base-v2"
 # setfit_model_max_length = 384
@@ -64,30 +45,32 @@ import sys
 # model_ = "all-distilroberta-v1"
 # setfit_model_max_length = 512
 
+
+# To use a different model, first save the base config to a file
+# model.save_pretrained(f"dropout_test/{model_}")
+# sys.exit(0)
+
 model_ = "all-MiniLM-L6-v2"
 setfit_model_max_length = 256
 
 base_model = f"sentence-transformers/{model_}"
 minimum_chunk_length = 64
 
-# model.save_pretrained(f"dropout_test/{model_}")
-# sys.exit(0)
 
-# model = SetFitModel.from_pretrained(
-#     model_
-# )
+with open(f"dropout_test/{model_}/config.json", "r") as f:
+    model_config = json.load(f)
+
+model_config["attention_probs_dropout_prob"] = attention_probs_dropout_prob
+model_config["hidden_dropout_prob"] = hidden_dropout_prob
+
+# Save the new config to the same file
+with open(f"dropout_test/{model_}/config.json", "w") as f:
+    json.dump(model_config, f, indent=4)
 
 model = SetFitModel.from_pretrained(f"dropout_test/{model_}")
 
 
-num_iters = 5
-num_epochs = 5
-learning_rate = 2e-5
-unique_id = uuid4()
-test_size = 0.9
-attributes = ["cohesion"]
-use_sentences = True
-batch_size = 16
+
 loss_function = CosineSimilarityLoss
 full_df = pd.read_csv("/data/feedback-prize/train.csv")
 binary_label = "cohesion_binary_label"
@@ -117,6 +100,8 @@ experiment = Experiment(
     metric="accuracy",
     train_score=0.0,
     test_score=0.0,
+    attention_probs_dropout_prob = 0.4,
+    hidden_dropout_prob = 0.4
 )
 print(experiment)
 for attribute in attributes:

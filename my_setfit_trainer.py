@@ -161,7 +161,7 @@ def train(
         test_score = evaluate(
             model,
             is_regression,
-            train_dataframe,
+            test_dataframe,
             attribute,
             binary_labels,
             is_sentences=True,

@@ -5,6 +5,9 @@
 # Generated data
 models/
 small_sets/
+dropout_test/
+intermediary_csvs/
+
 *_predictions.csv
 submission.csv
 
