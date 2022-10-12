@@ -28,16 +28,19 @@ import sys
 # >>> (0.95)**4
 # 0.8145062499999999
 
-attention_probs_dropout_prob = 0.2
-hidden_dropout_prob = 0.2
+attention_probs_dropout_prob = 0.5
+hidden_dropout_prob = 0.5
 num_iters = 20
-num_epochs = 10
+num_epochs = 24
 learning_rate = 2e-5
 unique_id = uuid4()
 test_size = 0.9
 attributes = ["cohesion"]
 use_sentences = True
 batch_size = 512
+loss_function = CosineSimilarityLoss
+full_train_df_path = "/data/feedback-prize/train.csv"
+# full_train_df_path = "./small_sets/full_sampled_set.csv"
 
 # model_ = "all-mpnet-base-v2"
 # setfit_model_max_length = 384
@@ -47,6 +50,7 @@ batch_size = 512
 
 
 # To use a different model, first save the base config to a file
+# model = SetFitModel.from_pretrained(f"sentence-transformers/{model_}")
 # model.save_pretrained(f"dropout_test/{model_}")
 # sys.exit(0)
 
@@ -70,9 +74,7 @@ with open(f"dropout_test/{model_}/config.json", "w") as f:
 model = SetFitModel.from_pretrained(f"dropout_test/{model_}")
 
 
-
-loss_function = CosineSimilarityLoss
-full_df = pd.read_csv("/data/feedback-prize/train.csv")
+full_df = pd.read_csv(full_train_df_path)
 binary_label = "cohesion_binary_label"
 full_df[binary_label] = full_df.apply(
     lambda x: "average_or_below_average" if x.cohesion <= 3.0 else "above_average",
@@ -100,8 +102,8 @@ experiment = Experiment(
     metric="accuracy",
     train_score=0.0,
     test_score=0.0,
-    attention_probs_dropout_prob = attention_probs_dropout_prob,
-    hidden_dropout_prob = hidden_dropout_prob,
+    attention_probs_dropout_prob=attention_probs_dropout_prob,
+    hidden_dropout_prob=hidden_dropout_prob,
 )
 print(experiment)
 for attribute in attributes:
@@ -119,8 +121,8 @@ for attribute in attributes:
 
     if use_sentences:
         # Try to use cache to speedup bootstap a little bit :)
-        train_df_path = f"{intermediary_csv_dir}/train_{attribute}_{test_size}.csv"
-        test_df_path = f"{intermediary_csv_dir}/test{attribute}_{test_size}.csv"
+        train_df_path = f"{intermediary_csv_dir}/train_{attribute}_{test_size}_{setfit_model_max_length}_{minimum_chunk_length}.csv"
+        test_df_path = f"{intermediary_csv_dir}/test{attribute}_{test_size}_{setfit_model_max_length}_{minimum_chunk_length}.csv"
         text_label = "sentence_text"
         try:
             train_df = pd.read_csv(train_df_path)

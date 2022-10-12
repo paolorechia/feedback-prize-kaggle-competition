@@ -40,7 +40,6 @@ def train(
     test_dataframe: DataFrame,
     loss_class=CosineSimilarityLoss,
     experiment: Experiment = None,
-    test_chunks: DataFrame = None,
     num_iterations: int = 20,
     num_epochs=10,
     batch_size: int = 16,
@@ -100,7 +99,6 @@ def train(
         train_dataframe,
         attribute,
         binary_labels,
-        test_chunks=test_chunks,
         is_sentences=True,
     )
     test_score = evaluate(
@@ -109,7 +107,6 @@ def train(
         test_dataframe,
         attribute,
         binary_labels,
-        test_chunks=test_chunks,
         is_sentences=True,
     )
     print(
@@ -128,6 +125,7 @@ def train(
         if experiment:
             experiment.train_score = train_score
             experiment.test_score = test_score
+            experiment.epochs = current_epoch
             mongo_api.register_experiment(experiment=experiment)
         else:
             mongo_api.register_score(current_name, train_score, test_score)
@@ -135,7 +133,7 @@ def train(
     epoch_results.append((train_score, test_score))
 
     while current_epoch < num_epochs:
-        learning_rate = learning_rate * 0.9
+        # learning_rate = learning_rate * 0.9
         current_epoch += 1
         model.model_body.fit(
             train_objectives=[(train_dataloader, train_loss)],
@@ -156,7 +154,6 @@ def train(
             attribute,
             binary_labels,
             is_sentences=True,
-            test_chunks=test_chunks,
         )
         test_score = evaluate(
             model,
@@ -165,7 +162,6 @@ def train(
             attribute,
             binary_labels,
             is_sentences=True,
-            test_chunks=test_chunks,
         )
         print(
             """
@@ -182,6 +178,7 @@ def train(
             if experiment:
                 experiment.train_score = train_score
                 experiment.test_score = test_score
+                experiment.epochs = current_epoch
                 mongo_api.register_experiment(experiment=experiment)
             else:
                 mongo_api.register_score(current_name, train_score, test_score)
@@ -196,7 +193,6 @@ def evaluate(
     attribute,
     binary_labels=False,
     is_sentences=False,
-    test_chunks=None,
 ):
     print("Evaluating on test dataset...")
     t0 = datetime.now()

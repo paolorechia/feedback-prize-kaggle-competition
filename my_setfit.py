@@ -1,4 +1,5 @@
 from uuid import uuid4
+import json
 
 import pandas as pd
 from datasets import load_dataset
@@ -35,29 +36,56 @@ from utils import (
     split_df_into_sentences,
     break_sentences,
 )
+from mongo_api import Experiment
 
 ##################################################################################
 ########### Model/Training Config
 
-# model_name = "all-mpnet-base-v2"
-# model_name = "all-distilroberta-v1"
+minimum_chunk_length = 64
+attention_probs_dropout_prob = 0.35
+hidden_dropout_prob = 0.35
+num_iters = 1
+num_epochs = 1
+learning_rate = 2e-5
+unique_id = uuid4()
+test_size = 0.9
+attributes = ["cohesion"]
+batch_size = 512
+loss_function = CosineSimilarityLoss
+use_sentences = True
+
+# full_train_df_path = "./small_sets/full_sampled_set.csv"
 model_name = "all-MiniLM-L6-v2"
 setfit_model_max_length = 256
-minimum_chunk_length = 32
 
-model_ = f"sentence-transformers/{model_name}"
+# model_ = "all-mpnet-base-v2"
+# setfit_model_max_length = 384
+
+# model_ = "all-distilroberta-v1"
+# setfit_model_max_length = 512
+
+
+model_ = model_name
 # model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
+
+with open(f"dropout_test/{model_}/config.json", "r") as f:
+    model_config = json.load(f)
+
+model_config["attention_probs_dropout_prob"] = attention_probs_dropout_prob
+model_config["hidden_dropout_prob"] = hidden_dropout_prob
+
+# Save the new config to the same file
+with open(f"dropout_test/{model_}/config.json", "w") as f:
+    json.dump(model_config, f, indent=4)
+
+model = SetFitModel.from_pretrained(f"dropout_test/{model_}")
+
+
+intermediary_csv_dir = "./intermediary_csvs"
+train_df_path = f"{intermediary_csv_dir}/train_df.csv"
 
 model = SetFitModel.from_pretrained(model_)
 head_model = RidgeCV()
-loss_function = CosineSimilarityLoss
-num_iters = 20
-num_epochs = 24
-batch_size = 512
-learning_rate = 2e-5
-unique_id = uuid4()
-attributes = ["cohesion"]
-test_size = 0.8
 use_chunked_sentences = True
 is_regression = (
     isinstance(head_model, SGDRegressor)
@@ -70,6 +98,29 @@ is_regression = (
     # print(train_df.head())
     # Assert that are no NaNs in the dataframe
 )
+experiment = Experiment(
+    experiment_name="Nameless",
+    base_model=model_name,
+    head_model=head_model.__class__.__name__,
+    unique_id=str(unique_id),
+    num_iters=num_iters,
+    epochs=num_epochs,
+    learning_rate=learning_rate,
+    test_size=test_size,
+    attribute=attributes[0],
+    use_binary=False,
+    use_sentences=use_sentences,
+    setfit_model_max_length=setfit_model_max_length,
+    minimum_chunk_length=minimum_chunk_length,
+    batch_size=batch_size,
+    loss_function=loss_function.__name__,
+    metric="MCRMSE By Sentence",
+    train_score=0.0,
+    test_score=0.0,
+    attention_probs_dropout_prob=attention_probs_dropout_prob,
+    hidden_dropout_prob=hidden_dropout_prob,
+)
+
 
 ##################################################################################
 ########## Load data
@@ -79,6 +130,7 @@ full_df_path = "./small_sets/full_sampled_set.csv"
 
 # Training with full dataset
 # full_df_path = "/data/feedback-prize/train.csv"
+
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 fold_df_path = "/data/feedback-prize/"
 text_label = "full_text"
@@ -89,25 +141,43 @@ full_df = pd.read_csv(full_df_path)
 ##################################################################################
 ########### Train!
 for attribute in attributes:
-    X = full_df[text_label]
-    print(full_df[attribute].unique())
-    full_df[f"{attribute}_label"] = full_df.apply(
-        lambda x: labels[str(x[attribute])], axis=1
-    )
-    if is_regression:
-        y = full_df[attribute]
 
-    else:
-        y = full_df[f"{attribute}_label"]
+    text_label = "full_text"
+
+    X = full_df[text_label]
+    y = full_df[attribute]
 
     sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=10)
     train_index, test_index = next(sss.split(X, y))
 
-    print("Splitting train and test")
     train_df = full_df.filter(items=train_index, axis=0)
     test_df = full_df.filter(items=test_index, axis=0)
 
+    if use_sentences:
+        # Try to use cache to speedup bootstap a little bit :)
+        train_df_path = f"{intermediary_csv_dir}/train_{attribute}_{test_size}_{setfit_model_max_length}_{minimum_chunk_length}.csv"
+        test_df_path = f"{intermediary_csv_dir}/test{attribute}_{test_size}_{setfit_model_max_length}_{minimum_chunk_length}.csv"
+        text_label = "sentence_text"
+        try:
+            train_df = pd.read_csv(train_df_path)
+        except Exception:
+            train_df = break_sentences(
+                split_df_into_sentences(train_df),
+                setfit_model_max_length,
+                minimum_chunk_length,
+            )
+        try:
+            test_df = pd.read_csv(test_df_path)
+        except Exception:
+            test_df = break_sentences(
+                split_df_into_sentences(test_df),
+                setfit_model_max_length,
+                minimum_chunk_length,
+            )
+
+    rename_attr = attribute
     if not is_regression:
+        rename_attr = f"{attribute}_label"
         train_df[attribute] = train_df[f"{attribute}_label"].apply(
             lambda x: reverse_labels[x]
         )
@@ -115,60 +185,41 @@ for attribute in attributes:
             lambda x: reverse_labels[x]
         )
 
-    print("Calling util functions...")
-    sentence_df = split_df_into_sentences(train_df)
-    chunks_df = break_sentences(
-        sentence_df, setfit_model_max_length, minimum_chunk_length
-    )
-    chunks_df.rename(columns={"sentence_text": "full_text"}, inplace=True)
-    print("Saving intermediate CSV")
-    chunks_df.to_csv(intermediate_df_path, index=False)
-
-    print("Saving fold CSVs")
-    train_df.to_csv(fold_df_path + f"train_{attribute}.csv", index=False)
-
-    test_chunks_df = break_sentences(
-        split_df_into_sentences(test_df), setfit_model_max_length, minimum_chunk_length
-    )
-    test_df.to_csv(fold_df_path + f"test_{attribute}.csv", index=False)
+    train_df.to_csv(train_df_path, index=False)
+    test_df.to_csv(test_df_path, index=False)
 
     print("Bootstraping setfit training for attribute: ", attribute)
     dataset = load_dataset(
         "csv",
         data_files={
-            "train": intermediate_df_path,
+            "train": train_df_path,
         },
     )
 
-    dataset["train"] = dataset["train"].rename_column("full_text", "text")
-
-    if is_regression:
-        dataset["train"] = dataset["train"].rename_column(attribute, "label")
-    else:
-        dataset["train"] = dataset["train"].rename_column(f"{attribute}_label", "label")
+    dataset["train"] = dataset["train"].rename_column(text_label, "text")
+    dataset["train"] = dataset["train"].rename_column(rename_attr, "label")
 
     train_ds = dataset["train"]
 
-    experiment_name = "{}_model:{}_head:{}_iters:{}_batchSize:{}_lossFunction:{}_testSize:{}_id:{}".format(
+    experiment_name = "{}_{}_{}_{}".format(
+        attribute, head_model.__class__.__name__, num_iters, unique_id
+    )
+    experiment_name = "{}_model:{}_head:{}".format(
         attribute,
         model_name,
         head_model.__class__.__name__,
-        num_iters,
-        batch_size,
-        loss_function.__name__,
-        test_size,
-        str(unique_id)[0:4],
     )
+    experiment.experiment_name = experiment_name
 
     print("Running experiment {}".format(experiment_name))
     epoch_results = train(
+        experiment=experiment,
         experiment_name=experiment_name,
         model=model,
         attribute=attribute,
         train_dataset=train_ds,
         train_dataframe=train_df,
         test_dataframe=test_df,
-        test_chunks=test_chunks_df,
         loss_class=loss_function,
         num_iterations=num_iters,
         num_epochs=num_epochs,
