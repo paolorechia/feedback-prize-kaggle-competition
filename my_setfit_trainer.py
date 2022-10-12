@@ -158,6 +158,15 @@ def train(
             is_sentences=True,
             test_chunks=test_chunks,
         )
+        test_score = evaluate(
+            model,
+            is_regression,
+            train_dataframe,
+            attribute,
+            binary_labels,
+            is_sentences=True,
+            test_chunks=test_chunks,
+        )
         print(
             """
         Train score: {}

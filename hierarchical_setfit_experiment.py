@@ -18,6 +18,9 @@ from my_setfit_trainer import train
 from utils import attributes, split_df_into_sentences, break_sentences
 
 from mongo_api import Experiment
+
+import sys
+
 # First level
 # 1.0 1.5 2.0 2.5 3.0
 # 3.5 4.0 4.5 5.0
@@ -54,8 +57,29 @@ from mongo_api import Experiment
 
 # test_df = pd.read_csv(f"small_sets/full_sampled_set.csv")
 # Load SetFit model from Hub
-base_model = "sentence-transformers/all-MiniLM-L6-v2"
-model = SetFitModel.from_pretrained(base_model)
+
+# model_ = "all-mpnet-base-v2"
+# setfit_model_max_length = 384
+
+# model_ = "all-distilroberta-v1"
+# setfit_model_max_length = 512
+
+model_ = "all-MiniLM-L6-v2"
+setfit_model_max_length = 256
+
+base_model = f"sentence-transformers/{model_}"
+minimum_chunk_length = 64
+
+# model.save_pretrained(f"dropout_test/{model_}")
+# sys.exit(0)
+
+# model = SetFitModel.from_pretrained(
+#     model_
+# )
+
+model = SetFitModel.from_pretrained(f"dropout_test/{model_}")
+
+
 num_iters = 5
 num_epochs = 5
 learning_rate = 2e-5
@@ -63,9 +87,7 @@ unique_id = uuid4()
 test_size = 0.9
 attributes = ["cohesion"]
 use_sentences = True
-setfit_model_max_length = 256
-minimum_chunk_length = 32
-batch_size = 64
+batch_size = 16
 loss_function = CosineSimilarityLoss
 full_df = pd.read_csv("/data/feedback-prize/train.csv")
 binary_label = "cohesion_binary_label"
@@ -78,9 +100,9 @@ train_df_path = f"{intermediary_csv_dir}/train_df.csv"
 
 experiment = Experiment(
     experiment_name="Binary cohesion label",
-    base_model = base_model,
-    head_model = "LogisticRegression",
-    unique_id=unique_id,
+    base_model=base_model,
+    head_model="LogisticRegression",
+    unique_id=str(unique_id),
     num_iters=num_iters,
     epochs=num_epochs,
     learning_rate=learning_rate,
@@ -91,7 +113,7 @@ experiment = Experiment(
     setfit_model_max_length=setfit_model_max_length,
     minimum_chunk_length=minimum_chunk_length,
     batch_size=batch_size,
-    loss_function=loss_function,
+    loss_function=loss_function.__name__,
     metric="accuracy",
     train_score=0.0,
     test_score=0.0,
@@ -158,7 +180,7 @@ for attribute in attributes:
     )
     print("Running experiment {}".format(experiment_name))
     epoch_results = train(
-        experiment=None,
+        experiment=experiment,
         experiment_name=experiment_name,
         model=model,
         train_dataset=train_ds,
