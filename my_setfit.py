@@ -42,8 +42,8 @@ from mongo_api import Experiment
 ########### Model/Training Config
 
 minimum_chunk_length = 64
-attention_probs_dropout_prob = 0.95
-hidden_dropout_prob = 0.95
+attention_probs_dropout_prob = 0.9
+hidden_dropout_prob = 0.9
 num_iters = 2
 num_epochs = 4
 learning_rate = 2e-5
@@ -62,16 +62,10 @@ batch_size = 16
 model_name = "all-mpnet-base-v1"
 setfit_model_max_length = 512
 
-
 # model_name = "all-distilroberta-v1"
 # setfit_model_max_length = 512
 
-
 model_ = model_name
-# model_ = "/data/feedback-prize/models/cohesion_SGDRegressor_20_674b3f64-2841-402a-a0bd-5f0e5219ba0e_epoch_1"
-# Save model config
-model = SetFitModel._from_pretrained(f"sentence-transformers/model_name")
-model._save_pretrained(f"dropout_test/{model_}")
 
 with open(f"dropout_test/{model_}/config.json", "r") as f:
     model_config = json.load(f)
