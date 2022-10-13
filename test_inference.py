@@ -13,7 +13,7 @@ mongo_api = MongoDataAPIClient()
 output_dir = "./small_sets/"
 data_dir = "/data/feedback-prize/"
 is_chunked_model = False
-is_cohesion_model = True
+is_cohesion_model = False
 sentences = {}
 if is_chunked_model:
     print("Loading sentences from train.csv")
@@ -39,12 +39,12 @@ train_df = pd.read_csv(train_filepath)
 
 
 attribute_experiments = {
-    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:RidgeCV_id:1f8172a4_epoch_2",
-    # "syntax": "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
-    # "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
-    # "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
-    # "grammar": "grammar_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
-    # "conventions": "conventions_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
+    "cohesion": "cohesion_model:all-distilroberta-v1_head:RidgeCV_id:ba8bb3bd_epoch_1",
+    "syntax": "syntax_model:all-distilroberta-v1_head:RidgeCV_id:ba8bb3bd_epoch_1",
+    "phraseology": "phraseology_model:all-distilroberta-v1_head:RidgeCV_id:ba8bb3bd_epoch_2",
+    "vocabulary": "vocabulary_model:all-distilroberta-v1_head:RidgeCV_id:ba8bb3bd_epoch_1",
+    "grammar": "grammar_model:all-distilroberta-v1_head:RidgeCV_id:ba8bb3bd_epoch_2",
+    "conventions": "conventions_model:all-distilroberta-v1_head:RidgeCV_id:ba8bb3bd_epoch_2",
 }
 
 models = {k: {} for k in attribute_experiments.keys()}
