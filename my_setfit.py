@@ -42,8 +42,8 @@ from mongo_api import Experiment
 ########### Model/Training Config
 
 minimum_chunk_length = 64
-attention_probs_dropout_prob = 0.9
-hidden_dropout_prob = 0.9
+attention_probs_dropout_prob = 0.95
+hidden_dropout_prob = 0.95
 num_iters = 2
 num_epochs = 4
 learning_rate = 2e-5
@@ -56,8 +56,12 @@ batch_size = 16
 # model_name = "all-MiniLM-L6-v2"
 # setfit_model_max_length = 256
 
-model_name = "all-mpnet-base-v2"
-setfit_model_max_length = 384
+# model_name = "all-mpnet-base-v2"
+# setfit_model_max_length = 384
+
+model_name = "all-mpnet-base-v1"
+setfit_model_max_length = 512
+
 
 # model_name = "all-distilroberta-v1"
 # setfit_model_max_length = 512
