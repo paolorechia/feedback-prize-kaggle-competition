@@ -7,6 +7,7 @@ models/
 small_sets/
 dropout_test/
 intermediary_csvs/
+split_csvs/
 
 *_predictions.csv
 submission.csv

@@ -12,7 +12,8 @@ mongo_api = MongoDataAPIClient()
 
 output_dir = "./small_sets/"
 data_dir = "/data/feedback-prize/"
-is_chunked_model = True
+is_chunked_model = False
+is_cohesion_model = True
 sentences = {}
 if is_chunked_model:
     print("Loading sentences from train.csv")
@@ -30,13 +31,15 @@ if is_chunked_model:
 train_filepath = os.path.join(data_dir, "train.csv")
 
 # Test on fold
-# train_filepath = os.path.join(data_dir, "test_cohesion.csv")
+split_csv_dirs = "./split_csvs"
+# Make sure to load file with the correct test :)
+train_filepath = os.path.join(split_csv_dirs, "test_cohesion_0.8.csv")
 
 train_df = pd.read_csv(train_filepath)
 
 
 attribute_experiments = {
-    "cohesion": "cohesion_LogisticRegression_20_e7a22814-4d5b-41d0-b1ed-8ce1184e9342_epoch_24",
+    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:RidgeCV_id:af4b6148_epoch_3",
     # "syntax": "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
@@ -54,7 +57,7 @@ for attribute, value in tqdm(
 ):
     print("Processing attribute: ", attribute)
     model_path = f"/data/feedback-prize/models/{value}"
-    is_regression = "LinearRegression" in model_path or "SGDRegressor" in model_path
+    is_regression = not "LogisticRegression"
     models[attribute]["is_regression"] = is_regression
     model = SetFitModel.from_pretrained(model_path)
     models[attribute]["model"] = model
@@ -85,7 +88,7 @@ for attribute, value in tqdm(
 t1 = datetime.now()
 print("Elapsed time to run inference on full dataset: ", t1 - t0)
 
-if is_chunked_model:
+if is_cohesion_model:
     train_df[["text_id", "cohesion", "cohesion_predictions"]].to_csv(
         "full_predictions.csv", index=False
     )

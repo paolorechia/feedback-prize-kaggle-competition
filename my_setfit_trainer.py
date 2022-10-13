@@ -48,6 +48,7 @@ def train(
     is_regression=False,
     binary_labels=False,
     save_results=True,
+    use_sentences=False,
 ):
     # Init score tracker
     mongo_api = MongoDataAPIClient()
@@ -81,69 +82,23 @@ def train(
 
     warmup_steps = math.ceil(train_steps * 0.1)
     current_epoch = 1
-    model.model_body.fit(
-        train_objectives=[(train_dataloader, train_loss)],
-        epochs=1,
-        steps_per_epoch=train_steps,
-        optimizer_params={"lr": learning_rate},
-        warmup_steps=warmup_steps,
-        show_progress_bar=True,
-    )
-    # Train the final classifier
-    model.fit(x_train, y_train)
+    for current_epoch in range(1, num_epochs):
+        current_name = f"{experiment_name}_epoch_{current_epoch}"
 
-    # Evalute the model
-    train_score = evaluate(
-        model,
-        is_regression,
-        train_dataframe,
-        attribute,
-        binary_labels,
-        is_sentences=True,
-    )
-    test_score = evaluate(
-        model,
-        is_regression,
-        test_dataframe,
-        attribute,
-        binary_labels,
-        is_sentences=True,
-    )
-    print(
-        """
-    Train score: {}
-    Test score: {}
-    """.format(
-            train_score, test_score
-        )
-    )
-
-    current_name = f"{experiment_name}_epoch_{current_epoch}"
-
-    if save_results:
-        model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-        if experiment:
-            experiment.train_score = train_score
-            experiment.test_score = test_score
-            experiment.epochs = current_epoch
-            mongo_api.register_experiment(experiment=experiment)
+        if current_epoch == 1:
+            warmup_steps = warmup_steps
         else:
-            mongo_api.register_score(current_name, train_score, test_score)
+            warmup_steps = 0
 
-    epoch_results.append((train_score, test_score))
-
-    while current_epoch < num_epochs:
-        # learning_rate = learning_rate * 0.9
-        current_epoch += 1
         model.model_body.fit(
             train_objectives=[(train_dataloader, train_loss)],
             epochs=1,
             steps_per_epoch=train_steps,
             optimizer_params={"lr": learning_rate},
+            warmup_steps=warmup_steps,
             show_progress_bar=True,
-            warmup_steps=0,
         )
-
+        # Train the final classifier
         model.fit(x_train, y_train)
 
         # Evalute the model
@@ -153,7 +108,7 @@ def train(
             train_dataframe,
             attribute,
             binary_labels,
-            is_sentences=True,
+            is_sentences=use_sentences,
         )
         test_score = evaluate(
             model,
@@ -161,7 +116,7 @@ def train(
             test_dataframe,
             attribute,
             binary_labels,
-            is_sentences=True,
+            is_sentences=use_sentences,
         )
         print(
             """
@@ -171,18 +126,15 @@ def train(
                 train_score, test_score
             )
         )
-        current_name = f"{experiment_name}_epoch_{current_epoch}"
-
         if save_results:
             model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
-            if experiment:
-                experiment.train_score = train_score
-                experiment.test_score = test_score
-                experiment.epochs = current_epoch
-                mongo_api.register_experiment(experiment=experiment)
-            else:
-                mongo_api.register_score(current_name, train_score, test_score)
         epoch_results.append((train_score, test_score))
+
+        experiment.train_score = train_score
+        experiment.test_score = test_score
+        experiment.epochs = current_epoch
+        mongo_api.register_experiment(experiment=experiment)
+
     return epoch_results
 
 

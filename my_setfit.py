@@ -42,19 +42,18 @@ from mongo_api import Experiment
 ########### Model/Training Config
 
 minimum_chunk_length = 64
-attention_probs_dropout_prob = 0.35
-hidden_dropout_prob = 0.35
-num_iters = 1
-num_epochs = 1
+attention_probs_dropout_prob = 0.85
+hidden_dropout_prob = 0.85
+num_iters = 8
+num_epochs = 5
 learning_rate = 2e-5
 unique_id = uuid4()
-test_size = 0.9
+test_size = 0.8
 attributes = ["cohesion"]
-batch_size = 512
 loss_function = CosineSimilarityLoss
-use_sentences = True
+use_sentences = False
+batch_size = 512 if use_sentences else 64
 
-# full_train_df_path = "./small_sets/full_sampled_set.csv"
 model_name = "all-MiniLM-L6-v2"
 setfit_model_max_length = 256
 
@@ -82,11 +81,12 @@ model = SetFitModel.from_pretrained(f"dropout_test/{model_}")
 
 
 intermediary_csv_dir = "./intermediary_csvs"
+split_csv_dirs = "./split_csvs"
 train_df_path = f"{intermediary_csv_dir}/train_df.csv"
+test_df_path = f"{intermediary_csv_dir}/test_df.csv"
 
 model = SetFitModel.from_pretrained(model_)
 head_model = RidgeCV()
-use_chunked_sentences = True
 is_regression = (
     isinstance(head_model, SGDRegressor)
     or isinstance(head_model, RidgeCV)
@@ -126,10 +126,10 @@ experiment = Experiment(
 ########## Load data
 
 # Training with small balanced sample set of data
-full_df_path = "./small_sets/full_sampled_set.csv"
+# full_df_path = "./small_sets/full_sampled_set.csv"
 
 # Training with full dataset
-# full_df_path = "/data/feedback-prize/train.csv"
+full_df_path = "/data/feedback-prize/train.csv"
 
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 fold_df_path = "/data/feedback-prize/"
@@ -152,6 +152,11 @@ for attribute in attributes:
 
     train_df = full_df.filter(items=train_index, axis=0)
     test_df = full_df.filter(items=test_index, axis=0)
+    split_train_df_path = f"{split_csv_dirs}/train_{attribute}_{test_size}.csv"
+    split_test_df_path = f"{split_csv_dirs}/test_{attribute}_{test_size}.csv"
+
+    train_df.to_csv(split_train_df_path, index=False)
+    test_df.to_csv(split_test_df_path, index=False)
 
     if use_sentences:
         # Try to use cache to speedup bootstap a little bit :)
@@ -204,10 +209,11 @@ for attribute in attributes:
     experiment_name = "{}_{}_{}_{}".format(
         attribute, head_model.__class__.__name__, num_iters, unique_id
     )
-    experiment_name = "{}_model:{}_head:{}".format(
+    experiment_name = "{}_model:{}_head:{}_id:{}".format(
         attribute,
         model_name,
         head_model.__class__.__name__,
+        str(experiment.unique_id)[0:8],
     )
     experiment.experiment_name = experiment_name
 
