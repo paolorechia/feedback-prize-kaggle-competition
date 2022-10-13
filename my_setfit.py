@@ -44,24 +44,23 @@ from mongo_api import Experiment
 minimum_chunk_length = 64
 attention_probs_dropout_prob = 0.85
 hidden_dropout_prob = 0.85
-num_iters = 8
-num_epochs = 5
+num_iters = 2
+num_epochs = 8
 learning_rate = 2e-5
 unique_id = uuid4()
 test_size = 0.8
-attributes = ["cohesion"]
 loss_function = CosineSimilarityLoss
 use_sentences = False
-batch_size = 512 if use_sentences else 64
+batch_size = 32
 
-model_name = "all-MiniLM-L6-v2"
-setfit_model_max_length = 256
+# model_name = "all-MiniLM-L6-v2"
+# setfit_model_max_length = 256
 
-# model_ = "all-mpnet-base-v2"
+# model_name = "all-mpnet-base-v2"
 # setfit_model_max_length = 384
 
-# model_ = "all-distilroberta-v1"
-# setfit_model_max_length = 512
+model_name = "all-distilroberta-v1"
+setfit_model_max_length = 512
 
 
 model_ = model_name

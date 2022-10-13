@@ -28,7 +28,7 @@ if is_chunked_model:
     print("Loaded")
 
 # Tets on full dataset
-train_filepath = os.path.join(data_dir, "train.csv")
+# train_filepath = os.path.join(data_dir, "train.csv")
 
 # Test on fold
 split_csv_dirs = "./split_csvs"
@@ -39,7 +39,7 @@ train_df = pd.read_csv(train_filepath)
 
 
 attribute_experiments = {
-    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:RidgeCV_id:af4b6148_epoch_3",
+    "cohesion": "cohesion_model:all-MiniLM-L6-v2_head:RidgeCV_id:1f8172a4_epoch_2",
     # "syntax": "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "phraseology": "phraseology_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     # "vocabulary": "vocabulary_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
@@ -57,7 +57,7 @@ for attribute, value in tqdm(
 ):
     print("Processing attribute: ", attribute)
     model_path = f"/data/feedback-prize/models/{value}"
-    is_regression = not "LogisticRegression"
+    is_regression = "LogisticRegression" not in model_path
     models[attribute]["is_regression"] = is_regression
     model = SetFitModel.from_pretrained(model_path)
     models[attribute]["model"] = model
@@ -86,7 +86,7 @@ for attribute, value in tqdm(
 
 
 t1 = datetime.now()
-print("Elapsed time to run inference on full dataset: ", t1 - t0)
+print("Elapsed time to run inference on dataset: ", t1 - t0)
 
 if is_cohesion_model:
     train_df[["text_id", "cohesion", "cohesion_predictions"]].to_csv(
@@ -115,7 +115,7 @@ print(train_df.head())
 print("Computing score...")
 full_preds_df = pd.read_csv("full_predictions.csv")
 mcrmse_calculator = MCRMSECalculator()
-if is_chunked_model:
+if is_cohesion_model:
     mcrmse_calculator.compute_column(
         full_preds_df["cohesion"], full_preds_df["cohesion_predictions"]
     )

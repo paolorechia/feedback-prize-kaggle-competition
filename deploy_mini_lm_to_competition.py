@@ -6,6 +6,7 @@ from utils import attributes
 
 models_dir = "/data/feedback-prize/models/"
 kaggle_datasets_dir = "/data/feedback-prize/kaggle-datasets"
+model_arch = "mini-lm"
 models_to_deploy = [
     "cohesion_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
     "syntax_head:SGDRegressor_iters:20_batchSize:128_lossFunction:CosineSimilarityLoss_testSize:0.8_id:d158_epoch_1",
@@ -18,7 +19,7 @@ for model_name in models_to_deploy:
     print("Deploying model: ", model_name)
     model_class = model_name.split("_")[0]
     model_path = os.path.join(models_dir, model_name)
-    dataset_path = os.path.join(kaggle_datasets_dir, f"{model_class}-mini-lm")
+    dataset_path = os.path.join(kaggle_datasets_dir, f"{model_class}-{model_arch}")
 
     # Safety checks for correct paths
     assert model_class in attributes

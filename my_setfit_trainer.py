@@ -82,7 +82,7 @@ def train(
 
     warmup_steps = math.ceil(train_steps * 0.1)
     current_epoch = 1
-    for current_epoch in range(1, num_epochs):
+    for current_epoch in range(1, num_epochs + 1):
         current_name = f"{experiment_name}_epoch_{current_epoch}"
 
         if current_epoch == 1:
@@ -130,6 +130,7 @@ def train(
             model._save_pretrained(f"/data/feedback-prize/models/{current_name}")
         epoch_results.append((train_score, test_score))
 
+        experiment.attribute = attribute
         experiment.train_score = train_score
         experiment.test_score = test_score
         experiment.epochs = current_epoch
