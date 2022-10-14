@@ -14,7 +14,7 @@ y_test = list(test_df["cohesion"])
 
 
 base_trained_model_folder = "/data/feedback-prize/st-output/"
-model_folder = "all-distilroberta-v1-cohesion-604f20b4"
+model_folder = "all-distilroberta-v1-cohesion-433bc00b"
 model_path = os.path.join(base_trained_model_folder, model_folder)
 
 st_model_ridge_cv = SentenceTransformerModelRidgeCV(model_path)

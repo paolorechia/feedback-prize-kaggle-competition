@@ -38,7 +38,7 @@ evaluator = None
 unique_id = str(uuid4())
 
 learning_rate = 2e-5
-num_epochs = 5
+num_epochs = 20
 checkpoint_steps = 50
 weight_decay = 0.01
 warmup_steps = 10
@@ -114,7 +114,7 @@ print("Starting training, results will be saved to: ", output_path)
 # Tune the model
 model.fit(
     train_objectives=[(train_dataloader, train_loss)],
-    epochs=20,
+    epochs=num_epochs,
     evaluator=evaluator,
     warmup_steps=warmup_steps,
     weight_decay=weight_decay,
