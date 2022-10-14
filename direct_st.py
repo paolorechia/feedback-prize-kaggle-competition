@@ -1,7 +1,7 @@
 """Uses SentenceTransformer library directly instead."""
 
+import pandas as pd
 import os
-from subprocess import call
 from sentence_transformers import SentenceTransformer, losses
 from sentence_transformers import evaluation
 from sentence_transformers.evaluation import SimilarityFunction
@@ -23,23 +23,33 @@ model_name = model_info.model_name
 model_truncate_length = model_info.model_truncate_length
 batch_size = model_info.recommended_batch_size
 
-test_size = 0.9
 text_label = "full_text"
 input_dataset = "full"
 test_dataset = "full"
 attribute = "cohesion"
-max_test_size = 500
-train_steps = 1
+
+test_size = 0.5
+max_test_size = 50
+samples_per_class = 2
+
 use_evaluator = True
 evaluator = None
+
 unique_id = str(uuid4())
+
 learning_rate = 2e-5
+num_epochs = 5
+checkpoint_steps = 50
+weight_decay = 0.01
+warmup_steps = 10
+train_steps = 50
+
 checkout_dir = "/data/feedback-prize/st-checkpoints/"
 output_dir = "/data/feedback-prize/st-output/"
 assert os.path.exists(checkout_dir)
 
 output_path = os.path.join(
-    output_dir, f"/{model_name}-{attribute}-{str(unique_id[0:8])}"
+    output_dir, f"{model_name}-{attribute}-{str(unique_id[0:8])}"
 )
 
 
@@ -48,18 +58,28 @@ model = SentenceTransformer(model_name)
 
 
 train_df, test_df = create_attribute_stratified_split(
-    attribute, 0.9, dataset=input_dataset
+    attribute, test_size, dataset=input_dataset
 )
 
+labels = train_df[attribute].unique()
+small_subset = pd.DataFrame()
+
+for label in labels:
+    label_df = train_df[train_df[attribute] == label]
+    print(label, len(label_df))
+    small_subset = pd.concat([small_subset, label_df.sample(samples_per_class)])
+
+print("Small subset size: ", len(small_subset))
 # Let's see how it looks like :)
 training_dataset: TrainingDataset = create_continuous_sentence_pairs(
-    train_df, text_label, attribute, model_truncate_length, "training"
+    small_subset, text_label, attribute, model_truncate_length, "training"
 )
 training_dataset.print_sample(5)
+print("Training sentence pairs: ", len(training_dataset.training_pairs))
 
 if use_evaluator:
     evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
-        test_df.sample(max_test_size),
+        test_df.sample(min(max_test_size, len(test_df))),
         text_label,
         attribute,
         model_truncate_length,
@@ -77,10 +97,11 @@ if use_evaluator:
     )
 
     evaluation_dataset.print_sample(3)
+    print("Evaluation sentence pairs: ", len(evaluation_dataset.scores))
 
 # Define your train dataset, the dataloader and the train loss
 train_dataloader = DataLoader(
-    training_dataset.training_pairs, shuffle=True, batch_size=16
+    training_dataset.training_pairs, shuffle=True, batch_size=batch_size
 )
 train_loss = losses.CosineSimilarityLoss(model)
 
@@ -93,17 +114,17 @@ print("Starting training, results will be saved to: ", output_path)
 # Tune the model
 model.fit(
     train_objectives=[(train_dataloader, train_loss)],
-    epochs=2,
+    epochs=20,
     evaluator=evaluator,
-    evaluation_steps=500,
-    warmup_steps=500,
+    warmup_steps=warmup_steps,
+    weight_decay=weight_decay,
     output_path=output_path,
     save_best_model=True,
     steps_per_epoch=train_steps,
     optimizer_params={"lr": learning_rate},
     show_progress_bar=True,
     callback=evaluation_callback,
-    checkpoint_save_steps=500,
+    checkpoint_save_steps=checkpoint_steps,
     checkpoint_path=os.path.join(
         checkout_dir, model_name, attribute, str(unique_id[0:8])
     ),
