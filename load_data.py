@@ -2,6 +2,7 @@
 from typing import Tuple
 import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
+import os
 
 full_df_path = "/data/feedback-prize/train.csv"
 sampled_df_path = "./small_sets/full_sampled_set.csv"
@@ -22,6 +23,15 @@ def create_attribute_stratified_split(
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
+    split_train_df_path = f"{split_csv_dirs}/train_{attribute}_{test_size}.csv"
+    split_test_df_path = f"{split_csv_dirs}/test_{attribute}_{test_size}.csv"
+
+    # Uses pre-generated files if they exist
+    if os.path.exists(split_train_df_path) and os.path.exists(split_test_df_path):
+        train_df = pd.read_csv(split_train_df_path)
+        test_df = pd.read_csv(split_test_df_path)
+        return train_df, test_df
+
     text_label = "full_text"
 
     X = full_df[text_label]
@@ -33,8 +43,6 @@ def create_attribute_stratified_split(
 
     train_df = full_df.filter(items=train_index, axis=0)
     test_df = full_df.filter(items=test_index, axis=0)
-    split_train_df_path = f"{split_csv_dirs}/train_{attribute}_{test_size}.csv"
-    split_test_df_path = f"{split_csv_dirs}/test_{attribute}_{test_size}.csv"
 
     train_df.to_csv(split_train_df_path, index=False)
     test_df.to_csv(split_test_df_path, index=False)
