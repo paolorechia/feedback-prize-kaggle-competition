@@ -7,7 +7,6 @@ from uuid import uuid4
 from torch.utils.data import DataLoader
 from load_data import create_attribute_stratified_split
 from sentence_pairing import (
-    print_sentence_pair,
     create_continuous_sentence_pairs,
     TrainingDataset,
     EvaluationDataset,
