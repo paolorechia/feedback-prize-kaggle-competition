@@ -138,16 +138,23 @@ training_dataset: TrainingDataset = create_continuous_sentence_pairs(
     train_df, "full_text", "cohesion", model_truncate_length, "training"
 )
 
-for example in training_dataset.training_pairs[0:5]:
-    print(example.texts, example.label)
+for example in training_dataset.training_pairs[0:2]:
+    print("Text 1: \n", example.texts[0])
+    print("Text 2: \n", example.texts[1])
+    print("Similarity Label:", example.label)
 
 evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
     test_df, "full_text", "cohesion", model_truncate_length, "evaluation"
 )
 
-print(evaluation_dataset.sentences1[0:4])
-print(evaluation_dataset.sentences2[0:4])
-print(evaluation_dataset.scores[0:4])
+print(
+    "Text 1: \n",
+    evaluation_dataset.sentences1[0],
+    "Text 2: \n",
+    evaluation_dataset.sentences2[0],
+    "Similarity Label:",
+    evaluation_dataset.scores[0],
+)
 # Define the model. Either from scratch or by loading a pre-trained model
 model_name = "all-distilroberta-v1"
 model = SentenceTransformer(model_name)
@@ -157,7 +164,7 @@ evaluator = evaluation.EmbeddingSimilarityEvaluator(
     evaluation_dataset.sentences1,
     evaluation_dataset.sentences2,
     evaluation_dataset.scores,
-    show_progress_bar=False,
+    show_progress_bar=True,
     name="evaluator_output_{model_name}",
     write_csv=True,
 )
