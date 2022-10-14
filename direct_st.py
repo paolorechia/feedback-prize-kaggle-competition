@@ -1,11 +1,13 @@
 """Uses SentenceTransformer library directly instead."""
 
+from subprocess import call
 from sentence_transformers import SentenceTransformer, losses
 from sentence_transformers import evaluation
 from uuid import uuid4
 from torch.utils.data import DataLoader
 from load_data import create_attribute_stratified_split
 from sentence_pairing import (
+    print_sentence_pair,
     create_continuous_sentence_pairs,
     TrainingDataset,
     EvaluationDataset,
@@ -17,18 +19,24 @@ model_info = ModelCatalog.AllMiniLML6v2
 
 model_name = model_info.model_name
 model_truncate_length = model_info.model_truncate_length
+batch_size = model_info.recommended_batch_size
 
 test_size = 0.9
 text_label = "full_text"
 input_dataset = "full"
 attribute = "cohesion"
-max_test_size = 300
+max_test_size = 500
 train_steps = 1
 use_evaluator = True
 evaluator = None
 unique_id = str(uuid4())
 learning_rate = 2e-5
 output_path = f"./st_output/{attribute}-{unique_id}"
+
+
+# Define the model. Either from scratch or by loading a pre-trained model
+model = SentenceTransformer(model_name)
+
 
 train_df, test_df = create_attribute_stratified_split(
     attribute, 0.9, dataset=input_dataset
@@ -38,14 +46,7 @@ train_df, test_df = create_attribute_stratified_split(
 training_dataset: TrainingDataset = create_continuous_sentence_pairs(
     train_df, text_label, attribute, model_truncate_length, "training"
 )
-
-for example in training_dataset.training_pairs[0:2]:
-    print("Text 1: \n", example.texts[0])
-    print("Text 2: \n", example.texts[1])
-    print("Similarity Label:", example.label)
-
-# Define the model. Either from scratch or by loading a pre-trained model
-model = SentenceTransformer(model_name)
+training_dataset.print_sample(5)
 
 if use_evaluator:
     evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
@@ -65,14 +66,7 @@ if use_evaluator:
         write_csv=True,
     )
 
-    print(
-        "Text 1: \n",
-        evaluation_dataset.sentences1[0],
-        "Text 2: \n",
-        evaluation_dataset.sentences2[0],
-        "Similarity Label:",
-        evaluation_dataset.scores[0],
-    )
+    evaluation_dataset.print_sample(3)
 
 # Define your train dataset, the dataloader and the train loss
 train_dataloader = DataLoader(
@@ -80,15 +74,23 @@ train_dataloader = DataLoader(
 )
 train_loss = losses.CosineSimilarityLoss(model)
 
+
+def evaluation_callback(score, epoch, steps):
+    print(f"Epoch {epoch} - Evaluation score: {score} - Steps: {steps}")
+
+
+print("Starting training, results will be saved to: ", output_path)
 # Tune the model
 model.fit(
     train_objectives=[(train_dataloader, train_loss)],
-    epochs=1,
+    epochs=10,
     evaluator=evaluator,
-    warmup_steps=100,
+    evaluation_steps=1000,
+    warmup_steps=1000,
     output_path=output_path,
     save_best_model=True,
     steps_per_epoch=train_steps,
     optimizer_params={"lr": learning_rate},
     show_progress_bar=True,
+    callback=evaluation_callback,
 )

@@ -1,4 +1,4 @@
-
+import os
 from pre_trained_st_model import SentenceTransformerModelRidgeCV
 from utils import MCRMSECalculator
 from load_data import create_attribute_stratified_split
@@ -12,7 +12,12 @@ y_train = list(train_df["cohesion"])
 X_test = list(test_df["full_text"])
 y_test = list(test_df["cohesion"])
 
-st_model_ridge_cv = SentenceTransformerModelRidgeCV("./st_output/all-distilroberta-v1")
+
+base_trained_model_folder = "st_output"
+model_folder = "cohesion-a295e5c6-5d3b-4f78-a6f0-ea098b2c7f57"
+model_path = os.path.join(base_trained_model_folder, model_folder)
+
+st_model_ridge_cv = SentenceTransformerModelRidgeCV(model_path)
 st_model_ridge_cv.fit(X_train, y_train)
 score = st_model_ridge_cv.score(X_test, y_test)
 print("Score:", score)

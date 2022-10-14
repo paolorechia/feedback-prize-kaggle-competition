@@ -5,21 +5,26 @@ from dataclasses import dataclass
 class Model:
     model_name: str
     model_truncate_length: int
+    recommended_batch_size: int
 
 class ModelCatalog:
     AllMiniLML6v2 = Model(
         model_name="all-MiniLM-L6-v2",
         model_truncate_length=256,
+        recommended_batch_size=64,
     )
     AllMpnetBasev2 = Model(
         model_name="all-mpnet-base-v2",
         model_truncate_length=384,
+        recommended_batch_size=16
     )
     AllMpnetBasev1 = Model(
         model_name="all-mpnet-base-v1",
         model_truncate_length=512,
+        recommended_batch_size=16
     )
     AllDistilrobertaV1 = Model(
         model_name="all-distilroberta-v1",
         model_truncate_length=512,
+        recommended_batch_size=32
     )

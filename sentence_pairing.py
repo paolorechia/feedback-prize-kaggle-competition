@@ -3,16 +3,37 @@ from typing import List, Union
 from sentence_transformers import SentenceTransformer, InputExample, losses
 from tqdm import tqdm
 
+
+def print_sentence_pair(sent1, sent2, label):
+    print("Text 1: \n", sent1, "\n")
+    print("Text 2: \n", sent2, "\n")
+    print("Similarity Label:", label, "\n")
+
+
 @dataclass
 class EvaluationDataset:
     sentences1: List[str]
     sentences2: List[str]
     scores: List[float]
 
+    def print_sample(self, sample_size=3):
+        for i in range(sample_size):
+            print_sentence_pair(self.sentences1[i], self.sentences2[i], self.scores[i])
+            print("-" * 80)
+
 
 @dataclass
 class TrainingDataset:
     training_pairs: List[InputExample]
+
+    def print_sample(self, sample_size=5):
+        for i in range(sample_size):
+            print_sentence_pair(
+                self.training_pairs[i].texts[0],
+                self.training_pairs[i].texts[1],
+                self.training_pairs[i].label,
+            )
+            print("-" * 80)
 
 
 class SentencePairState:
