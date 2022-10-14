@@ -44,3 +44,18 @@ class ModelCatalog:
         recommended_batch_size=32,
         is_from_library=False,
     )
+
+    DebertaV3 = Model(
+        model_name="microsoft/deberta-v3-base",
+        model_truncate_length=256,
+        recommended_batch_size=32,
+        is_from_library=False,
+    )
+
+
+    DebertaV3Large = Model(
+        model_name="microsoft/deberta-v3-large",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )

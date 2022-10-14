@@ -5,16 +5,21 @@ from load_data import create_attribute_stratified_split
 from model_catalog import ModelCatalog
 
 attribute = "cohesion"
-model_name = "all-mpnet-base-v1"
-experiment_id = "df7a1c45"
+experiment_id = "3eee1504"
 test_size_from_experiment = 0.5
 base_trained_model_folder = "/data/feedback-prize/st-output/"
 experiment_dataset = "full"
 dataset_text_attribute = "full_text"
-model_info = ModelCatalog.AllMpnetBasev1
+
+# model_info = ModelCatalog.AllMpnetBasev1
+# model_info = ModelCatalog.BertBaseUncased
+# model_info = ModelCatalog.DebertaV3
+model_info = ModelCatalog.DebertaV3Large
+
+model_name = model_info.model_name
 
 train_df, test_df = create_attribute_stratified_split(
-    "cohesion", test_size_from_experiment, experiment_dataset
+    attribute, test_size_from_experiment, experiment_dataset
 )
 
 X_train = list(train_df[dataset_text_attribute])
