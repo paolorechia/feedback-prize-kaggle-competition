@@ -56,17 +56,18 @@ def train_model_on_all_attributes(con: TrainingContext):
         con.output_dir,
         f"{con.model_info.model_name}-multitask-{str(con.unique_id[0:8])}",
     )
-    train_df, test_df = create_attribute_stratified_split(
-        con.attribute, con.test_size, dataset=con.input_dataset
-    )
-
-    small_subset = sample_sentences_per_class(
-        train_df, con.attribute, con.max_samples_per_class
-    )
 
     train_objectives = []
 
     for attr in con.attributes:
+        train_df, test_df = create_attribute_stratified_split(
+            attr, con.test_size, dataset=con.input_dataset
+        )
+
+        small_subset = sample_sentences_per_class(
+            train_df, attr, con.max_samples_per_class
+        )
+
         training_dataset: TrainingDataset = create_continuous_sentence_pairs(
             small_subset,
             con.text_label,
