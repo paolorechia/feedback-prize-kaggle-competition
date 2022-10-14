@@ -16,8 +16,8 @@ from sentence_pairing import (
 )
 from model_catalog import ModelCatalog
 
-model_info = ModelCatalog.AllMiniLML6v2
-# model_info = ModelCatalog.AllDistilrobertaV1
+# model_info = ModelCatalog.AllMiniLML6v2
+model_info = ModelCatalog.AllDistilrobertaV1
 
 model_name = model_info.model_name
 model_truncate_length = model_info.model_truncate_length
@@ -34,10 +34,13 @@ use_evaluator = True
 evaluator = None
 unique_id = str(uuid4())
 learning_rate = 2e-5
-checkout_dir = "/data/feedback-prize-kaggle/st-checkpoints/"
-assert os.exists(checkout_dir)
+checkout_dir = "/data/feedback-prize/st-checkpoints/"
+output_dir = "/data/feedback-prize/st-output/"
+assert os.path.exists(checkout_dir)
 
-output_path = f"./st_output/{model_name}-{attribute}-{str(unique_id[0:8])}"
+output_path = os.path.join(
+    output_dir, f"/{model_name}-{attribute}-{str(unique_id[0:8])}"
+)
 
 
 # Define the model. Either from scratch or by loading a pre-trained model
