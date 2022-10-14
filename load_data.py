@@ -4,20 +4,31 @@ import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
 
 full_df_path = "/data/feedback-prize/train.csv"
+sampled_df_path = "./small_sets/full_sampled_set.csv"
 split_csv_dirs = "./split_csvs"
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 fold_df_path = "/data/feedback-prize/"
 text_label = "full_text"
 random_state = 10
 
-full_df = pd.read_csv(full_df_path)
 
-def create_attribute_stratified_split(attribute: str, test_size: float) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def create_attribute_stratified_split(
+    attribute: str, test_size: float, dataset: str
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    if dataset == "full":
+        full_df = pd.read_csv(full_df_path)
+    elif dataset == "sampled":
+        full_df = pd.read_csv(sampled_df_path)
+    else:
+        raise ValueError(f"Unknown dataset: {dataset}")
+
     text_label = "full_text"
 
     X = full_df[text_label]
     y = full_df[attribute]
-    sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=random_state)
+    sss = StratifiedShuffleSplit(
+        n_splits=1, test_size=test_size, random_state=random_state
+    )
     train_index, test_index = next(sss.split(X, y))
 
     train_df = full_df.filter(items=train_index, axis=0)

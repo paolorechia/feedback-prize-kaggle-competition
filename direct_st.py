@@ -96,15 +96,41 @@ def create_continuous_sentence_pairs(
             text2 = row[text_label].strip()[0:model_truncate_length]
             label2 = row[attribute]
             if text1 != text2:
-                label_distance = abs(label1 - label2)
-                # normalize difference to 0-1
-                label_distance = label_distance / 5
+                # Possible labels are:
+                # 1.0
+                # 1.5
+                # 2.0
+                # 2.5
+                # 3.0
+                # 3.5
+                # 4.0
+                # 4.5
+                # 5.0
+
+                raw_label_distance = abs(label1 - label2)
+                # 1.0 is the minimum distance and 0 is the maximum distance.
+
+                # First, normalize difference to 0-1
+                normalized_distance = raw_label_distance / 4.0
+                # Now, invert the distance
+
+                label_distance = 1 - (normalized_distance / 4)
+                # Let's try some examples
+                # 1.0 - ((5.0 - 1.0) / 4) = 0.0
+                # 1.0 - ((5.0 - 2.0) / 4) = 0.25
+                # 1.0 - ((5.0 - 3.0) / 4) = 0.5
+                # 1.0 - ((5.0 - 4.0) / 4) = 0.75
+                # 1.0 - ((5.0 - 5.0) / 4) = 1.0
+
                 state.add_data(
                     sentence1=text1, sentence2=text2, distance_label=label_distance
                 )
     return state.state
 
-train_df, test_df = create_attribute_stratified_split("cohesion", 0.8)
+
+train_df, test_df = create_attribute_stratified_split(
+    "cohesion", 0.8, dataset="sampled"
+)
 model_truncate_length = 512
 
 # Let's see how it looks like :)
@@ -122,7 +148,7 @@ evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
 print(evaluation_dataset.sentences1[0:4])
 print(evaluation_dataset.sentences2[0:4])
 print(evaluation_dataset.scores[0:4])
-# Define the model. Either from scratch of by loading a pre-trained model
+# Define the model. Either from scratch or by loading a pre-trained model
 model_name = "all-distilroberta-v1"
 model = SentenceTransformer(model_name)
 
