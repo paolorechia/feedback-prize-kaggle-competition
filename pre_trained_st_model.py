@@ -21,3 +21,9 @@ class SentenceTransformerModelRidgeCV:
         score = self.ridge_cv.score(X_test_embeddings, y_test)
         return score
 
+    def predict(self, X_test):
+        print("Encoding test set")
+        X_test_embeddings = self.model.encode(X_test)
+        print("Predicting...")
+        predictions = self.ridge_cv.predict(X_test_embeddings)
+        return predictions
