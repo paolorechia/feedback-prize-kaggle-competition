@@ -14,7 +14,7 @@ y_test = list(test_df["cohesion"])
 
 
 base_trained_model_folder = "st_output"
-model_folder = "cohesion-a295e5c6-5d3b-4f78-a6f0-ea098b2c7f57"
+model_folder = "cohesion-ba44f1f1-0a44-4805-82db-d77d9c5f7052"
 model_path = os.path.join(base_trained_model_folder, model_folder)
 
 st_model_ridge_cv = SentenceTransformerModelRidgeCV(model_path)

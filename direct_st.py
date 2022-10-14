@@ -1,8 +1,11 @@
 """Uses SentenceTransformer library directly instead."""
 
+import os
 from subprocess import call
 from sentence_transformers import SentenceTransformer, losses
 from sentence_transformers import evaluation
+from sentence_transformers.evaluation import SimilarityFunction
+
 from uuid import uuid4
 from torch.utils.data import DataLoader
 from load_data import create_attribute_stratified_split
@@ -23,6 +26,7 @@ batch_size = model_info.recommended_batch_size
 test_size = 0.9
 text_label = "full_text"
 input_dataset = "full"
+test_dataset = "full"
 attribute = "cohesion"
 max_test_size = 500
 train_steps = 1
@@ -30,7 +34,10 @@ use_evaluator = True
 evaluator = None
 unique_id = str(uuid4())
 learning_rate = 2e-5
-output_path = f"./st_output/{attribute}-{unique_id}"
+checkout_dir = "/data/feedback-prize-kaggle/st-checkpoints/"
+assert os.exists(checkout_dir)
+
+output_path = f"./st_output/{model_name}-{attribute}-{str(unique_id[0:8])}"
 
 
 # Define the model. Either from scratch or by loading a pre-trained model
@@ -63,6 +70,7 @@ if use_evaluator:
         show_progress_bar=True,
         name="evaluator_output_{model_name}",
         write_csv=True,
+        main_similarity=SimilarityFunction.COSINE,
     )
 
     evaluation_dataset.print_sample(3)
@@ -75,21 +83,26 @@ train_loss = losses.CosineSimilarityLoss(model)
 
 
 def evaluation_callback(score, epoch, steps):
-    print(f"Epoch {epoch} - Evaluation score: {score} - Steps: {steps}")
+    print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
 
 
 print("Starting training, results will be saved to: ", output_path)
 # Tune the model
 model.fit(
     train_objectives=[(train_dataloader, train_loss)],
-    epochs=10,
+    epochs=2,
     evaluator=evaluator,
-    evaluation_steps=1000,
-    warmup_steps=1000,
+    evaluation_steps=500,
+    warmup_steps=500,
     output_path=output_path,
     save_best_model=True,
     steps_per_epoch=train_steps,
     optimizer_params={"lr": learning_rate},
     show_progress_bar=True,
     callback=evaluation_callback,
+    checkpoint_save_steps=500,
+    checkpoint_path=os.path.join(
+        checkout_dir, model_name, attribute, str(unique_id[0:8])
+    ),
 )
+print("Finished, results saved to: ", output_path)
