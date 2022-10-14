@@ -8,7 +8,7 @@ from sentence_transformers.evaluation import SimilarityFunction
 
 from uuid import uuid4
 from torch.utils.data import DataLoader
-from load_data import create_attribute_stratified_split
+from load_data import create_attribute_stratified_split, sample_sentences_per_class
 from sentence_pairing import (
     create_continuous_sentence_pairs,
     TrainingDataset,
@@ -16,7 +16,8 @@ from sentence_pairing import (
 )
 from model_catalog import ModelCatalog
 
-# model_info = ModelCatalog.AllMiniLML6v2
+model_info = ModelCatalog.AllMiniLML6v2
+model_info = ModelCatalog.AllMpnetBasev1
 model_info = ModelCatalog.AllDistilrobertaV1
 
 model_name = model_info.model_name
@@ -29,8 +30,7 @@ test_dataset = "full"
 attribute = "cohesion"
 
 test_size = 0.5
-max_test_size = 50
-samples_per_class = 2
+max_samples_per_class = 8
 
 use_evaluator = True
 evaluator = None
@@ -38,7 +38,7 @@ evaluator = None
 unique_id = str(uuid4())
 
 learning_rate = 2e-5
-num_epochs = 20
+num_epochs = 6
 checkpoint_steps = 50
 weight_decay = 0.01
 warmup_steps = 10
@@ -61,13 +61,7 @@ train_df, test_df = create_attribute_stratified_split(
     attribute, test_size, dataset=input_dataset
 )
 
-labels = train_df[attribute].unique()
-small_subset = pd.DataFrame()
-
-for label in labels:
-    label_df = train_df[train_df[attribute] == label]
-    print(label, len(label_df))
-    small_subset = pd.concat([small_subset, label_df.sample(samples_per_class)])
+small_subset = sample_sentences_per_class(train_df, attribute, max_samples_per_class)
 
 print("Small subset size: ", len(small_subset))
 # Let's see how it looks like :)
@@ -78,8 +72,10 @@ training_dataset.print_sample(5)
 print("Training sentence pairs: ", len(training_dataset.training_pairs))
 
 if use_evaluator:
+    eval_small_subset = sample_sentences_per_class(test_df, attribute, max_samples_per_class)
+
     evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
-        test_df.sample(min(max_test_size, len(test_df))),
+        eval_small_subset,
         text_label,
         attribute,
         model_truncate_length,

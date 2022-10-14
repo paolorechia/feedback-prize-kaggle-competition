@@ -48,3 +48,18 @@ def create_attribute_stratified_split(
     test_df.to_csv(split_test_df_path, index=False)
 
     return train_df, test_df
+
+
+def sample_sentences_per_class(
+    df: pd.DataFrame, attribute: str, max_samples_per_class: int
+) -> pd.DataFrame:
+    labels = df[attribute].unique()
+    small_subset = pd.DataFrame()
+
+    for label in labels:
+        label_df = df[df[attribute] == label]
+        print(label, len(label_df))
+        small_subset = pd.concat(
+            [small_subset, label_df.sample(min(max_samples_per_class, len(label_df)))]
+        )
+    return small_subset
