@@ -2,19 +2,29 @@ import os
 from pre_trained_st_model import SentenceTransformerModelRidgeCV
 from utils import MCRMSECalculator
 from load_data import create_attribute_stratified_split
+from model_catalog import ModelCatalog
 
-
-train_df, test_df = create_attribute_stratified_split("cohesion", 0.5, "full")
-
-X_train = list(train_df["full_text"])
-y_train = list(train_df["cohesion"])
-
-X_test = list(test_df["full_text"])
-y_test = list(test_df["cohesion"])
-
-
+attribute = "cohesion"
+model_name = "all-mpnet-base-v1"
+experiment_id = "df7a1c45"
+test_size_from_experiment = 0.5
 base_trained_model_folder = "/data/feedback-prize/st-output/"
-model_folder = "all-distilroberta-v1-cohesion-1c524550"
+experiment_dataset = "full"
+dataset_text_attribute = "full_text"
+model_info = ModelCatalog.AllMpnetBasev1
+
+train_df, test_df = create_attribute_stratified_split(
+    "cohesion", test_size_from_experiment, experiment_dataset
+)
+
+X_train = list(train_df[dataset_text_attribute])
+y_train = list(train_df[attribute])
+
+X_test = list(test_df[dataset_text_attribute])
+y_test = list(test_df[attribute])
+
+
+model_folder = f"{model_name}-{attribute}-{experiment_id}"
 model_path = os.path.join(base_trained_model_folder, model_folder)
 
 # Load from checkpoint instead

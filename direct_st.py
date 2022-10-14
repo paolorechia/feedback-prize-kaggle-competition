@@ -2,8 +2,7 @@
 
 import pandas as pd
 import os
-from sentence_transformers import SentenceTransformer, losses
-from sentence_transformers import evaluation
+from sentence_transformers import SentenceTransformer, losses, models, evaluation
 from sentence_transformers.evaluation import SimilarityFunction
 
 from uuid import uuid4
@@ -16,9 +15,11 @@ from sentence_pairing import (
 )
 from model_catalog import ModelCatalog
 
-model_info = ModelCatalog.AllMiniLML6v2
-model_info = ModelCatalog.AllMpnetBasev1
-model_info = ModelCatalog.AllDistilrobertaV1
+# model_info = ModelCatalog.AllMiniLML6v2
+# model_info = ModelCatalog.AllDistilrobertaV1
+# model_info = ModelCatalog.AllMpnetBasev1
+
+model_info = ModelCatalog.BertBaseUncased
 
 model_name = model_info.model_name
 model_truncate_length = model_info.model_truncate_length
@@ -54,8 +55,12 @@ output_path = os.path.join(
 
 
 # Define the model. Either from scratch or by loading a pre-trained model
-model = SentenceTransformer(model_name)
-
+if model_info.is_from_library:
+    model = SentenceTransformer(model_name)
+else:
+    word_embedding_model = models.Transformer(model_name, max_seq_length=256)
+    pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
+    model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
 train_df, test_df = create_attribute_stratified_split(
     attribute, test_size, dataset=input_dataset
@@ -72,7 +77,9 @@ training_dataset.print_sample(5)
 print("Training sentence pairs: ", len(training_dataset.training_pairs))
 
 if use_evaluator:
-    eval_small_subset = sample_sentences_per_class(test_df, attribute, max_samples_per_class)
+    eval_small_subset = sample_sentences_per_class(
+        test_df, attribute, max_samples_per_class
+    )
 
     evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
         eval_small_subset,
