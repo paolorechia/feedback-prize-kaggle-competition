@@ -43,15 +43,18 @@ def test_on_attribute(
     y_test = list(test_df[attribute])
 
     if isinstance(st_model_ridge_cv, SentenceTransformerModelRidgeCV):
-        st_model_ridge_cv.fit(X_train, y_train)
-        score = st_model_ridge_cv.score(X_test, y_test)
+        X_train_embeddings = st_model_ridge_cv.st_model.encode(X_train)
+        X_test_embeddings = st_model_ridge_cv.st_model.encode(X_test)
+
+        st_model_ridge_cv.fit(X_train_embeddings, y_train)
+        score = st_model_ridge_cv.score(X_test_embeddings, y_test)
         print("Score:", score)
 
         predictions = st_model_ridge_cv.predict(X_test)
     else:
         print("Using multihead class...")
-        st_model_ridge_cv.fit(attribute, X_train, y_train)
-        score = st_model_ridge_cv.score(attribute, X_test, y_test)
+        st_model_ridge_cv.fit(attribute, X_test_embeddings, y_train)
+        score = st_model_ridge_cv.score(attribute, X_test_embeddings, y_test)
         print("Score:", score)
 
         predictions = st_model_ridge_cv.predict(attribute, X_test)

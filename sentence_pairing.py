@@ -21,6 +21,13 @@ class EvaluationDataset:
             print_sentence_pair(self.sentences1[i], self.sentences2[i], self.scores[i])
             print("-" * 80)
 
+    def merge(self, other: "EvaluationDataset") -> "EvaluationDataset":
+        return EvaluationDataset(
+            self.sentences1 + other.sentences1,
+            self.sentences2 + other.sentences2,
+            self.scores + other.scores,
+        )
+
 
 @dataclass
 class TrainingDataset:

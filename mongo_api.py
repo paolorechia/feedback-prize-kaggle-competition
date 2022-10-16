@@ -1,6 +1,10 @@
-import requests
-from dataclasses import dataclass
 import warnings
+from dataclasses import dataclass
+
+import requests
+
+from st_trainer import TrainingContext
+
 
 # TODO: use dataclass in the code
 @dataclass
@@ -29,7 +33,7 @@ class Experiment:
 
 
 class MongoDataAPIClient:
-    def __init__(self):
+    def __init__(self, collection="setfit"):
         with open(".mongo_api_key", "r") as fp:
             self._api_key = fp.read().strip()
 
@@ -42,7 +46,7 @@ class MongoDataAPIClient:
             "Access-Control-Request-Headers": "*",
             "api-key": self._api_key,
         }
-        self._collection = "setfit"
+        self._collection = collection
         self._database = "feedback-prize-kaggle-competition"
         self._data_source = "Cluster0"
 
@@ -61,6 +65,57 @@ class MongoDataAPIClient:
             print(f"API call failed: {response.content.decode()}")
             return None
         return response.json()
+
+    def register_st_training_context(self, training_context: TrainingContext):
+        data = {
+            "document": {
+                "model_name": training_context.model_info.model_name,
+                "warmup_steps": training_context.warmup_steps,
+                "weight_decay": training_context.weight_decay,
+                "learning_rate": training_context.learning_rate,
+                "checkpoint_steps": training_context.checkpoint_steps,
+                "num_epochs": training_context.num_epochs,
+                "batch_size": training_context.batch_size,
+                "is_multitask": training_context.is_multitask,
+                "attribute": training_context.attribute,
+                "unique_id": training_context.unique_id,
+                "test_size": training_context.test_size,
+                "input_dataset": training_context.input_dataset,
+                "max_samples_per_class": training_context.max_samples_per_class,
+                "use_evaluator": training_context.use_evaluator,
+                "checkout_dir": training_context.checkout_dir,
+                "output_dir": training_context.output_dir,
+                "evaluation_scores": [],
+                "mcrmse_scores": {
+                    "all": [],
+                    "cohesion": [],
+                    "syntax": [],
+                    "vocabulary": [],
+                    "phraseology": [],
+                    "grammar": [],
+                    "conventions": [],
+                },
+            }
+        }
+        return self._call_api("insertOne", data)
+
+    def append_training_context_scores(self, unique_id, evaluation_scores, mcmse_scores):
+        data = {
+            "filter": {"unique_id": unique_id},
+            "update": {
+                "$push": {
+                    "evaluation_scores": {"$each": evaluation_scores},
+                    "mcrmse_scores.all": {"$each": mcmse_scores["all"]},
+                    "mcrmse_scores.cohesion": {"$each": mcmse_scores["cohesion"]},
+                    "mcrmse_scores.syntax": {"$each": mcmse_scores["syntax"]},
+                    "mcrmse_scores.vocabulary": {"$each": mcmse_scores["vocabulary"]},
+                    "mcrmse_scores.phraseology": {"$each": mcmse_scores["phraseology"]},
+                    "mcrmse_scores.grammar": {"$each": mcmse_scores["grammar"]},
+                    "mcrmse_scores.conventions": {"$each": mcmse_scores["conventions"]},
+                }
+            },
+        }
+        return self._call_api("updateOne", data)
 
     def register_experiment(self, experiment: Experiment):
         data = {

@@ -2,7 +2,8 @@ import os
 from dataclasses import dataclass
 from typing import List
 
-from sentence_transformers import SentenceTransformer, evaluation, losses, models
+import pandas as pd
+from sentence_transformers import SentenceTransformer, evaluation, losses
 from sentence_transformers.evaluation import SimilarityFunction
 from torch.utils.data import DataLoader
 
@@ -13,6 +14,7 @@ from sentence_pairing import (
     TrainingDataset,
     create_continuous_sentence_pairs,
 )
+from mcrmse_evaluator import evaluate_mcrmse_multitask
 
 
 @dataclass
@@ -59,6 +61,8 @@ def train_model_on_all_attributes(con: TrainingContext):
 
     train_objectives = []
 
+    all_attributes_eval_dataset = EvaluationDataset([], [], [])
+
     for attr in con.attributes:
         train_df, test_df = create_attribute_stratified_split(
             attr, con.test_size, dataset=con.input_dataset
@@ -84,15 +88,29 @@ def train_model_on_all_attributes(con: TrainingContext):
 
         train_objectives.append((train_dataloader, train_loss))
 
+        evaluation_dataset = create_evaluation_dataset_for_attribute(test_df, con, attr)
+        all_attributes_eval_dataset = all_attributes_eval_dataset.merge(
+            evaluation_dataset
+        )
+
+    evaluator = create_evaluator_from_evaluation_dataset(all_attributes_eval_dataset)
+
     def evaluation_callback(score, epoch, steps):
         print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
+
+        evaluate_mcrmse_multitask(
+            dataset_text_attribute=con.text_label,
+            test_size_from_experiment=con.test_size,
+            input_dataset=con.input_dataset,
+            st_model=con.model,
+        )
 
     print("Starting training, results will be saved to: ", output_path)
     # Tune the model
     con.model.fit(
         train_objectives=train_objectives,
         epochs=con.num_epochs,
-        # evaluator=evaluator # Not sure if this is supported in multi-task,
+        evaluator=evaluator,
         warmup_steps=con.warmup_steps,
         weight_decay=con.weight_decay,
         output_path=output_path,
@@ -138,30 +156,8 @@ def train_model_on_single_attribute(con: TrainingContext):
     print("Training sentence pairs: ", len(training_dataset.training_pairs))
 
     if con.use_evaluator:
-        eval_small_subset = sample_sentences_per_class(
-            test_df, con.attribute, con.max_samples_per_class
-        )
-
-        evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
-            eval_small_subset,
-            con.text_label,
-            con.attribute,
-            con.model_info.model_truncate_length,
-            "evaluation",
-        )
-
-        evaluator = evaluation.EmbeddingSimilarityEvaluator(
-            evaluation_dataset.sentences1,
-            evaluation_dataset.sentences2,
-            evaluation_dataset.scores,
-            show_progress_bar=True,
-            name="evaluator_output_{model_name}",
-            write_csv=True,
-            main_similarity=SimilarityFunction.COSINE,
-        )
-
-        evaluation_dataset.print_sample(3)
-        print("Evaluation sentence pairs: ", len(evaluation_dataset.scores))
+        evaluator_dataset = create_evaluation_dataset_for_attribute(test_df, con)
+        evaluator = create_evaluator_from_evaluation_dataset(evaluator_dataset)
 
     # Define your train dataset, the dataloader and the train loss
     train_dataloader = DataLoader(
@@ -195,3 +191,41 @@ def train_model_on_single_attribute(con: TrainingContext):
         ),
     )
     print("Finished, results saved to: ", output_path)
+
+
+def create_evaluation_dataset_for_attribute(
+    test_df: pd.DataFrame, con: TrainingContext, attr: str = ""
+) -> EvaluationDataset:
+
+    used_attr = attr if attr else con.attribute
+    eval_small_subset = sample_sentences_per_class(
+        test_df, used_attr, con.max_samples_per_class
+    )
+
+    evaluation_dataset: EvaluationDataset = create_continuous_sentence_pairs(
+        eval_small_subset,
+        con.text_label,
+        used_attr,
+        con.model_info.model_truncate_length,
+        "evaluation",
+    )
+    return evaluation_dataset
+
+
+def create_evaluator_from_evaluation_dataset(
+    evaluation_dataset: EvaluationDataset,
+) -> evaluation.EmbeddingSimilarityEvaluator:
+
+    evaluator = evaluation.EmbeddingSimilarityEvaluator(
+        evaluation_dataset.sentences1,
+        evaluation_dataset.sentences2,
+        evaluation_dataset.scores,
+        show_progress_bar=True,
+        name="evaluator_output_{model_name}",
+        write_csv=True,
+        main_similarity=SimilarityFunction.COSINE,
+    )
+
+    evaluation_dataset.print_sample(min(3, len(evaluation_dataset.scores)))
+    print("Evaluation sentence pairs: ", len(evaluation_dataset.scores))
+    return evaluator
