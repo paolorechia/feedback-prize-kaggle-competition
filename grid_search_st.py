@@ -41,18 +41,20 @@ test_size = [0.3, 0.5, 0.7]
 weight_decay = [0.01, 0.05, 0.1]
 
 # Generate all combinations of parameters
-params = product(
-    warmup_steps,
-    num_epochs,
-    train_steps,
-    max_samples_per_class,
-    learning_rate,
-    model_info,
-    test_size,
-    weight_decay,
+params = list(
+    product(
+        warmup_steps,
+        num_epochs,
+        train_steps,
+        max_samples_per_class,
+        learning_rate,
+        model_info,
+        test_size,
+        weight_decay,
+    )
 )
 
-print("Total number of experiments:", len(list(params)))
+print("Total number of experiments:", len(params))
 for combination in params:
     (
         warmup_steps,
