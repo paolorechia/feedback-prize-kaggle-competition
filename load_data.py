@@ -1,6 +1,7 @@
 "Small helper to load an attribute fold"
 from typing import Tuple
 import pandas as pd
+from seeds import PANDAS_RANDOM_STATE
 from sklearn.model_selection import StratifiedShuffleSplit
 import os
 
@@ -10,7 +11,7 @@ split_csv_dirs = "./split_csvs"
 intermediate_df_path = "/data/feedback-prize/intermediate.csv"
 fold_df_path = "/data/feedback-prize/"
 text_label = "full_text"
-random_state = 10
+random_state = PANDAS_RANDOM_STATE
 
 
 def create_attribute_stratified_split(
