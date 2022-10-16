@@ -68,7 +68,9 @@ def train_model_on_all_attributes(
             evaluation_dataset
         )
 
-    evaluator = create_evaluator_from_evaluation_dataset(all_attributes_eval_dataset)
+    evaluator = None
+    if con.use_evaluator:
+        evaluator = create_evaluator_from_evaluation_dataset(all_attributes_eval_dataset)
 
     def evaluation_callback(score, epoch, steps):
         print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
@@ -136,6 +138,7 @@ def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):
     training_dataset.print_sample(5)
     print("Training sentence pairs: ", len(training_dataset.training_pairs))
 
+    evaluator = None
     if con.use_evaluator:
         evaluator_dataset = create_evaluation_dataset_for_attribute(test_df, con)
         evaluator = create_evaluator_from_evaluation_dataset(evaluator_dataset)
