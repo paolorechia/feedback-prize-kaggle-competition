@@ -4,10 +4,9 @@ import os
 from itertools import product
 from uuid import uuid4
 
-from sentence_transformers import SentenceTransformer, models
-
 from experiment_schemas import TrainingContext
 from model_catalog import ModelCatalog
+from model_loader import load_model_with_dropout
 from st_trainer import auto_trainer
 from utils import attributes
 
@@ -29,16 +28,16 @@ num_epochs = [5]
 train_steps = [50]
 max_samples_per_class = [8]
 learning_rate = [2e-5]
-model_info = [
-    ModelCatalog.AllMiniLML6v2,
-    ModelCatalog.AllDistilrobertaV1,
-    ModelCatalog.AllMpnetBasev1,
-    ModelCatalog.BertBaseUncased,
-    ModelCatalog.DebertaV3,
-    ModelCatalog.DebertaV3Large,
-]
-test_size = [0.3, 0.5, 0.7]
-weight_decay = [0.01, 0.05, 0.1]
+model_info = [ModelCatalog.DebertaV3]
+
+test_size = [0.3]
+# test_size = [0.3, 0.5, 0.7]
+weight_decay = [0.01]
+# weight_decay = [0.01, 0.05, 0.1]
+
+attention_dropout = [0.0, 0.1, 0.5, 0.9]
+hidden_dropout = [0.0, 0.1, 0.5, 0.9]
+classifier_dropout = [0.0]
 
 # Generate all combinations of parameters
 params = list(
@@ -51,6 +50,9 @@ params = list(
         model_info,
         test_size,
         weight_decay,
+        attention_dropout,
+        hidden_dropout,
+        classifier_dropout,
     )
 )
 
@@ -65,6 +67,9 @@ for combination in params:
         model_info,
         test_size,
         weight_decay,
+        attention_dropout,
+        hidden_dropout,
+        classifier_dropout,
     ) = combination
 
     model_name = model_info.model_name
@@ -74,23 +79,20 @@ for combination in params:
     checkpoint_steps = train_steps
     unique_id = str(uuid4())
 
-    # Define the model. Either from scratch or by loading a pre-trained model
-    if model_info.is_from_library:
-        model = SentenceTransformer(model_info.model_name)
-    else:
-        word_embedding_model = models.Transformer(
-            model_info.model_name,
-            max_seq_length=model_info.model_truncate_length,
-        )
-        pooling_model = models.Pooling(
-            word_embedding_model.get_word_embedding_dimension()
-        )
-        model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
-
+    # Load model with dropout :)
+    model = load_model_with_dropout(
+        model_info,
+        attention_dropout=attention_dropout,
+        hidden_dropout=hidden_dropout,
+        classifier_dropout=classifier_dropout,
+    )
     # Go!
     auto_trainer(
         TrainingContext(
             model=model,
+            attention_dropout=attention_dropout,
+            hidden_dropout=hidden_dropout,
+            classifier_dropout=classifier_dropout,
             model_info=model_info,
             warmup_steps=warmup_steps,
             weight_decay=weight_decay,
@@ -112,3 +114,5 @@ for combination in params:
             output_dir=output_dir,
         )
     )
+    # Clear the model from memory
+    del model

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer
 from model_catalog import Model
 
+
 @dataclass
 class TrainingContext:
     model: SentenceTransformer
@@ -17,6 +18,10 @@ class TrainingContext:
     num_epochs: int
     batch_size: int
 
+    attention_dropout: float
+    hidden_dropout: float
+    classifier_dropout: float
+
     is_multitask: bool
     attributes: List[str]
     attribute: str
@@ -30,6 +35,7 @@ class TrainingContext:
 
     checkout_dir: str
     output_dir: str
+
 
 # TODO: use dataclass in the code
 @dataclass

@@ -43,6 +43,7 @@ class MongoDataAPIClient:
         data = {
             "document": {
                 "model_name": training_context.model_info.model_name,
+                "model_truncate_length": training_context.model_info.model_truncate_length,
                 "warmup_steps": training_context.warmup_steps,
                 "weight_decay": training_context.weight_decay,
                 "learning_rate": training_context.learning_rate,
