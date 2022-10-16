@@ -19,6 +19,8 @@ def evaluate_mcrmse_multitask(
 
     predictions_df = pd.DataFrame()
 
+    scores = {}
+
     print("Evaluating MCRMSE on multitask...")
     for attribute in attributes:
         print("Evaluating on attribute: ", attribute)
@@ -53,7 +55,9 @@ def evaluate_mcrmse_multitask(
             print(predictions[j], y_test[j])
         mcrmse_calculator = MCRMSECalculator()
         mcrmse_calculator.compute_column(y_test, predictions)
-        print(f"MCRMSE ({attribute}):", mcrmse_calculator.get_score())
+        score = mcrmse_calculator.get_score()
+        print(f"MCRMSE ({attribute}):", score)
+        scores[attribute] = score
         predictions_df[attribute] = predictions
 
     # Compute MCRMSE for all attributes
@@ -63,4 +67,7 @@ def evaluate_mcrmse_multitask(
     predictions_df = predictions_df.groupby("text_id").mean().reset_index()
     mcrmse_calculator = MCRMSECalculator()
     mcrmse_calculator.compute_score_for_df(predictions_df)
-    print("MCRMSE (all attributes):", mcrmse_calculator.get_score())
+    score = mcrmse_calculator.get_score()
+    scores["all"] = score
+    print("MCRMSE (all attributes):", score)
+    return scores

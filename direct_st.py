@@ -5,8 +5,9 @@ from uuid import uuid4
 
 from sentence_transformers import SentenceTransformer, losses, models
 
+from experiment_schemas import TrainingContext
 from model_catalog import ModelCatalog
-from st_trainer import TrainingContext, auto_trainer
+from st_trainer import auto_trainer
 from utils import attributes
 
 # model_info = ModelCatalog.AllMiniLML6v2
@@ -19,7 +20,6 @@ model_info = ModelCatalog.DebertaV3
 model_name = model_info.model_name
 model_truncate_length = model_info.model_truncate_length
 batch_size = model_info.recommended_batch_size
-
 
 text_label = "full_text"
 input_dataset = "full"
@@ -41,6 +41,7 @@ checkpoint_steps = 50
 weight_decay = 0.01
 warmup_steps = 10
 train_steps = 50
+
 
 # Define the model. Either from scratch or by loading a pre-trained model
 if model_info.is_from_library:

@@ -1,35 +1,8 @@
 import warnings
-from dataclasses import dataclass
 
 import requests
 
-from st_trainer import TrainingContext
-
-
-# TODO: use dataclass in the code
-@dataclass
-class Experiment:
-    experiment_name: str
-    base_model: str
-    head_model: str
-    num_iters: int
-    batch_size: int
-    loss_function: str
-    test_size: float
-    train_score: float
-    test_score: float
-    metric: str
-    epochs: int
-    unique_id: str
-    learning_rate: float
-    test_size: float
-    attribute: str
-    use_binary: bool
-    use_sentences: bool
-    setfit_model_max_length: int
-    minimum_chunk_length: int
-    attention_probs_dropout_prob: float
-    hidden_dropout_prob: float
+from experiment_schemas import Experiment, TrainingContext
 
 
 class MongoDataAPIClient:
@@ -99,19 +72,21 @@ class MongoDataAPIClient:
         }
         return self._call_api("insertOne", data)
 
-    def append_training_context_scores(self, unique_id, evaluation_scores, mcmse_scores):
+    def append_training_context_scores(
+        self, unique_id, evaluation_score, mcrmse_scores
+    ):
         data = {
             "filter": {"unique_id": unique_id},
             "update": {
                 "$push": {
-                    "evaluation_scores": {"$each": evaluation_scores},
-                    "mcrmse_scores.all": {"$each": mcmse_scores["all"]},
-                    "mcrmse_scores.cohesion": {"$each": mcmse_scores["cohesion"]},
-                    "mcrmse_scores.syntax": {"$each": mcmse_scores["syntax"]},
-                    "mcrmse_scores.vocabulary": {"$each": mcmse_scores["vocabulary"]},
-                    "mcrmse_scores.phraseology": {"$each": mcmse_scores["phraseology"]},
-                    "mcrmse_scores.grammar": {"$each": mcmse_scores["grammar"]},
-                    "mcrmse_scores.conventions": {"$each": mcmse_scores["conventions"]},
+                    "evaluation_scores": evaluation_score,
+                    "mcrmse_scores.all": mcrmse_scores["all"],
+                    "mcrmse_scores.cohesion": mcrmse_scores["cohesion"],
+                    "mcrmse_scores.syntax": mcrmse_scores["syntax"],
+                    "mcrmse_scores.vocabulary": mcrmse_scores["vocabulary"],
+                    "mcrmse_scores.phraseology": mcrmse_scores["phraseology"],
+                    "mcrmse_scores.grammar": mcrmse_scores["grammar"],
+                    "mcrmse_scores.conventions": mcrmse_scores["conventions"],
                 }
             },
         }

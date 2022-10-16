@@ -1,59 +1,34 @@
 import os
-from dataclasses import dataclass
-from typing import List
 
 import pandas as pd
-from sentence_transformers import SentenceTransformer, evaluation, losses
+from sentence_transformers import evaluation, losses
 from sentence_transformers.evaluation import SimilarityFunction
 from torch.utils.data import DataLoader
 
+from experiment_schemas import TrainingContext
 from load_data import create_attribute_stratified_split, sample_sentences_per_class
-from model_catalog import Model
+from mcrmse_evaluator import evaluate_mcrmse_multitask
+from mongo_api import MongoDataAPIClient
 from sentence_pairing import (
     EvaluationDataset,
     TrainingDataset,
     create_continuous_sentence_pairs,
 )
-from mcrmse_evaluator import evaluate_mcrmse_multitask
-
-
-@dataclass
-class TrainingContext:
-    model: SentenceTransformer
-    model_info: Model
-
-    # Parameters
-    warmup_steps: int
-    weight_decay: float
-    train_steps: int
-    checkpoint_steps: int
-    learning_rate: float
-    num_epochs: int
-    batch_size: int
-
-    is_multitask: bool
-    attributes: List[str]
-    attribute: str
-
-    unique_id: str
-    text_label: str
-    test_size: float
-    input_dataset: str
-    max_samples_per_class: int
-    use_evaluator: bool
-
-    checkout_dir: str
-    output_dir: str
 
 
 def auto_trainer(con: TrainingContext):
+    mongo_collection = "sentence_transformers"
+    mongo_client = MongoDataAPIClient(mongo_collection)
+    mongo_client.register_st_training_context(con)
     if con.is_multitask:
-        train_model_on_all_attributes(con)
+        train_model_on_all_attributes(con, mongo_client)
     else:
-        train_model_on_single_attribute(con)
+        train_model_on_single_attribute(con, mongo_client)
 
 
-def train_model_on_all_attributes(con: TrainingContext):
+def train_model_on_all_attributes(
+    con: TrainingContext, mongo_client: MongoDataAPIClient = None
+):
     output_path = os.path.join(
         con.output_dir,
         f"{con.model_info.model_name}-multitask-{str(con.unique_id[0:8])}",
@@ -98,12 +73,18 @@ def train_model_on_all_attributes(con: TrainingContext):
     def evaluation_callback(score, epoch, steps):
         print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
 
-        evaluate_mcrmse_multitask(
+        mcrmse_scores = evaluate_mcrmse_multitask(
             dataset_text_attribute=con.text_label,
             test_size_from_experiment=con.test_size,
             input_dataset=con.input_dataset,
             st_model=con.model,
         )
+        if mongo_client:
+            mongo_client.append_training_context_scores(
+                con.unique_id,
+                evaluation_score=score,
+                mcrmse_scores=mcrmse_scores,
+            )
 
     print("Starting training, results will be saved to: ", output_path)
     # Tune the model
@@ -129,7 +110,7 @@ def train_model_on_all_attributes(con: TrainingContext):
     )
 
 
-def train_model_on_single_attribute(con: TrainingContext):
+def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):
     output_path = os.path.join(
         con.output_dir,
         f"{con.model_info.model_name}-{con.attribute}-{str(con.unique_id[0:8])}",
