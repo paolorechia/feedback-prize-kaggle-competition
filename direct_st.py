@@ -27,7 +27,7 @@ test_dataset = "full"
 attribute = "cohesion"
 is_multi_task = True
 
-test_size = 0.5
+test_size = 0.3
 max_samples_per_class = 8
 
 use_evaluator = True
