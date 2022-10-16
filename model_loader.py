@@ -16,13 +16,13 @@ def load_model_with_dropout(
     attention_dropout: float,
     hidden_dropout: float,
     classifier_dropout: float = 0.0,
-):
+) -> SentenceTransformer:
     dropout_path = get_dropout_model_path(model_info)
     if not os.path.exists(dropout_path):
         model = _load_model(model_info)
         model.save(dropout_path)
 
-    with open(os.path.join(dropout_path, "config.json", "r")) as fp:
+    with open(os.path.join(dropout_path, "config.json"), "r") as fp:
         config = json.load(fp)
 
         if "attention_probs_dropout_prob" in config:
@@ -39,7 +39,7 @@ def load_model_with_dropout(
             else:
                 warn("Classifier dropout not found in config")
 
-    with open(os.path.join(dropout_path, "config.json", "w")) as fp:
+    with open(os.path.join(dropout_path, "config.json"), "w") as fp:
         json.dump(config, fp, indent=4)
 
     model = _load_model_from_path(dropout_path)

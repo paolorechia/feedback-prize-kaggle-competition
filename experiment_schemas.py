@@ -36,7 +36,6 @@ class TrainingContext:
     checkout_dir: str
     output_dir: str
 
-
 # TODO: use dataclass in the code
 @dataclass
 class Experiment:

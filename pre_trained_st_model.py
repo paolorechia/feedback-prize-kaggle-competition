@@ -2,6 +2,7 @@ from typing import Union
 from sklearn.linear_model import RidgeCV
 from sentence_transformers import SentenceTransformer
 
+
 class SentenceTransformerModelRidgeCV:
     def __init__(self, model_path: str) -> None:
         self.model = SentenceTransformer(model_path)
@@ -35,9 +36,9 @@ class MultiHeadSentenceTransformerModelRidgeCV:
         elif isinstance(model, SentenceTransformer):
             self.model = model
         self.heads = {}
-        
+
     def encode(self, X):
-        return self.model.encode(X)
+        return self.model.encode(X, convert_to_numpy=True, transfer_to_cpu=True)
 
     def fit(self, attribute, X_train, y_train):
         print("Fitting Ridge CV...")

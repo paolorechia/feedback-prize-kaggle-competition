@@ -14,6 +14,7 @@ from sentence_pairing import (
     TrainingDataset,
     create_continuous_sentence_pairs,
 )
+from cuda_mem_report import report_cuda_memory
 
 
 def auto_trainer(con: TrainingContext):
@@ -67,25 +68,37 @@ def train_model_on_all_attributes(
         all_attributes_eval_dataset = all_attributes_eval_dataset.merge(
             evaluation_dataset
         )
+    print("Loaded training data for all attributes")
+    report_cuda_memory()
 
     evaluator = None
     if con.use_evaluator:
-        evaluator = create_evaluator_from_evaluation_dataset(all_attributes_eval_dataset)
+        evaluator = create_evaluator_from_evaluation_dataset(
+            all_attributes_eval_dataset
+        )
+
+    print("Loaded evaluator dataset data for all attributes")
+    report_cuda_memory()
 
     def evaluation_callback(score, epoch, steps):
         print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
 
+        print("Memory before evaluation")
+        info = report_cuda_memory()
         mcrmse_scores = evaluate_mcrmse_multitask(
             dataset_text_attribute=con.text_label,
             test_size_from_experiment=con.test_size,
             input_dataset=con.input_dataset,
             st_model=con.model,
         )
+        print("Memory after evaluation")
+        info = report_cuda_memory()
         if mongo_client:
             mongo_client.append_training_context_scores(
                 con.unique_id,
                 evaluation_score=score,
                 mcrmse_scores=mcrmse_scores,
+                memory_usage=info.used,
             )
 
     print("Starting training, results will be saved to: ", output_path)
@@ -110,6 +123,13 @@ def train_model_on_all_attributes(
             str(con.unique_id[0:8]),
         ),
     )
+    # Try to delete everything that could possibly use GPU memory
+    del evaluator
+    del all_attributes_eval_dataset
+    del train_dataloader
+    del train_loss
+    del training_dataset
+    del train_objectives
 
 
 def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):

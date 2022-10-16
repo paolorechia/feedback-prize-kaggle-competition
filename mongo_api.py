@@ -50,6 +50,8 @@ class MongoDataAPIClient:
                 "checkpoint_steps": training_context.checkpoint_steps,
                 "num_epochs": training_context.num_epochs,
                 "batch_size": training_context.batch_size,
+                "attention_dropout": training_context.attention_dropout,
+                "hidden_dropout": training_context.hidden_dropout,
                 "is_multitask": training_context.is_multitask,
                 "attribute": training_context.attribute,
                 "unique_id": training_context.unique_id,
@@ -59,6 +61,7 @@ class MongoDataAPIClient:
                 "use_evaluator": training_context.use_evaluator,
                 "checkout_dir": training_context.checkout_dir,
                 "output_dir": training_context.output_dir,
+                "memory_usage": [],
                 "evaluation_scores": [],
                 "mcrmse_scores": {
                     "all": [],
@@ -74,7 +77,7 @@ class MongoDataAPIClient:
         return self._call_api("insertOne", data)
 
     def append_training_context_scores(
-        self, unique_id, evaluation_score, mcrmse_scores
+        self, unique_id, evaluation_score, mcrmse_scores, memory_usage
     ):
         data = {
             "filter": {"unique_id": unique_id},
@@ -88,6 +91,7 @@ class MongoDataAPIClient:
                     "mcrmse_scores.phraseology": mcrmse_scores["phraseology"],
                     "mcrmse_scores.grammar": mcrmse_scores["grammar"],
                     "mcrmse_scores.conventions": mcrmse_scores["conventions"],
+                    "memory_usage": memory_usage,
                 }
             },
         }

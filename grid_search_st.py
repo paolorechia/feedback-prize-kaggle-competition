@@ -7,8 +7,10 @@ from uuid import uuid4
 from experiment_schemas import TrainingContext
 from model_catalog import ModelCatalog
 from model_loader import load_model_with_dropout
+from sentence_transformers import SentenceTransformer
 from st_trainer import auto_trainer
 from utils import attributes
+from cuda_mem_report import report_cuda_memory
 
 # Static parameters
 checkout_dir = "/data/feedback-prize/st-checkpoints/"
@@ -21,11 +23,15 @@ test_dataset = "full"
 attribute = "cohesion"  # Not really used in multitask
 is_multi_task = True  # We're only grid searching with multitask
 use_evaluator = True
+# TODO:
+# Add a parameter for the evaluation batch size
+# This is tied to OOM errors when using bigger models
+# Or constrained environments like Colab
 
 # Dynamic parameters
 warmup_steps = [10]
-num_epochs = [5]
-train_steps = [50]
+num_epochs = [1]
+train_steps = [1]
 max_samples_per_class = [8]
 learning_rate = [2e-5]
 model_info = [ModelCatalog.DebertaV3]
@@ -71,48 +77,57 @@ for combination in params:
         hidden_dropout,
         classifier_dropout,
     ) = combination
-
     model_name = model_info.model_name
     model_truncate_length = model_info.model_truncate_length
-    batch_size = model_info.recommended_batch_size
+    # batch_size = model_info.recommended_batch_size
+    batch_size = model_info.recommended_batch_size // 4  # Let's simulate the Colab VRAM
 
     checkpoint_steps = train_steps
     unique_id = str(uuid4())
 
+    print("Loading model...")
+    report_cuda_memory()
     # Load model with dropout :)
-    model = load_model_with_dropout(
+    model: SentenceTransformer = load_model_with_dropout(
         model_info,
         attention_dropout=attention_dropout,
         hidden_dropout=hidden_dropout,
         classifier_dropout=classifier_dropout,
     )
+    print("Loaded model")
+    report_cuda_memory()
+
     # Go!
-    auto_trainer(
-        TrainingContext(
-            model=model,
-            attention_dropout=attention_dropout,
-            hidden_dropout=hidden_dropout,
-            classifier_dropout=classifier_dropout,
-            model_info=model_info,
-            warmup_steps=warmup_steps,
-            weight_decay=weight_decay,
-            train_steps=train_steps,
-            checkpoint_steps=checkpoint_steps,
-            learning_rate=learning_rate,
-            num_epochs=num_epochs,
-            batch_size=batch_size,
-            is_multitask=is_multi_task,
-            attributes=attributes,
-            attribute=attribute,
-            unique_id=unique_id,
-            text_label=text_label,
-            test_size=test_size,
-            input_dataset=input_dataset,
-            max_samples_per_class=max_samples_per_class,
-            use_evaluator=use_evaluator,
-            checkout_dir=checkout_dir,
-            output_dir=output_dir,
-        )
+    context = TrainingContext(
+        model=model,
+        attention_dropout=attention_dropout,
+        hidden_dropout=hidden_dropout,
+        classifier_dropout=classifier_dropout,
+        model_info=model_info,
+        warmup_steps=warmup_steps,
+        weight_decay=weight_decay,
+        train_steps=train_steps,
+        checkpoint_steps=checkpoint_steps,
+        learning_rate=learning_rate,
+        num_epochs=num_epochs,
+        batch_size=batch_size,
+        is_multitask=is_multi_task,
+        attributes=attributes,
+        attribute=attribute,
+        unique_id=unique_id,
+        text_label=text_label,
+        test_size=test_size,
+        input_dataset=input_dataset,
+        max_samples_per_class=max_samples_per_class,
+        use_evaluator=use_evaluator,
+        checkout_dir=checkout_dir,
+        output_dir=output_dir,
     )
+    print("Starting context ", context)
+    auto_trainer(context)
     # Clear the model from memory
+    
     del model
+    print("Deleted model from memory")
+    report_cuda_memory()
+    print("Finished context ", context)
