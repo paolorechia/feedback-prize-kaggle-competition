@@ -16,7 +16,8 @@ class TrainingContext:
     checkpoint_steps: int
     learning_rate: float
     num_epochs: int
-    batch_size: int
+    training_batch_size: int
+    evaluation_batch_size: int
 
     attention_dropout: float
     hidden_dropout: float

@@ -7,6 +7,7 @@ from uuid import uuid4
 import torch
 from sentence_transformers import SentenceTransformer
 
+import math
 from cuda_mem_report import report_cuda_memory
 from experiment_schemas import TrainingContext
 from model_catalog import ModelCatalog
@@ -27,10 +28,6 @@ is_multi_task = True  # We're only grid searching with multitask
 use_evaluator = True
 save_results_to_mongo = False
 debug = True
-# TODO:
-# Add a parameter for the evaluation batch size
-# This is tied to OOM errors when using bigger models
-# Or constrained environments like Colab
 
 # Dynamic parameters
 warmup_steps = [10]
@@ -86,7 +83,10 @@ for combination in params:
     model_name = model_info.model_name
     model_truncate_length = model_info.model_truncate_length
     # batch_size = model_info.recommended_batch_size
-    batch_size = model_info.recommended_batch_size // 4  # Let's simulate the Colab VRAM
+    training_batch_size = math.ceil(
+        model_info.recommended_batch_size // 4
+    )  # Let's simulate the Colab VRAM
+    evaluation_batch_size = math.ceil(model.info.recommended_batch_size // 4)
 
     checkpoint_steps = train_steps
     unique_id = str(uuid4())
@@ -116,7 +116,8 @@ for combination in params:
         checkpoint_steps=checkpoint_steps,
         learning_rate=learning_rate,
         num_epochs=num_epochs,
-        batch_size=batch_size,
+        training_batch_size=training_batch_size,
+        evaluation_batch_size=evaluation_batch_size,
         is_multitask=is_multi_task,
         attributes=attributes,
         attribute=attribute,

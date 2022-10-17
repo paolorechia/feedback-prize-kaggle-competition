@@ -11,6 +11,7 @@ def evaluate_mcrmse_multitask(
     test_size_from_experiment: float,
     input_dataset: str,
     st_model: SentenceTransformer,
+    evaluation_batch_size: int = 32,
     debug: bool = False,
 ):
 
@@ -46,8 +47,8 @@ def evaluate_mcrmse_multitask(
 
         predictions_df[f"{attribute}_predictions"] = test_df[attribute]
 
-        X_train_embeddings = st_model.encode(X_train)
-        X_test_embeddings = st_model.encode(X_test)
+        X_train_embeddings = st_model.encode(X_train, batch_size=evaluation_batch_size)
+        X_test_embeddings = st_model.encode(X_test, batch_size=evaluation_batch_size)
 
         st_model_ridge_cv.fit(attribute, X_train_embeddings, y_train)
         score = st_model_ridge_cv.score(attribute, X_test_embeddings, y_test)

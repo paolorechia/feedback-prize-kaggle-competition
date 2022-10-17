@@ -77,7 +77,8 @@ def train_model_on_all_attributes(
     evaluator = None
     if con.use_evaluator:
         evaluator = create_evaluator_from_evaluation_dataset(
-            all_attributes_eval_dataset
+            all_attributes_eval_dataset,
+            batch_size=con.evaluation_batch_size,
         )
 
     print("Loaded evaluator dataset data for all attributes")
@@ -221,7 +222,7 @@ def create_evaluation_dataset_for_attribute(
 
 
 def create_evaluator_from_evaluation_dataset(
-    evaluation_dataset: EvaluationDataset,
+    evaluation_dataset: EvaluationDataset, batch_size: int = 16
 ) -> evaluation.EmbeddingSimilarityEvaluator:
 
     evaluator = evaluation.EmbeddingSimilarityEvaluator(
@@ -232,6 +233,7 @@ def create_evaluator_from_evaluation_dataset(
         name="evaluator_output_{model_name}",
         write_csv=True,
         main_similarity=SimilarityFunction.COSINE,
+        batch_size=batch_size,
     )
 
     evaluation_dataset.print_sample(min(3, len(evaluation_dataset.scores)))
