@@ -1,10 +1,10 @@
 from pynvml import nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlInit
 
-nvmlInit()
-device_handle = nvmlDeviceGetHandleByIndex(0)
-
 
 def report_cuda_memory(verbose=True):
+    nvmlInit()
+    device_handle = nvmlDeviceGetHandleByIndex(0)
+
     info = nvmlDeviceGetMemoryInfo(device_handle)
     if verbose:
         print("--------------------" * 3)

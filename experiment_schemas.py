@@ -39,6 +39,8 @@ class TrainingContext:
 
     save_results_to_mongo: bool
     debug: bool
+    
+    mongo_collection: str = ""
 
 
 # TODO: use dataclass in the code

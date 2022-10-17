@@ -18,7 +18,7 @@ from cuda_mem_report import report_cuda_memory
 
 
 def auto_trainer(con: TrainingContext):
-    mongo_collection = "sentence_transformers"
+    mongo_collection = con.mongo_collection
     mongo_client = None
     if con.save_results_to_mongo:
         mongo_client = MongoDataAPIClient(mongo_collection)
