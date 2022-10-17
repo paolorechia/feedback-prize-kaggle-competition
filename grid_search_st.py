@@ -1,5 +1,4 @@
 """Uses SentenceTransformer library directly instead."""
-
 import os
 from itertools import product
 from uuid import uuid4
@@ -7,7 +6,6 @@ from uuid import uuid4
 import torch
 from sentence_transformers import SentenceTransformer
 
-import math
 from cuda_mem_report import report_cuda_memory
 from experiment_schemas import TrainingContext
 from model_catalog import ModelCatalog
@@ -26,16 +24,16 @@ test_dataset = "full"
 attribute = "cohesion"  # Not really used in multitask
 is_multi_task = True  # We're only grid searching with multitask
 use_evaluator = True
-save_results_to_mongo = False
-debug = True
+save_results_to_mongo = True
+debug = False
 
 # Dynamic parameters
 warmup_steps = [10]
 num_epochs = [1]
-train_steps = [1]
+train_steps = [50]
 max_samples_per_class = [8]
 learning_rate = [2e-5]
-model_info = [ModelCatalog.DebertaV3, ModelCatalog.BartBase]
+model_info = [ModelCatalog.DebertaV3]
 
 test_size = [0.3]
 # test_size = [0.3, 0.5, 0.7]
@@ -44,8 +42,8 @@ weight_decay = [0.01]
 
 attention_dropout = [0.0]
 hidden_dropout = [0.0]
-# attention_dropout = [0.0,  0.1, 0.5, 0.9]
-# hidden_dropout = [0.0, 0.1, 0.5, 0.9]
+attention_dropout = [0.0,  0.1, 0.5, 0.9]
+hidden_dropout = [0.0, 0.1, 0.5, 0.9]
 classifier_dropout = [0.0]
 
 # Generate all combinations of parameters
@@ -83,10 +81,10 @@ for combination in params:
     model_name = model_info.model_name
     model_truncate_length = model_info.model_truncate_length
     # batch_size = model_info.recommended_batch_size
-    training_batch_size = math.ceil(
-        model_info.recommended_batch_size // 4
+    training_batch_size = max(
+        1, model_info.recommended_batch_size // 4
     )  # Let's simulate the Colab VRAM
-    evaluation_batch_size = math.ceil(model.info.recommended_batch_size // 4)
+    evaluation_batch_size = max(1, model_info.recommended_batch_size // 4)
 
     checkpoint_steps = train_steps
     unique_id = str(uuid4())

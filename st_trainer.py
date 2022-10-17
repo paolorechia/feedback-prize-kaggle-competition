@@ -61,7 +61,9 @@ def train_model_on_all_attributes(
         # Define your train dataset, the dataloader and the train loss
 
         train_dataloader = DataLoader(
-            training_dataset.training_pairs, shuffle=True, batch_size=con.batch_size
+            training_dataset.training_pairs,
+            shuffle=True,
+            batch_size=con.training_batch_size,
         )
         train_loss = losses.CosineSimilarityLoss(con.model)
 
