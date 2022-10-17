@@ -4,13 +4,15 @@ import os
 from itertools import product
 from uuid import uuid4
 
+import torch
+from sentence_transformers import SentenceTransformer
+
+from cuda_mem_report import report_cuda_memory
 from experiment_schemas import TrainingContext
 from model_catalog import ModelCatalog
 from model_loader import load_model_with_dropout
-from sentence_transformers import SentenceTransformer
 from st_trainer import auto_trainer
 from utils import attributes
-from cuda_mem_report import report_cuda_memory
 
 # Static parameters
 checkout_dir = "/data/feedback-prize/st-checkpoints/"
@@ -23,6 +25,8 @@ test_dataset = "full"
 attribute = "cohesion"  # Not really used in multitask
 is_multi_task = True  # We're only grid searching with multitask
 use_evaluator = True
+save_results_to_mongo = False
+debug = True
 # TODO:
 # Add a parameter for the evaluation batch size
 # This is tied to OOM errors when using bigger models
@@ -34,15 +38,17 @@ num_epochs = [1]
 train_steps = [1]
 max_samples_per_class = [8]
 learning_rate = [2e-5]
-model_info = [ModelCatalog.DebertaV3]
+model_info = [ModelCatalog.DebertaV3, ModelCatalog.BartBase]
 
 test_size = [0.3]
 # test_size = [0.3, 0.5, 0.7]
 weight_decay = [0.01]
 # weight_decay = [0.01, 0.05, 0.1]
 
-attention_dropout = [0.0, 0.1, 0.5, 0.9]
-hidden_dropout = [0.0, 0.1, 0.5, 0.9]
+attention_dropout = [0.0]
+hidden_dropout = [0.0]
+# attention_dropout = [0.0,  0.1, 0.5, 0.9]
+# hidden_dropout = [0.0, 0.1, 0.5, 0.9]
 classifier_dropout = [0.0]
 
 # Generate all combinations of parameters
@@ -122,12 +128,15 @@ for combination in params:
         use_evaluator=use_evaluator,
         checkout_dir=checkout_dir,
         output_dir=output_dir,
+        save_results_to_mongo=save_results_to_mongo,
+        debug=debug,
     )
     print("Starting context ", context)
     auto_trainer(context)
     # Clear the model from memory
-    
+
     del model
+    torch.cuda.empty_cache()
     print("Deleted model from memory")
     report_cuda_memory()
     print("Finished context ", context)

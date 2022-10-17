@@ -1,3 +1,4 @@
+import torch
 from warnings import warn
 from model_catalog import Model
 from sentence_transformers import SentenceTransformer, models
@@ -21,6 +22,8 @@ def load_model_with_dropout(
     if not os.path.exists(dropout_path):
         model = _load_model(model_info)
         model.save(dropout_path)
+        del model
+        torch.cuda.empty_cache()
 
     with open(os.path.join(dropout_path, "config.json"), "r") as fp:
         config = json.load(fp)

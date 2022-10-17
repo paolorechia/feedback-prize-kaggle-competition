@@ -36,6 +36,10 @@ class TrainingContext:
     checkout_dir: str
     output_dir: str
 
+    save_results_to_mongo: bool
+    debug: bool
+
+
 # TODO: use dataclass in the code
 @dataclass
 class Experiment:

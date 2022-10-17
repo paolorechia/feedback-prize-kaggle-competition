@@ -3,6 +3,7 @@ from utils import attributes, round_border_score, MCRMSECalculator
 from pre_trained_st_model import MultiHeadSentenceTransformerModelRidgeCV
 from sentence_transformers import SentenceTransformer
 from load_data import create_attribute_stratified_split
+import torch
 
 
 def evaluate_mcrmse_multitask(
@@ -10,6 +11,7 @@ def evaluate_mcrmse_multitask(
     test_size_from_experiment: float,
     input_dataset: str,
     st_model: SentenceTransformer,
+    debug: bool = False,
 ):
 
     if not isinstance(st_model, SentenceTransformer):
@@ -21,8 +23,13 @@ def evaluate_mcrmse_multitask(
 
     scores = {}
 
+    if debug:
+        attribs = [attributes[0]]
+    else:
+        attribs = attributes
+
     print("Evaluating MCRMSE on multitask...")
-    for attribute in attributes:
+    for attribute in attribs:
         print("Evaluating on attribute: ", attribute)
         train_df, test_df = create_attribute_stratified_split(
             attribute, test_size_from_experiment, dataset=input_dataset
@@ -59,15 +66,20 @@ def evaluate_mcrmse_multitask(
         print(f"MCRMSE ({attribute}):", score)
         scores[attribute] = score
         predictions_df[attribute] = predictions
+        # Clear embeddings from memory
+        del X_train_embeddings
+        del X_test_embeddings
+        torch.cuda.empty_cache()
 
-    # Compute MCRMSE for all attributes
-    # Merge each predictions_df with the previous one
-    # deduplicating the text_id column and averaging the scores
-    # for the same text_id
-    predictions_df = predictions_df.groupby("text_id").mean().reset_index()
-    mcrmse_calculator = MCRMSECalculator()
-    mcrmse_calculator.compute_score_for_df(predictions_df)
-    score = mcrmse_calculator.get_score()
-    scores["all"] = score
-    print("MCRMSE (all attributes):", score)
+    if not debug:
+        # Compute MCRMSE for all attributes
+        # Merge each predictions_df with the previous one
+        # deduplicating the text_id column and averaging the scores
+        # for the same text_id
+        predictions_df = predictions_df.groupby("text_id").mean().reset_index()
+        mcrmse_calculator = MCRMSECalculator()
+        mcrmse_calculator.compute_score_for_df(predictions_df)
+        score = mcrmse_calculator.get_score()
+        scores["all"] = score
+        print("MCRMSE (all attributes):", score)
     return scores

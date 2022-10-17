@@ -19,8 +19,11 @@ from cuda_mem_report import report_cuda_memory
 
 def auto_trainer(con: TrainingContext):
     mongo_collection = "sentence_transformers"
-    mongo_client = MongoDataAPIClient(mongo_collection)
-    mongo_client.register_st_training_context(con)
+    mongo_client = None
+    if con.save_results_to_mongo:
+        mongo_client = MongoDataAPIClient(mongo_collection)
+        mongo_client.register_st_training_context(con)
+
     if con.is_multitask:
         train_model_on_all_attributes(con, mongo_client)
     else:
@@ -83,15 +86,16 @@ def train_model_on_all_attributes(
     def evaluation_callback(score, epoch, steps):
         print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
 
-        print("Memory before evaluation")
+        print("Memory before mcrmse evaluation")
         info = report_cuda_memory()
         mcrmse_scores = evaluate_mcrmse_multitask(
             dataset_text_attribute=con.text_label,
             test_size_from_experiment=con.test_size,
             input_dataset=con.input_dataset,
             st_model=con.model,
+            debug=con.debug,
         )
-        print("Memory after evaluation")
+        print("Memory after mcrmse evaluation")
         info = report_cuda_memory()
         if mongo_client:
             mongo_client.append_training_context_scores(
