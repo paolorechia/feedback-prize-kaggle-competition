@@ -117,7 +117,7 @@ def train_model_on_all_attributes(
         warmup_steps=con.warmup_steps,
         weight_decay=con.weight_decay,
         output_path=output_path,
-        save_best_model=True,
+        save_best_model=False,
         steps_per_epoch=con.train_steps,
         optimizer_params={"lr": con.learning_rate},
         show_progress_bar=True,

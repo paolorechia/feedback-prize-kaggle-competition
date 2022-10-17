@@ -12,6 +12,7 @@ from model_loader import load_model_with_dropout
 from st_trainer import auto_trainer
 from utils import attributes
 from multiprocessing import Process
+from datetime import datetime
 
 # Static parameters
 checkout_dir = "/data/feedback-prize/st-checkpoints/"
@@ -26,27 +27,27 @@ is_multi_task = True  # We're only grid searching with multitask
 use_evaluator = True
 save_results_to_mongo = True
 debug = False
-mongo_collection = "sentence_transformers_deberta_grid_search"
+mongo_collection = "sentence_transformers_deberta_attention_weight_grid_search"
 
 # Dynamic parameters
-warmup_steps = [10]
-num_epochs = [4]
+warmup_steps = [8]
+num_epochs = [10]
 train_steps = [50]
 max_samples_per_class = [8]
-learning_rate = [2e-4, 2e-5, 2e-6]
+learning_rate = [2e-5]
 model_info = [ModelCatalog.DebertaV3]
 
-# test_size = [0.3]
+test_size = [0.3]
 
-test_size = [0.3, 0.5, 0.7]
+# test_size = [0.3, 0.5, 0.7]
 # weight_decay = [0.01]
 weight_decay = [0.01, 0.05, 0.1]
 
 # attention_dropout = [0.0]
-# hidden_dropout = [0.0]
+hidden_dropout = [0.0]
 
-attention_dropout = [0.0, 0.1, 0.5, 0.9]
-hidden_dropout = [0.0, 0.1, 0.5, 0.9]
+attention_dropout = [0.0]
+# hidden_dropout = [0.0, 0.1, 0.5, 0.9]
 classifier_dropout = [0.0]
 
 # Generate all combinations of parameters
@@ -149,8 +150,14 @@ print("Total number of experiments:", len(params))
 for combination in params:
     print("Combination:", combination)
     print("Launching process")
+    t0 = datetime.now()
     p = Process(target=launch_training, args=(combination))
     p.start()
     p.join()
     p.terminate()
     print("Finished process")
+    t1 = datetime.now()
+    print(
+        "Elapsed time to process one combination, in seconds: ",
+        (t1 - t0).total_seconds(),
+    )
