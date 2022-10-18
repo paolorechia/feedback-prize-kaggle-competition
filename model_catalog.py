@@ -38,6 +38,13 @@ class ModelCatalog:
         is_from_library=True,
     )
 
+    RobertaLarge = Model(
+        model_name = "all-roberta-large-v1",
+        model_truncate_length = 256,
+        recommended_batch_size = 8,
+        is_from_library = True,
+    )
+
     BertBaseUncased = Model(
         model_name="bert-base-uncased",
         model_truncate_length=256,
@@ -96,14 +103,43 @@ class ModelCatalog:
 
     T5Base = Model(
         model_name="t5-base",
+        model_truncate_length=768,
+        recommended_batch_size=8,
+        is_from_library=False,
+    )
+
+    T5Large = Model(
+        model_name="t5-large",
+        model_truncate_length=512,
+        recommended_batch_size=1,
+        is_from_library=False,
+    )
+
+    T5V1Base = Model(
+        model_name="google/t5-v1_1-base",
         model_truncate_length=512,
         recommended_batch_size=8,
-        is_from_library=False
+        is_from_library=False,
     )
+
+    T5V1Large = Model(
+        model_name="google/t5-v1_1-large",
+        model_truncate_length=512,
+        recommended_batch_size=1,
+        is_from_library=False,
+    )
+
+    T5LongGlobalBase = Model(
+        model_name="google/long-t5-tglobal-base",
+        model_truncate_length=4096,
+        recommended_batch_size=8,
+        is_from_library=False,
+    ) 
 
     T03B = Model(
         model_name="bigscience/T0_3B",
         model_truncate_length=1024,
         recommended_batch_size=1,
-        is_from_library=False
+        is_from_library=False,
     )
+

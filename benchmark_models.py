@@ -10,19 +10,12 @@ from experiment_schemas import ModelBenchmark
 from utils import attributes, calculate_rmse_score
 from datetime import datetime
 
-train_df, test_df = create_train_test_df(test_size=0.2, dataset="full")
 
-X_train = list(train_df["full_text"])
-X_test = list(test_df["full_text"])
-
-
-model_scores = []
-for model in [
-    ModelCatalog.T03B
-]:
-    stack = ModelStack([model])
-
+def benchmark_stack(stack: ModelStack, train_df: pd.DataFrame, test_df: pd.DataFrame):
     multi_head = MultiHeadSentenceTransformerModelRidgeCV(stack)
+
+    X_train = list(train_df["full_text"])
+    X_test = list(test_df["full_text"])
 
     t0 = datetime.now()
     X_train_embeddings = multi_head.encode(X_train, batch_size=32)
@@ -50,13 +43,34 @@ for model in [
         test_df[attributes].values, preds_df[attributes].values
     )
     print("RMSE Score:", score)
-    model_scores.append(
-        ModelBenchmark(
-            rmse_score=score,
-            model_name=stack.stack[0].info.model_name,
-            time_to_encode_in_seconds=time_to_encode_in_seconds,
-        ).__dict__()
+    return ModelBenchmark(
+        rmse_score=score,
+        model_name=stack.stack[0].info.model_name,
+        time_to_encode_in_seconds=time_to_encode_in_seconds,
     )
 
-with open("model_scores.json", "w") as f:
-    json.dump(model_scores, f)
+
+def benchmark_list_of_models(model_list: list[ModelCatalog]):
+    import random
+
+    train_df, test_df = create_train_test_df(test_size=0.2, dataset="full")
+
+    model_scores = []
+    for model in model_list:
+        stack = ModelStack([model])
+        result = benchmark_stack(stack, train_df, test_df)
+        model_scores.append(result.__dict__())
+
+    with open(f"model_scores_{random.randint(0, 12800)}.json", "w") as f:
+        json.dump(model_scores, f)
+
+
+if __name__ == "__main__":
+    benchmark_list_of_models(
+        model_list=[
+            ModelCatalog.RobertaLarge,
+            ModelCatalog.T5LongGlobalBase,
+            ModelCatalog.T5Large,
+            ModelCatalog.T5V1Large,
+        ]
+    )

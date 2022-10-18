@@ -63,5 +63,15 @@
         "rmse_score": 0.4524320543988705,
         "model_name": "bigscience/T0_3B",
         "time_to_encode_in_seconds": 451.974567
+    },
+    {
+        "rmse_score": 0.4634787819645596,
+        "model_name": "t5-base",
+        "time_to_encode_in_seconds": 47.541432
+    },
+    {
+        "rmse_score": 0.4621291863748184,
+        "model_name": "google/t5-v1_1-base",
+        "time_to_encode_in_seconds": 47.63
     }
 ]
