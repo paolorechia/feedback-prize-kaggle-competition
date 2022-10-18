@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 
 from load_data import create_attribute_stratified_split
 from pre_trained_st_model import MultiHeadSentenceTransformerModelRidgeCV
-from utils import MCRMSECalculator, attributes, round_border_score
+from utils import MCRMSECalculator, attributes, round_border_score, calculate_rmse_score
 
 
 def evaluate_mcrmse_multitask(
@@ -64,28 +64,21 @@ def evaluate_mcrmse_multitask(
         print(f"Prediction samples ({attribute}) (prediction / label):")
         for j in range(5):
             print(predictions[j], y_test[j])
-        mcrmse_calculator = MCRMSECalculator()
-        mcrmse_calculator.compute_column(y_test, predictions)
-        score = mcrmse_calculator.get_score()
-        print(f"MCRMSE ({attribute}):", score)
         scores[attribute] = score
         predictions_df[attribute] = predictions
+        score = calculate_rmse_score(
+            test_df[attribute].values, predictions_df[attribute].values
+        )
         # Clear embeddings from memory
         del X_train_embeddings
         del X_test_embeddings
         torch.cuda.empty_cache()
 
-    if not debug:
-        # Compute MCRMSE for all attributes
-        # Merge each predictions_df with the previous one
-        # deduplicating the text_id column and averaging the scores
-        # for the same text_id
-        predictions_df = predictions_df.groupby("text_id").mean().reset_index()
-        mcrmse_calculator = MCRMSECalculator()
-        mcrmse_calculator.compute_score_for_df(predictions_df)
-        score = mcrmse_calculator.get_score()
-        scores["all"] = score
-        print("MCRMSE (all attributes):", score)
+    score = calculate_rmse_score(
+        test_df[attributes].values, predictions_df[attributes].values
+    )
+    scores["all"] = score
+    print("MCRMSE (all attributes):", score)
     return scores
 
 
@@ -133,22 +126,11 @@ def evaluate_mcrmse_multitask_optimized(
         predictions = st_model_ridge_cv.predict(attribute, X_test_embeddings)
         predictions = [round_border_score(p) for p in predictions]
 
-        print(f"Prediction samples ({attribute}) (prediction / label):")
-        for j in range(5):
-            print(predictions[j], y_test[j])
-
         if predictions_df.columns.empty:
             predictions_df["text_id"] = test_df["text_id"]
             predictions_df[dataset_text_attribute] = test_df[dataset_text_attribute]
 
-        predictions_df[attribute] = test_df[attribute]
-        predictions_df[f"{attribute}_predictions"] = predictions
-
-        mcrmse_calculator = MCRMSECalculator()
-        mcrmse_calculator.compute_column(y_test, predictions)
-        score = mcrmse_calculator.get_score()
-        print(f"MCRMSE ({attribute}):", score)
-        scores[attribute] = score
+        predictions_df[attribute] = predictions
 
         # Clear embeddings from memory
         torch.cuda.empty_cache()
@@ -156,10 +138,9 @@ def evaluate_mcrmse_multitask_optimized(
     del X_test_embeddings
     del X_train_embeddings
 
-    predictions_df = predictions_df.groupby("text_id").mean().reset_index()
-    mcrmse_calculator = MCRMSECalculator()
-    mcrmse_calculator.compute_score_for_df(predictions_df)
-    score = mcrmse_calculator.get_score()
+    score = calculate_rmse_score(
+        test_df[attributes].values, predictions_df[attributes].values
+    )
     scores["all"] = score
     print("MCRMSE (all attributes):", score)
     print(scores)
@@ -221,7 +202,6 @@ def evaluate_mcrmse_single_attribute(
     mcrmse_calculator.compute_column(y_test, predictions)
     score = mcrmse_calculator.get_score()
     print(f"MCRMSE ({attribute}):", score)
-
 
     del X_test_embeddings
     del X_train_embeddings

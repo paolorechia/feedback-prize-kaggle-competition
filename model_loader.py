@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer, models
 import os
 import json
 
-dropout_dir = "./dropout_test/"
+dropout_dir = "/data/dropout_test/"
 
 
 def get_dropout_model_path(model_info: Model):

@@ -94,9 +94,16 @@ class ModelCatalog:
         is_from_library=False,
     )
 
-    BlenderBotDistill = Model(
-        model_name="facebook/blenderbot-400M-distill",
-        model_truncate_length=128,
-        recommended_batch_size=32,
-        is_from_library=False,
+    T5Base = Model(
+        model_name="t5-base",
+        model_truncate_length=512,
+        recommended_batch_size=8,
+        is_from_library=False
+    )
+
+    T03B = Model(
+        model_name="bigscience/T0_3B",
+        model_truncate_length=1024,
+        recommended_batch_size=1,
+        is_from_library=False
     )

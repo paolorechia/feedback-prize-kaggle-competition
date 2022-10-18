@@ -6,6 +6,20 @@ from model_catalog import Model
 
 
 @dataclass
+class ModelBenchmark:
+    rmse_score: float
+    model_name: str
+    time_to_encode_in_seconds: float
+
+    def __dict__(self):
+        return {
+            "rmse_score": self.rmse_score,
+            "model_name": self.model_name,
+            "time_to_encode_in_seconds": self.time_to_encode_in_seconds,
+        }
+
+
+@dataclass
 class TrainingContext:
     model: SentenceTransformer
     model_info: Model
@@ -38,13 +52,13 @@ class TrainingContext:
     use_evaluator: bool
     evaluate_mcmse: bool
     skip_correlation_metric: bool
-    
+
     checkout_dir: str
     output_dir: str
 
     save_results_to_mongo: bool
     debug: bool
-    
+
     mongo_collection: str = ""
 
 

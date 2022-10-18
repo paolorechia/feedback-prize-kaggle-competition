@@ -24,25 +24,25 @@ text_label = "full_text"
 input_dataset = "full"
 test_dataset = "full"
 attribute = "cohesion"  # Not really used in multitask
-is_multi_task = False  # We're only grid searching with multitask
+is_multi_task = True  # We're only grid searching with multitask
 use_evaluator = True
 skip_correlation_metric = True
 evaluate_mcmse = True
 
-save_results_to_mongo = True
+save_results_to_mongo = False
 debug = False
 mongo_collection = "cohesion_test"
 distance_function = LinearSimilarity()
 loss_function_class = losses.CosineSimilarityLoss
 
 # Dynamic parameters
-warmup_steps = [10]
+warmup_steps = [0]
 num_epochs = [1]
-train_steps = [50, 500, 5000]
+train_steps = [1] #, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 max_samples_per_class = [32]
 learning_rate = [2e-5]
 
-model_info = [ModelCatalog.DebertaV3]
+model_info = [ModelCatalog.DebertaV3XSmall]
 
 test_size = [0.2]
 
