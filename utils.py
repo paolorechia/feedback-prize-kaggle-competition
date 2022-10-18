@@ -1,4 +1,7 @@
+from warnings import warn
+import numpy as np
 import pandas as pd
+from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
 attributes = [
@@ -47,12 +50,22 @@ def test_fit_float_score_to_nearest_valid_point():
     assert fit_float_score_to_nearest_valid_point(10.0) == 5.0
 
 
+def calculate_rmse_score(y_true, y_pred):
+    rmse_scores = []
+    for i in range(len(attributes)):
+        rmse_scores.append(np.sqrt(mean_squared_error(y_true[:, i], y_pred[:, i])))
+    return np.mean(rmse_scores)
+
+
 class MCRMSECalculator:
     def __init__(self):
         self._sum = 0.0
         self._samples = 0
 
     def compute_score_for_df(self, df):
+        warn(
+            "This method is wrong and thus deprecated. Use calculate_rmse_score instead."
+        )
         for index, row in df.iterrows():
             inner_sum = 0.0
             for attribute in attributes:
@@ -62,6 +75,9 @@ class MCRMSECalculator:
             self._samples += 1
 
     def compute_column(self, labels, predictions):
+        warn(
+            "This method is wrong and thus deprecated. Use calculate_rmse_score instead."
+        )
         points = zip(labels, predictions)
         column_sum = 0.0
         for point in points:
@@ -71,4 +87,3 @@ class MCRMSECalculator:
 
     def get_score(self):
         return self._sum / self._samples
-

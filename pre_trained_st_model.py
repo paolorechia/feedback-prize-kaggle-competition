@@ -1,6 +1,7 @@
 from typing import Union
 from sklearn.linear_model import RidgeCV
 from sentence_transformers import SentenceTransformer
+from model_stacker import ModelStack
 
 
 class SentenceTransformerModelRidgeCV:
@@ -30,15 +31,30 @@ class SentenceTransformerModelRidgeCV:
 
 
 class MultiHeadSentenceTransformerModelRidgeCV:
-    def __init__(self, model: Union[str, SentenceTransformer]) -> None:
+    def __init__(self, model: Union[str, SentenceTransformer, "ModelStack"]) -> None:
         if isinstance(model, str):
             self.model = SentenceTransformer(model)
         elif isinstance(model, SentenceTransformer):
             self.model = model
+        elif isinstance(model, ModelStack):
+            self.model = model
+        else:
+            raise ValueError("Invalid model type")
         self.heads = {}
 
-    def encode(self, X):
-        return self.model.encode(X, convert_to_numpy=True, transfer_to_cpu=True)
+    def encode(
+        self,
+        X,
+        batch_size=32,
+        show_progress_bar=True,
+        convert_to_numpy=True,
+    ):
+        return self.model.encode(
+            X,
+            batch_size=batch_size,
+            show_progress_bar=show_progress_bar,
+            convert_to_numpy=convert_to_numpy,
+        )
 
     def fit(self, attribute, X_train, y_train):
         print("Fitting Ridge CV...")
