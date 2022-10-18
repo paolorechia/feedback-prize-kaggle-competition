@@ -4,7 +4,7 @@ from itertools import product
 from uuid import uuid4
 
 import torch
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, losses
 
 from experiment_schemas import TrainingContext
 from model_catalog import ModelCatalog
@@ -13,6 +13,7 @@ from st_trainer import auto_trainer
 from utils import attributes
 from multiprocessing import Process
 from datetime import datetime
+from sentence_pairing import LinearSimilarity, StepSimilarity
 
 # Static parameters
 checkout_dir = "/data/feedback-prize/st-checkpoints/"
@@ -23,35 +24,38 @@ text_label = "full_text"
 input_dataset = "full"
 test_dataset = "full"
 attribute = "cohesion"  # Not really used in multitask
-is_multi_task = True  # We're only grid searching with multitask
+is_multi_task = False  # We're only grid searching with multitask
 use_evaluator = True
 skip_correlation_metric = True
 evaluate_mcmse = True
 
 save_results_to_mongo = True
 debug = False
-mongo_collection = "sentence_transformers_deberta_compare_samples_per_class"
+mongo_collection = "cohesion_test"
+distance_function = LinearSimilarity()
+loss_function_class = losses.CosineSimilarityLoss
 
 # Dynamic parameters
-warmup_steps = [8]
+warmup_steps = [10]
 num_epochs = [1]
-train_steps = [1]
-max_samples_per_class = [8, 16, 32, 64]
-# learning_rate = [2e-5]
-learning_rate = [2e-4]
+train_steps = [50, 500, 5000]
+max_samples_per_class = [32]
+learning_rate = [2e-5]
 
 model_info = [ModelCatalog.DebertaV3]
 
 test_size = [0.2]
 
 # test_size = [0.3, 0.5, 0.7]
-weight_decay = [0.01]
-# weight_decay = [0.01, 0.05, 0.1]
+# weight_decay = [0.01]
+weight_decay = [0.5]
+# weight_decay = [0.1, 0.3, 0.5]
 
 # attention_dropout = [0.0]
-hidden_dropout = [0.0]
-
-attention_dropout = [0.0]
+# hidden_dropout = [0.0]
+hidden_dropout = [0.2]
+# attention_dropout = [0.0]
+attention_dropout = [0.5]
 # hidden_dropout = [0.0, 0.1, 0.5, 0.9]
 classifier_dropout = [0.0]
 
@@ -116,6 +120,8 @@ def launch_training(
     # Go!
     context = TrainingContext(
         model=model,
+        distance_function=distance_function,
+        loss_function_class=loss_function_class,
         attention_dropout=attention_dropout,
         hidden_dropout=hidden_dropout,
         classifier_dropout=classifier_dropout,

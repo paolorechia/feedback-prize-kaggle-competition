@@ -1,6 +1,7 @@
 from typing import List
 from dataclasses import dataclass
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, losses
+from sentence_pairing import CosineNormalizedSimilarityCalculator
 from model_catalog import Model
 
 
@@ -9,6 +10,8 @@ class TrainingContext:
     model: SentenceTransformer
     model_info: Model
 
+    distance_function: CosineNormalizedSimilarityCalculator
+    loss_function_class: losses.CosineSimilarityLoss
     # Parameters
     warmup_steps: int
     weight_decay: float

@@ -4,6 +4,7 @@ from typing import Tuple
 
 import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
+from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
 from seeds import PANDAS_RANDOM_STATE
 from utils import attributes
@@ -76,20 +77,21 @@ def create_train_test_df(
     if is_available:
         return train_df, test_df
     # it is not yet generated, so generate it
+    full_df = _read_csv(dataset)
+
     full_train_df_path = f"{split_csv_dirs}/train_full__{test_size}.csv"
     full_test_df_path = f"{split_csv_dirs}/test_full_{test_size}.csv"
 
-    train_df = pd.DataFrame()
-    test_df = pd.DataFrame()
-    for attr in attributes:
-        attr_train_df, attr_test_df = create_attribute_stratified_split(
-            attr, test_size, dataset
-        )
-        test_df = pd.concat([test_df, attr_test_df])
-        train_df = pd.concat([train_df, attr_train_df])
+    sss = MultilabelStratifiedShuffleSplit(
+        n_splits=1, test_size=test_size, random_state=random_state
+    )
 
-    train_df.drop_duplicates(subset=["text_id"], inplace=True)
-    test_df.drop_duplicates(subset=["text_id"], inplace=True)
+    X = full_df["full_text"]
+    y = full_df[attributes]
+
+    train_index, test_index = next(sss.split(X, y))
+    train_df = full_df.filter(items=train_index, axis=0)
+    test_df = full_df.filter(items=test_index, axis=0)
 
     train_df.to_csv(full_train_df_path, index=False)
     test_df.to_csv(full_test_df_path, index=False)

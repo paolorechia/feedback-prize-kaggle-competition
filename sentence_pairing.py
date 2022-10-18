@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import List, Union
 from sentence_transformers import SentenceTransformer, InputExample, losses
@@ -70,8 +71,78 @@ class SentencePairState:
             raise ValueError("mode must be either 'training' or 'evaluation'")
 
 
+class CosineNormalizedSimilarityCalculator:
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def calculate(self, label1: str, label2: str) -> float:
+        raise NotImplementedError("Oh no")
+
+
+class LinearSimilarity(CosineNormalizedSimilarityCalculator):
+    def calculate(self, label1: str, label2: str) -> float:
+        # Possible labels are:
+        # 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0
+
+        # For our loss function:
+        # 1.0 is the minimum distance and 0 is the maximum distance.
+
+        raw_label_distance = abs(label1 - label2)
+
+        # First, normalize difference to 0-1
+        normalized_distance = raw_label_distance / 4.0
+        # Now, invert the distance
+
+        label_distance = 1 - (normalized_distance / 4)
+        # Let's try some examples
+        # 1.0 - ((5.0 - 1.0) / 4) = 0.0
+        # 1.0 - ((5.0 - 1.5) / 4) = 0.125
+        # 1.0 - ((5.0 - 2.0) / 4) = 0.25
+        # 1.0 - ((5.0 - 2.5) / 4) = 0.375
+        # 1.0 - ((5.0 - 3.0) / 4) = 0.5
+        # 1.0 - ((5.0 - 3.5) / 4) = 0.625
+        # 1.0 - ((5.0 - 4.0) / 4) = 0.75
+        # 1.0 - ((5.0 - 4.5) / 4) = 0.875
+        # 1.0 - ((5.0 - 5.0) / 4) = 1.0
+
+        assert label_distance >= 0.0 and label_distance <= 1.0
+        return label_distance
+
+class StepSimilarity(CosineNormalizedSimilarityCalculator):
+    def __init__(self):
+        pass
+
+    def calculate(self, label1: str, label2: str) -> float:
+        raw_label_distance = abs(label1 - label2)
+
+        # First, normalize difference to 0-1
+        normalized_distance = raw_label_distance / 4.0
+        
+        # Now, invert the distance
+        label_distance = 1 - (normalized_distance / 4)
+
+        # Pseudo exponential function
+        if label_distance <= 0.125:
+            return 0.1
+        if label_distance <= 0.25:
+            return 0.2
+        if label_distance <= 0.5:
+            return 0.4
+        if label_distance <= 0.75:
+            return 0.8
+        if label_distance <= 1.0:
+            return 1.0
+        raise ValueError("label_distance must be between 0 and 1")
+
+
 def create_continuous_sentence_pairs(
-    df, text_label, attribute, model_truncate_length, mode="training"
+    df,
+    text_label,
+    attribute,
+    model_truncate_length,
+    mode="training",
+    distance_calculator=LinearSimilarity(),
 ) -> List[InputExample]:
     """Creates training pairs for a SentenceTransformer model.
 
@@ -118,32 +189,7 @@ def create_continuous_sentence_pairs(
             text2 = row[text_label].strip()[0:model_truncate_length]
             label2 = row[attribute]
             if text1 != text2:
-                # Possible labels are:
-                # 1.0
-                # 1.5
-                # 2.0
-                # 2.5
-                # 3.0
-                # 3.5
-                # 4.0
-                # 4.5
-                # 5.0
-
-                raw_label_distance = abs(label1 - label2)
-                # 1.0 is the minimum distance and 0 is the maximum distance.
-
-                # First, normalize difference to 0-1
-                normalized_distance = raw_label_distance / 4.0
-                # Now, invert the distance
-
-                label_distance = 1 - (normalized_distance / 4)
-                # Let's try some examples
-                # 1.0 - ((5.0 - 1.0) / 4) = 0.0
-                # 1.0 - ((5.0 - 2.0) / 4) = 0.25
-                # 1.0 - ((5.0 - 3.0) / 4) = 0.5
-                # 1.0 - ((5.0 - 4.0) / 4) = 0.75
-                # 1.0 - ((5.0 - 5.0) / 4) = 1.0
-
+                label_distance = distance_calculator.calculate(label1, label2)
                 state.add_data(
                     sentence1=text1, sentence2=text2, distance_label=label_distance
                 )

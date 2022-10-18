@@ -12,7 +12,10 @@ from load_data import (
     create_train_test_df,
     sample_sentences_per_class,
 )
-from mcrmse_evaluator import evaluate_mcrmse_multitask_optimized
+from mcrmse_evaluator import (
+    evaluate_mcrmse_multitask_optimized,
+    evaluate_mcrmse_single_attribute,
+)
 from mongo_api import MongoDataAPIClient
 from sentence_pairing import (
     EvaluationDataset,
@@ -46,11 +49,9 @@ def train_model_on_all_attributes(
 
     all_attributes_eval_dataset = EvaluationDataset([], [], [])
 
-    for attr in con.attributes:
-        train_df, test_df = create_attribute_stratified_split(
-            attr, con.test_size, dataset=con.input_dataset
-        )
+    train_df, test_df = create_train_test_df(con.test_size, con.input_dataset)
 
+    for attr in con.attributes:
         small_subset = sample_sentences_per_class(
             train_df, attr, con.max_samples_per_class
         )
@@ -61,6 +62,7 @@ def train_model_on_all_attributes(
             attr,
             con.model_info.model_truncate_length,
             "training",
+            distance_calculator=con.distance_function,
         )
         # Define your train dataset, the dataloader and the train loss
 
@@ -69,7 +71,7 @@ def train_model_on_all_attributes(
             shuffle=True,
             batch_size=con.training_batch_size,
         )
-        train_loss = losses.CosineSimilarityLoss(con.model)
+        train_loss = con.loss_function_class(con.model)
 
         train_objectives.append((train_dataloader, train_loss))
 
@@ -91,8 +93,6 @@ def train_model_on_all_attributes(
                 all_attributes_eval_dataset,
                 batch_size=con.evaluation_batch_size,
             )
-
-    train_df, test_df = create_train_test_df(con.test_size, con.input_dataset)
 
     def evaluation_callback(score, epoch, _):
         print(f"\n\n\tEpoch {epoch}\n\n")
@@ -149,52 +149,90 @@ def train_model_on_all_attributes(
     del train_objectives
 
 
-def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):
+def train_model_on_single_attribute(
+    con: TrainingContext, mongo_client: MongoDataAPIClient = None
+):
     output_path = os.path.join(
         con.output_dir,
         f"{con.model_info.model_name}-{con.attribute}-{str(con.unique_id[0:8])}",
     )
+    all_attributes_eval_dataset = EvaluationDataset([], [], [])
 
-    train_df, test_df = create_attribute_stratified_split(
-        con.attribute, con.test_size, dataset=con.input_dataset
-    )
-
+    train_df, test_df = create_train_test_df(con.test_size, con.input_dataset)
     small_subset = sample_sentences_per_class(
         train_df, con.attribute, con.max_samples_per_class
     )
-
-    # Let's see how it looks like :)
+    train_objectives = []
     training_dataset: TrainingDataset = create_continuous_sentence_pairs(
         small_subset,
         con.text_label,
         con.attribute,
         con.model_info.model_truncate_length,
         "training",
+        distance_calculator=con.distance_function,
     )
+    # Define your train dataset, the dataloader and the train loss
+
+    train_dataloader = DataLoader(
+        training_dataset.training_pairs,
+        shuffle=True,
+        batch_size=con.training_batch_size,
+    )
+    train_loss = con.loss_function_class(con.model)
+
+    train_objectives.append((train_dataloader, train_loss))
+
+    if con.use_evaluator and not con.skip_correlation_metric:
+        evaluation_dataset = create_evaluation_dataset_for_attribute(
+            test_df, con, con.attribute
+        )
+        all_attributes_eval_dataset = all_attributes_eval_dataset.merge(
+            evaluation_dataset
+        )
 
     evaluator = None
     if con.use_evaluator:
-        evaluator_dataset = create_evaluation_dataset_for_attribute(test_df, con)
-        evaluator = create_evaluator_from_evaluation_dataset(evaluator_dataset)
+        if con.skip_correlation_metric:
+            # Create dummy evaluator, so we can use the evaluator callback
+            evaluator = create_dummy_evaluator()
+        else:
+            evaluator = create_evaluator_from_evaluation_dataset(
+                all_attributes_eval_dataset,
+                batch_size=con.evaluation_batch_size,
+            )
 
-    # Define your train dataset, the dataloader and the train loss
-    train_dataloader = DataLoader(
-        training_dataset.training_pairs, shuffle=True, batch_size=con.batch_size
-    )
-    train_loss = losses.CosineSimilarityLoss(con.model)
+    def evaluation_callback(score, epoch, _):
+        print(f"\n\n\tEpoch {epoch}\n\n")
+        if not con.skip_correlation_metric:
+            print(f"\t\tEvaluation score: {score}\n\n")
 
-    def evaluation_callback(score, epoch, steps):
-        print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
+        if con.evaluate_mcmse:
+            mcrmse_score = evaluate_mcrmse_single_attribute(
+                train_df=train_df,
+                test_df=test_df,
+                dataset_text_attribute=con.text_label,
+                attribute=con.attribute,
+                st_model=con.model,
+                encoding_batch_size=con.evaluation_batch_size,
+            )
+            print(mcrmse_score)
+            info = report_cuda_memory(verbose=False)
+            if mongo_client:
+                mongo_client.append_training_context_attribute_score(
+                    con.unique_id,
+                    attribute=con.attribute,
+                    attribute_score=mcrmse_score,
+                    memory_usage=info.used,
+                )
 
-    # Tune the model
     con.model.fit(
-        train_objectives=[(train_dataloader, train_loss)],
+        train_objectives=train_objectives,
         epochs=con.num_epochs,
         evaluator=evaluator,
         warmup_steps=con.warmup_steps,
         weight_decay=con.weight_decay,
         output_path=output_path,
-        save_best_model=True,
+        save_best_model=False,
         steps_per_epoch=con.train_steps,
         optimizer_params={"lr": con.learning_rate},
         show_progress_bar=True,
@@ -207,7 +245,6 @@ def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):
             str(con.unique_id[0:8]),
         ),
     )
-    print("Finished, results saved to: ", output_path)
 
 
 def create_evaluation_dataset_for_attribute(
@@ -225,6 +262,7 @@ def create_evaluation_dataset_for_attribute(
         used_attr,
         con.model_info.model_truncate_length,
         "evaluation",
+        distance_calculator=con.distance_function,
     )
     return evaluation_dataset
 
