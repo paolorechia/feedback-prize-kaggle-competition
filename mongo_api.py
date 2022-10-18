@@ -77,6 +77,17 @@ class MongoDataAPIClient:
         }
         return self._call_api("insertOne", data)
 
+    def append_all_score(self, unique_id, all_score, memory_usage):
+        data = {
+            "filter": {"unique_id": unique_id},
+            "update": {
+                "$push": {
+                    f"mcrmse_scores.all": all_score,
+                    "memory_usage": memory_usage,
+                }
+            },
+        }
+
     def append_training_context_attribute_score(
         self, unique_id, attribute, attribute_score, memory_usage
     ):

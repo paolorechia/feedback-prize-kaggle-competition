@@ -29,18 +29,18 @@ use_evaluator = True
 skip_correlation_metric = True
 evaluate_mcmse = True
 
-save_results_to_mongo = False
+save_results_to_mongo = True
 debug = False
-mongo_collection = "cohesion_test"
+mongo_collection = "new_hope"
 distance_function = LinearSimilarity()
 loss_function_class = losses.CosineSimilarityLoss
 
 # Dynamic parameters
 warmup_steps = [0]
-num_epochs = [1]
-train_steps = [1] #, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+num_epochs = [10]
+train_steps = [1]
 max_samples_per_class = [32]
-learning_rate = [2e-5]
+learning_rate = [2e-6]
 
 model_info = [ModelCatalog.DebertaV3XSmall]
 
@@ -48,14 +48,15 @@ test_size = [0.2]
 
 # test_size = [0.3, 0.5, 0.7]
 # weight_decay = [0.01]
-weight_decay = [0.5]
+weight_decay = [0.0]
+# weight_decay = [0.5]
 # weight_decay = [0.1, 0.3, 0.5]
 
 # attention_dropout = [0.0]
-# hidden_dropout = [0.0]
-hidden_dropout = [0.2]
-# attention_dropout = [0.0]
-attention_dropout = [0.5]
+hidden_dropout = [0.0]
+# hidden_dropout = [0.2]
+attention_dropout = [0.0]
+# attention_dropout = [0.5]
 # hidden_dropout = [0.0, 0.1, 0.5, 0.9]
 classifier_dropout = [0.0]
 

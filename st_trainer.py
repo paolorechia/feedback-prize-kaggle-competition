@@ -100,7 +100,7 @@ def train_model_on_all_attributes(
             print(f"\t\tEvaluation score: {score}\n\n")
 
         if con.evaluate_mcmse:
-            mcrmse_scores = evaluate_mcrmse_multitask_optimized(
+            mcrmse_score = evaluate_mcrmse_multitask_optimized(
                 train_df=train_df,
                 test_df=test_df,
                 dataset_text_attribute=con.text_label,
@@ -111,10 +111,9 @@ def train_model_on_all_attributes(
             )
             info = report_cuda_memory(verbose=False)
             if mongo_client:
-                mongo_client.append_training_context_scores(
+                mongo_client.append_all_score(
                     con.unique_id,
-                    evaluation_score=-1,
-                    mcrmse_scores=mcrmse_scores,
+                    all_score=mcrmse_score,
                     memory_usage=info.used,
                 )
 

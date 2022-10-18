@@ -1,0 +1,7 @@
+[
+    {
+        "rmse_score": 0.4524320543988705,
+        "model_name": "bigscience/T0_3B",
+        "time_to_encode_in_seconds": 451.974567
+    }
+]

@@ -98,8 +98,6 @@ def evaluate_mcrmse_multitask_optimized(
 
     predictions_df = pd.DataFrame()
 
-    scores = {}
-
     X_train = list(train_df[dataset_text_attribute])
     X_test = list(test_df[dataset_text_attribute])
 
@@ -115,13 +113,13 @@ def evaluate_mcrmse_multitask_optimized(
 
     print("Evaluating MCRMSE on multitask...")
     for attribute in attributes:
-        print("Evaluating on attribute: ", attribute)
+        # print("Evaluating on attribute: ", attribute)
         y_train = list(train_df[attribute])
         y_test = list(test_df[attribute])
 
         st_model_ridge_cv.fit(attribute, X_train_embeddings, y_train)
         score = st_model_ridge_cv.score(attribute, X_test_embeddings, y_test)
-        print("Score:", score)
+        # print("Score:", score)
 
         predictions = st_model_ridge_cv.predict(attribute, X_test_embeddings)
         predictions = [round_border_score(p) for p in predictions]
@@ -141,10 +139,8 @@ def evaluate_mcrmse_multitask_optimized(
     score = calculate_rmse_score(
         test_df[attributes].values, predictions_df[attributes].values
     )
-    scores["all"] = score
     print("MCRMSE (all attributes):", score)
-    print(scores)
-    return scores
+    return score
 
 
 def evaluate_mcrmse_single_attribute(

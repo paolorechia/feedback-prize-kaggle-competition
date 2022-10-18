@@ -1,0 +1,67 @@
+[
+    {
+        "rmse_score": 0.463664224975415,
+        "model_name": "microsoft/deberta-v3-small",
+        "time_to_encode_in_seconds": 12.720372
+    },
+    {
+        "rmse_score": 0.46466348615799746,
+        "model_name": "microsoft/deberta-v3-xsmall",
+        "time_to_encode_in_seconds": 8.781464
+    },
+    {
+        "rmse_score": 0.4851397703454379,
+        "model_name": "facebook/bart-base",
+        "time_to_encode_in_seconds": 44.932267
+    },
+    {
+        "rmse_score": 0.524504447501601,
+        "model_name": "facebook/bart-large-mnli",
+        "time_to_encode_in_seconds": 54.736759
+    },
+    {
+        "rmse_score": 0.48206264864400267,
+        "model_name": "bert-base-uncased",
+        "time_to_encode_in_seconds": 14.848591
+    },
+    {
+        "rmse_score": 0.4558549838292432,
+        "model_name": "microsoft/deberta-v3-base",
+        "time_to_encode_in_seconds": 21.334637
+    },
+    {
+        "rmse_score": 0.46253859688302595,
+        "model_name": "microsoft/deberta-v3-large",
+        "time_to_encode_in_seconds": 59.38511
+    },
+    {
+        "rmse_score": 0.506560906924781,
+        "model_name": "albert-base-v2",
+        "time_to_encode_in_seconds": 9.496711
+    },
+    {
+        "rmse_score": 0.498800551685336,
+        "model_name": "all-distilroberta-v1",
+        "time_to_encode_in_seconds": 15.417953
+    },
+    {
+        "rmse_score": 0.55203415921376,
+        "model_name": "all-MiniLM-L6-v2",
+        "time_to_encode_in_seconds": 3.969056
+    },
+    {
+        "rmse_score": 0.5260586931442768,
+        "model_name": "all-mpnet-base-v1",
+        "time_to_encode_in_seconds": 30.506172
+    },
+    {
+        "rmse_score": 0.5303794225303288,
+        "model_name": "all-mpnet-base-v2",
+        "time_to_encode_in_seconds": 23.611466
+    },
+    {
+        "rmse_score": 0.4524320543988705,
+        "model_name": "bigscience/T0_3B",
+        "time_to_encode_in_seconds": 451.974567
+    }
+]
