@@ -48,7 +48,18 @@ class MultiHeadSentenceTransformerModelRidgeCV:
         batch_size=32,
         show_progress_bar=True,
         convert_to_numpy=True,
+        use_cache=True,
+        type_path: str = "train",
     ):
+        if isinstance(self.model, ModelStack):
+            return self.model.encode(
+                X,
+                batch_size=batch_size,
+                show_progress_bar=show_progress_bar,
+                convert_to_numpy=convert_to_numpy,
+                use_cache=use_cache,
+                cache_type=type_path,
+            )
         return self.model.encode(
             X,
             batch_size=batch_size,

@@ -143,3 +143,23 @@ class ModelCatalog:
         is_from_library=False,
     )
 
+    GPTNeo = Model(
+        model_name="EleutherAI/gpt-neo-1.3B",
+        model_truncate_length=2048,
+        recommended_batch_size=1,
+        is_from_library=False,
+    )
+
+    GPTNeo2 = Model(
+        model_name="EleutherAI/gpt-neo-2.7B",
+        model_truncate_length=2048,
+        recommended_batch_size=1,
+        is_from_library=False,
+    )
+
+    Pythia1 = Model(
+        model_name="EleutherAI/pythia-1.3b",
+        model_truncate_length=2048,
+        recommended_batch_size=1,
+        is_from_library=False,
+    )

@@ -11,16 +11,22 @@ from utils import attributes, calculate_rmse_score
 from datetime import datetime
 
 
-def benchmark_stack(stack: ModelStack, train_df: pd.DataFrame, test_df: pd.DataFrame):
+def benchmark_stack(
+    stack: ModelStack, train_df: pd.DataFrame, test_df: pd.DataFrame, use_cache=True
+):
     multi_head = MultiHeadSentenceTransformerModelRidgeCV(stack)
 
     X_train = list(train_df["full_text"])
     X_test = list(test_df["full_text"])
 
     t0 = datetime.now()
-    X_train_embeddings = multi_head.encode(X_train, batch_size=32)
+    X_train_embeddings = multi_head.encode(
+        X_train, batch_size=32, type_path="train", use_cache=use_cache
+    )
     print(X_train_embeddings.shape)
-    X_test_embeddings = multi_head.encode(X_test, batch_size=32)
+    X_test_embeddings = multi_head.encode(
+        X_test, batch_size=32, type_path="test", use_cache=use_cache
+    )
     print(X_test_embeddings.shape)
 
     t1 = datetime.now()
@@ -45,12 +51,12 @@ def benchmark_stack(stack: ModelStack, train_df: pd.DataFrame, test_df: pd.DataF
     print("RMSE Score:", score)
     return ModelBenchmark(
         rmse_score=score,
-        model_name=stack.stack[0].info.model_name,
+        model_name="-".join([s.info.model_name for s in stack.stack]),
         time_to_encode_in_seconds=time_to_encode_in_seconds,
     )
 
 
-def benchmark_list_of_models(model_list: list[ModelCatalog]):
+def benchmark_list_of_models(model_list: list[ModelCatalog], use_cache=True):
     import random
 
     train_df, test_df = create_train_test_df(test_size=0.2, dataset="full")
@@ -58,19 +64,16 @@ def benchmark_list_of_models(model_list: list[ModelCatalog]):
     model_scores = []
     for model in model_list:
         stack = ModelStack([model])
-        result = benchmark_stack(stack, train_df, test_df)
+        result = benchmark_stack(stack, train_df, test_df, use_cache=use_cache)
         model_scores.append(result.__dict__())
 
-    with open(f"model_scores_{random.randint(0, 12800)}.json", "w") as f:
+    with open(f"scores/model_scores_{random.randint(0, 12800)}.json", "w") as f:
         json.dump(model_scores, f)
 
 
 if __name__ == "__main__":
     benchmark_list_of_models(
         model_list=[
-            ModelCatalog.RobertaLarge,
-            ModelCatalog.T5LongGlobalBase,
-            ModelCatalog.T5Large,
-            ModelCatalog.T5V1Large,
+            ModelCatalog.GPTNeo,
         ]
     )
