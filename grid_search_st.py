@@ -25,23 +25,28 @@ test_dataset = "full"
 attribute = "cohesion"  # Not really used in multitask
 is_multi_task = True  # We're only grid searching with multitask
 use_evaluator = True
+skip_correlation_metric = True
+evaluate_mcmse = True
+
 save_results_to_mongo = True
 debug = False
-mongo_collection = "sentence_transformers_deberta_attention_weight_grid_search"
+mongo_collection = "sentence_transformers_deberta_compare_samples_per_class"
 
 # Dynamic parameters
 warmup_steps = [8]
-num_epochs = [10]
-train_steps = [50]
-max_samples_per_class = [8]
-learning_rate = [2e-5]
+num_epochs = [1]
+train_steps = [1]
+max_samples_per_class = [8, 16, 32, 64]
+# learning_rate = [2e-5]
+learning_rate = [2e-4]
+
 model_info = [ModelCatalog.DebertaV3]
 
-test_size = [0.3]
+test_size = [0.2]
 
 # test_size = [0.3, 0.5, 0.7]
-# weight_decay = [0.01]
-weight_decay = [0.01, 0.05, 0.1]
+weight_decay = [0.01]
+# weight_decay = [0.01, 0.05, 0.1]
 
 # attention_dropout = [0.0]
 hidden_dropout = [0.0]
@@ -94,8 +99,9 @@ def launch_training(
     checkpoint_steps = train_steps
     unique_id = str(uuid4())
 
-    print("Loading model...")
-    report_cuda_memory()
+    if debug:
+        print("Loading model...")
+        report_cuda_memory()
     # Load model with dropout :)
     model: SentenceTransformer = load_model_with_dropout(
         model_info,
@@ -103,8 +109,9 @@ def launch_training(
         hidden_dropout=hidden_dropout,
         classifier_dropout=classifier_dropout,
     )
-    print("Loaded model")
-    report_cuda_memory()
+    if debug:
+        print("Loaded model")
+        report_cuda_memory()
 
     # Go!
     context = TrainingContext(
@@ -130,32 +137,34 @@ def launch_training(
         input_dataset=input_dataset,
         max_samples_per_class=max_samples_per_class,
         use_evaluator=use_evaluator,
+        evaluate_mcmse=evaluate_mcmse,
+        skip_correlation_metric=skip_correlation_metric,
         checkout_dir=checkout_dir,
         output_dir=output_dir,
         save_results_to_mongo=save_results_to_mongo,
         debug=debug,
         mongo_collection=mongo_collection,
     )
-    print("Starting context ", context)
+    if debug:
+        print("Starting context ", context)
     auto_trainer(context)
     # Clear the model from memory
     del model
     torch.cuda.empty_cache()
-    print("Deleted model from memory")
-    report_cuda_memory()
-    print("Finished context ", context)
+    if debug:
+        print("Deleted model from memory")
+        report_cuda_memory()
+        print("Finished context ", context)
 
 
 print("Total number of experiments:", len(params))
 for combination in params:
     print("Combination:", combination)
-    print("Launching process")
     t0 = datetime.now()
     p = Process(target=launch_training, args=(combination))
     p.start()
     p.join()
     p.terminate()
-    print("Finished process")
     t1 = datetime.now()
     print(
         "Elapsed time to process one combination, in seconds: ",

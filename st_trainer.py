@@ -5,16 +5,20 @@ from sentence_transformers import evaluation, losses
 from sentence_transformers.evaluation import SimilarityFunction
 from torch.utils.data import DataLoader
 
+from cuda_mem_report import report_cuda_memory
 from experiment_schemas import TrainingContext
-from load_data import create_attribute_stratified_split, sample_sentences_per_class
-from mcrmse_evaluator import evaluate_mcrmse_multitask
+from load_data import (
+    create_attribute_stratified_split,
+    create_train_test_df,
+    sample_sentences_per_class,
+)
+from mcrmse_evaluator import evaluate_mcrmse_multitask_optimized
 from mongo_api import MongoDataAPIClient
 from sentence_pairing import (
     EvaluationDataset,
     TrainingDataset,
     create_continuous_sentence_pairs,
 )
-from cuda_mem_report import report_cuda_memory
 
 
 def auto_trainer(con: TrainingContext):
@@ -69,46 +73,52 @@ def train_model_on_all_attributes(
 
         train_objectives.append((train_dataloader, train_loss))
 
-        evaluation_dataset = create_evaluation_dataset_for_attribute(test_df, con, attr)
-        all_attributes_eval_dataset = all_attributes_eval_dataset.merge(
-            evaluation_dataset
-        )
-    print("Loaded training data for all attributes")
-    report_cuda_memory()
+        if con.use_evaluator and not con.skip_correlation_metric:
+            evaluation_dataset = create_evaluation_dataset_for_attribute(
+                test_df, con, attr
+            )
+            all_attributes_eval_dataset = all_attributes_eval_dataset.merge(
+                evaluation_dataset
+            )
 
     evaluator = None
     if con.use_evaluator:
-        evaluator = create_evaluator_from_evaluation_dataset(
-            all_attributes_eval_dataset,
-            batch_size=con.evaluation_batch_size,
-        )
-
-    print("Loaded evaluator dataset data for all attributes")
-    report_cuda_memory()
-
-    def evaluation_callback(score, epoch, steps):
-        print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
-
-        print("Memory before mcrmse evaluation")
-        info = report_cuda_memory()
-        mcrmse_scores = evaluate_mcrmse_multitask(
-            dataset_text_attribute=con.text_label,
-            test_size_from_experiment=con.test_size,
-            input_dataset=con.input_dataset,
-            st_model=con.model,
-            debug=con.debug,
-        )
-        print("Memory after mcrmse evaluation")
-        info = report_cuda_memory()
-        if mongo_client:
-            mongo_client.append_training_context_scores(
-                con.unique_id,
-                evaluation_score=score,
-                mcrmse_scores=mcrmse_scores,
-                memory_usage=info.used,
+        if con.skip_correlation_metric:
+            # Create dummy evaluator, so we can use the evaluator callback
+            evaluator = create_dummy_evaluator()
+        else:
+            evaluator = create_evaluator_from_evaluation_dataset(
+                all_attributes_eval_dataset,
+                batch_size=con.evaluation_batch_size,
             )
 
-    print("Starting training, results will be saved to: ", output_path)
+    train_df, test_df = create_train_test_df(con.test_size, con.input_dataset)
+
+    def evaluation_callback(score, epoch, _):
+        print(f"\n\n\tEpoch {epoch}\n\n")
+        if not con.skip_correlation_metric:
+            print(f"\t\tEvaluation score: {score}\n\n")
+
+        if con.evaluate_mcmse:
+            mcrmse_scores = evaluate_mcrmse_multitask_optimized(
+                train_df=train_df,
+                test_df=test_df,
+                dataset_text_attribute=con.text_label,
+                input_train_dataset=con.input_dataset,
+                test_size_from_experiment=con.test_size,
+                st_model=con.model,
+                encoding_batch_size=con.evaluation_batch_size,
+            )
+            info = report_cuda_memory(verbose=False)
+            if mongo_client:
+                mongo_client.append_training_context_scores(
+                    con.unique_id,
+                    evaluation_score=-1,
+                    mcrmse_scores=mcrmse_scores,
+                    memory_usage=info.used,
+                )
+
+    # print("Starting training, results will be saved to: ", output_path)
     # Tune the model
     con.model.fit(
         train_objectives=train_objectives,
@@ -153,7 +163,6 @@ def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):
         train_df, con.attribute, con.max_samples_per_class
     )
 
-    print("Small subset size: ", len(small_subset))
     # Let's see how it looks like :)
     training_dataset: TrainingDataset = create_continuous_sentence_pairs(
         small_subset,
@@ -162,8 +171,6 @@ def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):
         con.model_info.model_truncate_length,
         "training",
     )
-    training_dataset.print_sample(5)
-    print("Training sentence pairs: ", len(training_dataset.training_pairs))
 
     evaluator = None
     if con.use_evaluator:
@@ -179,7 +186,6 @@ def train_model_on_single_attribute(con: TrainingContext, mongo_client=None):
     def evaluation_callback(score, epoch, steps):
         print(f"\n\n\tEpoch {epoch} - Evaluation score: {score} - Steps: {steps}\n\n")
 
-    print("Starting training, results will be saved to: ", output_path)
     # Tune the model
     con.model.fit(
         train_objectives=[(train_dataloader, train_loss)],
@@ -233,11 +239,24 @@ def create_evaluator_from_evaluation_dataset(
         evaluation_dataset.scores,
         show_progress_bar=True,
         name="evaluator_output_{model_name}",
-        write_csv=True,
+        write_csv=False,
         main_similarity=SimilarityFunction.COSINE,
         batch_size=batch_size,
     )
 
-    evaluation_dataset.print_sample(min(3, len(evaluation_dataset.scores)))
-    print("Evaluation sentence pairs: ", len(evaluation_dataset.scores))
+    # evaluation_dataset.print_sample(min(3, len(evaluation_dataset.scores)))
+    # print("Evaluation sentence pairs: ", len(evaluation_dataset.scores))
+    return evaluator
+
+
+def create_dummy_evaluator() -> evaluation.EmbeddingSimilarityEvaluator:
+    evaluator = evaluation.EmbeddingSimilarityEvaluator(
+        ["a"],
+        ["b"],
+        ["0.5"],
+        show_progress_bar=False,
+        write_csv=False,
+        main_similarity=SimilarityFunction.COSINE,
+        batch_size=1,
+    )
     return evaluator

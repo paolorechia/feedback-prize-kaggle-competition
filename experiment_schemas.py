@@ -33,7 +33,9 @@ class TrainingContext:
     input_dataset: str
     max_samples_per_class: int
     use_evaluator: bool
-
+    evaluate_mcmse: bool
+    skip_correlation_metric: bool
+    
     checkout_dir: str
     output_dir: str
 
