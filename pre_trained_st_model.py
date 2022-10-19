@@ -1,37 +1,66 @@
-from typing import Union
-from sklearn.linear_model import RidgeCV
+from typing import Dict, Union
+
 from sentence_transformers import SentenceTransformer
+from sklearn.linear_model import RidgeCV
+
 from model_stacker import ModelStack
 
+class HeadModel:
+    def __init__(self, model_class, *model_args):
+        self.model = model_class(*model_args)
 
-class SentenceTransformerModelRidgeCV:
-    def __init__(self, model_path: str) -> None:
+    def fit(self, X, y):
+        self.model.fit(X, y)
+
+    def predict(self, X):
+        return self.model.predict(X)
+
+    def score(self, X, y):
+        return self.model.score(X, y)
+
+
+class SentenceTransformerHeadModel:
+    def __init__(
+        self, model_path: str, head_model: HeadModel, *head_model_args
+    ) -> None:
         self.model = SentenceTransformer(model_path)
-        self.ridge_cv = RidgeCV()
+        self.head_model = head_model(*head_model_args)
 
     def fit(self, X_train, y_train):
         print("Encoding training set")
         X_train_embeddings = self.model.encode(X_train)
         print("Fitting Ridge CV...")
-        self.ridge_cv.fit(X_train_embeddings, y_train)
+        self.head_model.fit(X_train_embeddings, y_train)
 
     def score(self, X_test, y_test):
         print("Encoding test set")
         X_test_embeddings = self.model.encode(X_test)
         print("Scoring...")
-        score = self.ridge_cv.score(X_test_embeddings, y_test)
+        score = self.head_model.score(X_test_embeddings, y_test)
         return score
 
     def predict(self, X_test):
         print("Encoding test set")
         X_test_embeddings = self.model.encode(X_test)
         print("Predicting...")
-        predictions = self.ridge_cv.predict(X_test_embeddings)
+        predictions = self.head_model.predict(X_test_embeddings)
         return predictions
 
 
-class MultiHeadSentenceTransformerModelRidgeCV:
-    def __init__(self, model: Union[str, SentenceTransformer, "ModelStack"]) -> None:
+class SentenceTransformerModelRidgeCV:
+    def __init__(self, model_path: str) -> None:
+        self.model = SentenceTransformer(model_path)
+        super().__init__(model_path, RidgeCV)
+
+
+class MultiHeadSentenceTransformerModel:
+    def __init__(
+        self,
+        model: Union[str, SentenceTransformer, "ModelStack"],
+        head_model: HeadModel,
+        *head_model_args,
+        **head_model_kwargs,
+    ) -> None:
         if isinstance(model, str):
             self.model = SentenceTransformer(model)
         elif isinstance(model, SentenceTransformer):
@@ -41,6 +70,9 @@ class MultiHeadSentenceTransformerModelRidgeCV:
         else:
             raise ValueError("Invalid model type")
         self.heads = {}
+        self.head_model = head_model
+        self.head_model_args = head_model_args
+        self.head_model_kwargs = head_model_kwargs
 
     def encode(
         self,
@@ -68,8 +100,10 @@ class MultiHeadSentenceTransformerModelRidgeCV:
         )
 
     def fit(self, attribute, X_train, y_train):
-        print("Fitting Ridge CV...")
-        self.heads[attribute] = RidgeCV()
+        print(f"Fitting {self.head_model}...")
+        self.heads[attribute] = self.head_model(
+            *self.head_model_args, **self.head_model_kwargs
+        )
         self.heads[attribute].fit(X_train, y_train)
 
     def score(self, attribute, X_test, y_test):
@@ -80,3 +114,22 @@ class MultiHeadSentenceTransformerModelRidgeCV:
         print("Predicting...")
         predictions = self.heads[attribute].predict(X_test)
         return predictions
+
+
+class MultiHeadSentenceTransformerModelRidgeCV(MultiHeadSentenceTransformerModel):
+    def __init__(self, model: Union[str, SentenceTransformer, "ModelStack"]) -> None:
+        super().__init__(model, RidgeCV)
+
+
+class MultiHeadSentenceTransformerFactory:
+    @staticmethod
+    def create_class(head_model: HeadModel, *head_args, **head_model_kwargs):
+        class MultiHeadSentenceTransformerFromFactory(
+            MultiHeadSentenceTransformerModel
+        ):
+            def __init__(
+                self, model: Union[str, SentenceTransformer, "ModelStack"]
+            ) -> None:
+                super().__init__(model, head_model, *head_args, **head_model_kwargs)
+
+        return MultiHeadSentenceTransformerFromFactory

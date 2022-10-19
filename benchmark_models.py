@@ -5,16 +5,26 @@ import pandas as pd
 from load_data import create_train_test_df
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
-from pre_trained_st_model import MultiHeadSentenceTransformerModelRidgeCV
+from pre_trained_st_model import (
+    MultiHeadSentenceTransformerModel,
+    MultiHeadSentenceTransformerFactory,
+)
 from experiment_schemas import ModelBenchmark
 from utils import attributes, calculate_rmse_score
 from datetime import datetime
 
+from sklearn.linear_model import LassoCV, RidgeCV
+from sklearn import svm
+
 
 def benchmark_stack(
-    stack: ModelStack, train_df: pd.DataFrame, test_df: pd.DataFrame, use_cache=True
+    stack: ModelStack,
+    multi_head_class: MultiHeadSentenceTransformerModel,
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    use_cache=True,
 ):
-    multi_head = MultiHeadSentenceTransformerModelRidgeCV(stack)
+    multi_head = multi_head_class(stack)
 
     X_train = list(train_df["full_text"])
     X_test = list(test_df["full_text"])
@@ -56,7 +66,11 @@ def benchmark_stack(
     )
 
 
-def benchmark_list_of_models(model_list: list[ModelCatalog], use_cache=True):
+def benchmark_list_of_models(
+    model_list: list[ModelCatalog],
+    multi_head_class: MultiHeadSentenceTransformerModel,
+    use_cache=True,
+):
     import random
 
     train_df, test_df = create_train_test_df(test_size=0.2, dataset="full")
@@ -64,7 +78,9 @@ def benchmark_list_of_models(model_list: list[ModelCatalog], use_cache=True):
     model_scores = []
     for model in model_list:
         stack = ModelStack([model])
-        result = benchmark_stack(stack, train_df, test_df, use_cache=use_cache)
+        result = benchmark_stack(
+            stack, multi_head_class, train_df, test_df, use_cache=use_cache
+        )
         model_scores.append(result.__dict__())
 
     with open(f"scores/model_scores_{random.randint(0, 12800)}.json", "w") as f:
@@ -72,8 +88,31 @@ def benchmark_list_of_models(model_list: list[ModelCatalog], use_cache=True):
 
 
 if __name__ == "__main__":
+
+    # MultiHeadRidgeCV = MultiHeadSentenceTransformerFactory.create_class(RidgeCV)
+    # MultiHeadLassoCV = MultiHeadSentenceTransformerFactory.create_class(LassoCV)
+
+    MultiHeadSVR = MultiHeadSentenceTransformerFactory.create_class(svm.SVR)
     benchmark_list_of_models(
         model_list=[
-            ModelCatalog.GPTNeo,
-        ]
+            ModelCatalog.AllMiniLML6v2,
+            ModelCatalog.AllMpnetBasev2,
+            ModelCatalog.AllMpnetBasev1,
+            ModelCatalog.AllDistilrobertaV1,
+            ModelCatalog.RobertaLarge,
+            ModelCatalog.BertBaseUncased,
+            ModelCatalog.DebertaV3,
+            ModelCatalog.DebertaV3Large,
+            ModelCatalog.DebertaV3Small,
+            ModelCatalog.DebertaV3XSmall,
+            ModelCatalog.BartBase,
+            ModelCatalog.BartLarge,
+            ModelCatalog.AlbertV2,
+            ModelCatalog.T5Base,
+            ModelCatalog.T5Large,
+            ModelCatalog.T5V1Base,
+            ModelCatalog.T5V1Large,
+            ModelCatalog.T03B,
+        ],
+        multi_head_class=MultiHeadSVR,
     )

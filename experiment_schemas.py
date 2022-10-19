@@ -2,7 +2,7 @@ from typing import List
 from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer, losses
 from sentence_pairing import CosineNormalizedSimilarityCalculator
-from model_catalog import Model
+from model_catalog import ModelDescription
 
 
 @dataclass
@@ -22,7 +22,7 @@ class ModelBenchmark:
 @dataclass
 class TrainingContext:
     model: SentenceTransformer
-    model_info: Model
+    model_info: ModelDescription
 
     distance_function: CosineNormalizedSimilarityCalculator
     loss_function_class: losses.CosineSimilarityLoss

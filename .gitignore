@@ -1,3 +1,6 @@
+# SQLITE
+*.db
+
 # Secrets
 .mongo_url
 .mongo_api_key

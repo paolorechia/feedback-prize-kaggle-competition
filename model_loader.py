@@ -1,6 +1,6 @@
 import torch
 from warnings import warn
-from model_catalog import Model
+from model_catalog import ModelDescription
 from sentence_transformers import SentenceTransformer, models
 import os
 import json
@@ -8,12 +8,12 @@ import json
 dropout_dir = "/data/dropout_test/"
 
 
-def get_dropout_model_path(model_info: Model):
+def get_dropout_model_path(model_info: ModelDescription):
     return os.path.join(dropout_dir, model_info.model_name)
 
 
 def load_model_with_dropout(
-    model_info: Model,
+    model_info: ModelDescription,
     attention_dropout: float,
     hidden_dropout: float,
     classifier_dropout: float = 0.0,
@@ -54,7 +54,7 @@ def _load_model_from_path(path):
     return model
 
 
-def _load_model(model_info: Model):
+def _load_model(model_info: ModelDescription):
     # Define the model. Either from scratch or by loading a pre-trained model
     if model_info.is_from_library:
         model = _instantiate_library_model(model_info)
@@ -63,12 +63,12 @@ def _load_model(model_info: Model):
     return model
 
 
-def _instantiate_library_model(model_info: Model):
+def _instantiate_library_model(model_info: ModelDescription):
     model = SentenceTransformer(model_info.model_name)
     return model
 
 
-def _instantiate_custom_model(model_info: Model):
+def _instantiate_custom_model(model_info: ModelDescription):
     word_embedding_model = models.Transformer(
         model_info.model_name,
         max_seq_length=model_info.model_truncate_length,

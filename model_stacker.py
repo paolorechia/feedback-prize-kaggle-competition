@@ -3,7 +3,7 @@ from typing import List, Union
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from model_catalog import Model
+from model_catalog import ModelDescription
 from model_loader import load_model_with_dropout
 
 import os
@@ -12,8 +12,8 @@ cache_encodings_dir = "/data/cache_encodings"
 
 
 class StackedModel:
-    def __init__(self, model_info: Model, st: SentenceTransformer) -> None:
-        self.info: Model = model_info
+    def __init__(self, model_info: ModelDescription, st: SentenceTransformer) -> None:
+        self.info: ModelDescription = model_info
         self.model: SentenceTransformer = st
 
     def encode(
@@ -52,7 +52,7 @@ class StackedModel:
 
 
 class ModelStack:
-    def __init__(self, models: List[Model]):
+    def __init__(self, models: List[ModelDescription]):
         self.stack = []
         for model in models:
             st_model = load_model_with_dropout(
