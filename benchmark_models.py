@@ -10,6 +10,7 @@ from pre_trained_st_model import (
     MultiClassMultiHeadSentenceTransformerModel,
     MultiHeadSentenceTransformerModel,
     MultiHeadSentenceTransformerFactory,
+    MultiEncodingStack,
 )
 from experiment_schemas import ModelBenchmark
 from utils import attributes, calculate_rmse_score
@@ -120,3 +121,36 @@ if __name__ == "__main__":
         ],
         multi_head_class=MultiHeadClass,
     )
+
+
+def benchmark_multi_stack(
+    multi_stack: MultiEncodingStack,
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    use_cache=True,
+) -> float:
+    X_train = list(train_df["full_text"])
+    X_test = list(test_df["full_text"])
+
+    preds_df = pd.DataFrame()
+    preds_df["text_id"] = test_df["text_id"]
+    preds_df["full_text"] = test_df["full_text"]
+
+    for attribute in attributes:
+        X_train_embeddings = multi_stack.encode(
+            attribute, X_train, batch_size=32, type_path="train", use_cache=use_cache
+        )
+        X_test_embeddings = multi_stack.encode(
+            attribute, X_test, batch_size=32, type_path="test", use_cache=use_cache
+        )
+        multi_stack.fit(attribute, X_train_embeddings, train_df[attribute])
+        s = multi_stack.score(attribute, X_test_embeddings, test_df[attribute])
+        print("Regressor Score:", s)
+        preds = multi_stack.predict(attribute, X_test_embeddings)
+        preds_df[attribute] = preds
+
+    score = calculate_rmse_score(
+        test_df[attributes].values, preds_df[attributes].values
+    )
+    print("RMSE Score:", score)
+    return score

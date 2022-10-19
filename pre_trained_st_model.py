@@ -175,3 +175,29 @@ class MultiClassMultiHeadSentenceTransformerModel(MultiHeadSentenceTransformerMo
 
         predictions = self.heads[attribute].predict(X_test)
         return predictions
+
+
+class MultiEncodingStack:
+    def __init__(self) -> None:
+        self.encoding_stacks = {}
+        self.regressor_heads = {}
+
+    def add_encoding_stack(self, attribute, stack: ModelStack):
+        self.encoding_stacks[attribute] = stack
+
+    def add_head(self, attribute, head_model, *head_args, **head_kwargs):
+        self.regressor_heads[attribute] = head_model(*head_args, **head_kwargs)
+
+    def encode(self, attribute, X, **kwargs):
+        return self.encoding_stacks[attribute].encode(X, **kwargs)
+
+    def fit(self, attribute, X_train, y_train):
+        self.regressor_heads[attribute].fit(X_train, y_train)
+
+    def score(self, attribute, X_test, y_test):
+        score = self.regressor_heads[attribute].score(X_test, y_test)
+        return score
+
+    def predict(self, attribute, X_test):
+        predictions = self.regressor_heads[attribute].predict(X_test)
+        return predictions
