@@ -48,37 +48,36 @@ available_head_regressors = {
     "SVR": SVR,
 }
 regressors = [
-    "BayesianRidge",
-    "ElasticNet",
-    "OrthogonalMatchingPursuit",
-    "SGDRegressor",
+    # "BayesianRidge",
+    # "ElasticNet",
+    # "OrthogonalMatchingPursuit",
+    # "SGDRegressor",
     "RidgeCV",
     "LassoCV",
-    "SVR",
-    "AdaBoostRegressor",
-    "GradientBoostingRegressor",
-    "RandomForestRegressor",
+    # "SVR",
+    # "AdaBoostRegressor",
+    # "GradientBoostingRegressor",
+    # "RandomForestRegressor",
 ]
 
 networks = [
-    "AllMiniLML6v2",
-    "AllMiniLML6v2",
-    "AllMpnetBasev2",
-    "AllMpnetBasev1",
-    "AllDistilrobertaV1",
-    "RobertaLarge",
-    "BertBaseUncased",
-    "DebertaV3",
-    "DebertaV3Large",
-    "DebertaV3Small",
+    # "AllMiniLML6v2",
+    # "AllMpnetBasev2",
+    # "AllMpnetBasev1",
+    # "AllDistilrobertaV1",
+    # "RobertaLarge",
+    # "BertBaseUncased",
+    # "DebertaV3",
+    # "DebertaV3Large",
+    # "DebertaV3Small",
     "DebertaV3XSmall",
-    "BartBase",
-    "BartLarge",
-    "AlbertV2",
-    "T5Base",
-    "T5Large",
-    "T5V1Base",
-    "T5V1Large",
+    # "BartBase",
+    # "BartLarge",
+    # "AlbertV2",
+    # "T5Base",
+    # "T5Large",
+    # "T5V1Base",
+    # "T5V1Large",
     # "T03B",
 ]
 
@@ -92,7 +91,7 @@ networks = [
 
 def objective(trial):
     # Integer parameter
-    num_stacks = trial.suggest_int("num_stacks", 1, 5)
+    num_stacks = trial.suggest_int("num_stacks", 1, 1)
 
     model_stack = []
     stack_trials = []
@@ -118,13 +117,41 @@ def objective(trial):
 
     multi_class_multi_head = MultiClassMultiHeadSentenceTransformerModel(stack)
     for key, item in heads.items():
-        multi_class_multi_head.add_head(key, item)
+        print(item)
+        if item == RidgeCV:
+            alpha = trial.suggest_float(f"alpha_{key}_{item}", 0.1, 100.0)
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=False,
+                head_model=item,
+                alphas=[alpha],
+            )
+        if item == LassoCV:
+            n_alphas = trial.suggest_int(f"n_alphas_{key}_{item}", 10, 1000)
+            max_iter = trial.suggest_int(f"max_iter_{key}_{item}", 1000, 5000)
+            tol = trial.suggest_float(f"tol_{key}_{item}", 1e-6, 1e-3)
+            # random_state = trial.suggest_int(f"random_state_{key}_{item}", 0, 1000)
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=False,
+                head_model=item,
+                n_alphas=n_alphas,
+                max_iter=max_iter,
+                tol=tol,
+                random_state=0,
+            )
+        else:
+            multi_class_multi_head.add_head(
+                attribute=key, use_scaler=True, head_model=item
+            )
 
     result = benchmark_stack(stack, multi_class_multi_head, train_df, test_df)
     return result.rmse_score
 
 
-study_name = "no-t0-too-slow"  # Unique identifier of the study.
+study_name = (
+    "multi-class-multi-head-deberta-xsmall-lassoridge"  # Unique identifier of the study.
+)
 storage_name = "sqlite:///{}.db".format(study_name)
 study = optuna.create_study(
     study_name=study_name,
@@ -133,5 +160,5 @@ study = optuna.create_study(
     direction="minimize",  # we want to minimize the error :)
 )
 
-# study.optimize(objective, n_trials=100, n_jobs=8, show_progress_bar=True)
+study.optimize(objective, n_trials=1000, n_jobs=8, show_progress_bar=True)
 print(study.best_trial)

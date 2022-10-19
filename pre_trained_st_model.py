@@ -2,6 +2,7 @@ from typing import Dict, Union
 
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import RidgeCV
+from sklearn.preprocessing import StandardScaler
 
 from model_stacker import ModelStack
 
@@ -139,16 +140,38 @@ class MultiClassMultiHeadSentenceTransformerModel(MultiHeadSentenceTransformerMo
     def __init__(self, model: Union[str, SentenceTransformer, "ModelStack"]):
         super().__init__(model, None, None)
         self.heads = {}
+        self.use_scalers = {}
+        self.scalers = {}
 
-    def add_head(self, attribute, head_model, *head_args, **head_model_kwargs):
-        self.heads[attribute] = MultiHeadSentenceTransformerModel(
-            self.model, head_model, *head_args, **head_model_kwargs
-        )
+    def add_head(
+        self, attribute, use_scaler, head_model, *head_args, **head_model_kwargs
+    ):
+        print(head_model_kwargs)
+        self.heads[attribute] = head_model(*head_args, **head_model_kwargs)
+        self.use_scalers[attribute] = use_scaler
 
     def fit(self, attribute, X_train, y_train):
         if attribute not in self.heads:
             TypeError(
                 f"You must add a new head to the model for the attribute: {attribute}, before you can fit it."
             )
-        print(f"Fitting {self.head_model.__class__.__name__} on {attribute} ...")
+        if self.use_scalers[attribute]:
+            self.scalers[attribute] = StandardScaler()
+            X_train = self.scalers[attribute].fit_transform(X_train)
+
+        print(f"Fitting {self.heads[attribute]} on {attribute} ...")
         self.heads[attribute].fit(X_train, y_train)
+
+    def score(self, attribute, X_test, y_test):
+        if self.use_scalers[attribute]:
+            X_test = self.scalers[attribute].transform(X_test)
+
+        score = self.heads[attribute].score(X_test, y_test)
+        return score
+
+    def predict(self, attribute, X_test):
+        if self.use_scalers[attribute]:
+            X_test = self.scalers[attribute].transform(X_test)
+
+        predictions = self.heads[attribute].predict(X_test)
+        return predictions

@@ -1,4 +1,5 @@
-FrozenTrial(
+# Stacking
+stacked = FrozenTrial(
     number=32,
     values=[0.4498437481762916],
     datetime_start=datetime.datetime(2022, 10, 19, 18, 46, 46, 757736),
@@ -143,6 +144,116 @@ FrozenTrial(
     system_attrs={},
     intermediate_values={},
     trial_id=33,
+    state=TrialState.COMPLETE,
+    value=None,
+)
+xsmall = FrozenTrial(
+    number=87,
+    values=[0.4644261464299268],
+    datetime_start=datetime.datetime(2022, 10, 19, 20, 55, 55, 35676),
+    datetime_complete=datetime.datetime(2022, 10, 19, 20, 57, 34, 250883),
+    params={
+        "cohesion_head_regressor": "BayesianRidge",
+        "conventions_head_regressor": "LassoCV",
+        "grammar_head_regressor": "RandomForestRegressor",
+        "num_stacks": 1,
+        "phraseology_head_regressor": "LassoCV",
+        "stack_0": "DebertaV3XSmall",
+        "syntax_head_regressor": "BayesianRidge",
+        "vocabulary_head_regressor": "GradientBoostingRegressor",
+    },
+    distributions={
+        "cohesion_head_regressor": CategoricalDistribution(
+            choices=(
+                "BayesianRidge",
+                "ElasticNet",
+                "OrthogonalMatchingPursuit",
+                "SGDRegressor",
+                "RidgeCV",
+                "LassoCV",
+                "SVR",
+                "AdaBoostRegressor",
+                "GradientBoostingRegressor",
+                "RandomForestRegressor",
+            )
+        ),
+        "conventions_head_regressor": CategoricalDistribution(
+            choices=(
+                "BayesianRidge",
+                "ElasticNet",
+                "OrthogonalMatchingPursuit",
+                "SGDRegressor",
+                "RidgeCV",
+                "LassoCV",
+                "SVR",
+                "AdaBoostRegressor",
+                "GradientBoostingRegressor",
+                "RandomForestRegressor",
+            )
+        ),
+        "grammar_head_regressor": CategoricalDistribution(
+            choices=(
+                "BayesianRidge",
+                "ElasticNet",
+                "OrthogonalMatchingPursuit",
+                "SGDRegressor",
+                "RidgeCV",
+                "LassoCV",
+                "SVR",
+                "AdaBoostRegressor",
+                "GradientBoostingRegressor",
+                "RandomForestRegressor",
+            )
+        ),
+        "num_stacks": IntDistribution(high=1, log=False, low=1, step=1),
+        "phraseology_head_regressor": CategoricalDistribution(
+            choices=(
+                "BayesianRidge",
+                "ElasticNet",
+                "OrthogonalMatchingPursuit",
+                "SGDRegressor",
+                "RidgeCV",
+                "LassoCV",
+                "SVR",
+                "AdaBoostRegressor",
+                "GradientBoostingRegressor",
+                "RandomForestRegressor",
+            )
+        ),
+        "stack_0": CategoricalDistribution(choices=("DebertaV3XSmall",)),
+        "syntax_head_regressor": CategoricalDistribution(
+            choices=(
+                "BayesianRidge",
+                "ElasticNet",
+                "OrthogonalMatchingPursuit",
+                "SGDRegressor",
+                "RidgeCV",
+                "LassoCV",
+                "SVR",
+                "AdaBoostRegressor",
+                "GradientBoostingRegressor",
+                "RandomForestRegressor",
+            )
+        ),
+        "vocabulary_head_regressor": CategoricalDistribution(
+            choices=(
+                "BayesianRidge",
+                "ElasticNet",
+                "OrthogonalMatchingPursuit",
+                "SGDRegressor",
+                "RidgeCV",
+                "LassoCV",
+                "SVR",
+                "AdaBoostRegressor",
+                "GradientBoostingRegressor",
+                "RandomForestRegressor",
+            )
+        ),
+    },
+    user_attrs={},
+    system_attrs={},
+    intermediate_values={},
+    trial_id=88,
     state=TrialState.COMPLETE,
     value=None,
 )
