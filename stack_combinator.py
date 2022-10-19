@@ -1,5 +1,6 @@
 import logging
 import sys
+from warnings import warn
 
 import optuna
 from sklearn.ensemble import (
@@ -11,7 +12,7 @@ from sklearn.linear_model import (
     BayesianRidge,
     ElasticNet,
     LassoCV,
-    OrthogonalMatchingPursuit,
+    OrthogonalMatchingPursuitCV,
     RidgeCV,
     SGDRegressor,
 )
@@ -23,9 +24,11 @@ from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 from pre_trained_st_model import (
     MultiClassMultiHeadSentenceTransformerModel,
-    MultiHeadSentenceTransformerFactory,
 )
 from utils import attributes
+import warnings
+
+warnings.filterwarnings("ignore")
 
 optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
 # ModelBenchmark(rmse_score=0.4511073552381755, model_name='microsoft/deberta-v3-base', time_to_encode_in_seconds=530.214186)
@@ -42,22 +45,22 @@ available_head_regressors = {
     "BayesianRidge": BayesianRidge,
     "ElasticNet": ElasticNet,
     "LassoCV": LassoCV,
-    "OrthogonalMatchingPursuit": OrthogonalMatchingPursuit,
+    "OrthogonalMatchingPursuitCV": OrthogonalMatchingPursuitCV,
     "RidgeCV": RidgeCV,
     "SGDRegressor": SGDRegressor,
     "SVR": SVR,
 }
 regressors = [
-    # "BayesianRidge",
-    # "ElasticNet",
-    # "OrthogonalMatchingPursuit",
-    # "SGDRegressor",
+    "BayesianRidge",
+    "ElasticNet",
+    "OrthogonalMatchingPursuitCV",
+    "SGDRegressor",
     "RidgeCV",
     "LassoCV",
-    # "SVR",
-    # "AdaBoostRegressor",
-    # "GradientBoostingRegressor",
-    # "RandomForestRegressor",
+    "SVR",
+    "AdaBoostRegressor",
+    "GradientBoostingRegressor",
+    "RandomForestRegressor",
 ]
 
 networks = [
@@ -70,7 +73,7 @@ networks = [
     # "DebertaV3",
     # "DebertaV3Large",
     # "DebertaV3Small",
-    "DebertaV3XSmall",
+    # "DebertaV3XSmall",
     # "BartBase",
     # "BartLarge",
     # "AlbertV2",
@@ -79,19 +82,13 @@ networks = [
     # "T5V1Base",
     # "T5V1Large",
     # "T03B",
+    "WordEmbeddingsKomninos",
+    "WordEmbeddingsGlove",
 ]
-
-
-# Models to try with parametrization:
-# 1. AdaBoostRegressor
-# 2. GradientBoostingRegressor
-# 3. LassoCV
-# 4. SVR
-
 
 def objective(trial):
     # Integer parameter
-    num_stacks = trial.suggest_int("num_stacks", 1, 1)
+    num_stacks = trial.suggest_int("num_stacks", 1, 2)
 
     model_stack = []
     stack_trials = []
@@ -126,11 +123,10 @@ def objective(trial):
                 head_model=item,
                 alphas=[alpha],
             )
-        if item == LassoCV:
+        elif item == LassoCV:
             n_alphas = trial.suggest_int(f"n_alphas_{key}_{item}", 10, 1000)
             max_iter = trial.suggest_int(f"max_iter_{key}_{item}", 1000, 5000)
             tol = trial.suggest_float(f"tol_{key}_{item}", 1e-6, 1e-3)
-            # random_state = trial.suggest_int(f"random_state_{key}_{item}", 0, 1000)
             multi_class_multi_head.add_head(
                 attribute=key,
                 use_scaler=False,
@@ -140,7 +136,101 @@ def objective(trial):
                 tol=tol,
                 random_state=0,
             )
+        elif item == AdaBoostRegressor:
+            n_estimators = trial.suggest_int(f"n_estimators_{key}_{item}", 10, 100)
+            learning_rate = trial.suggest_float(
+                f"learning_rate_{key}_{item}", 0.1, 10.0
+            )
+            loss = trial.suggest_categorical(
+                f"loss_{key}_{item}", ["linear", "square", "exponential"]
+            )
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=False,
+                head_model=item,
+                n_estimators=n_estimators,
+                learning_rate=learning_rate,
+                loss=loss,
+                random_state=0,
+            )
+        elif item == GradientBoostingRegressor:
+            n_estimators = trial.suggest_int(f"n_estimators_{key}_{item}", 10, 100)
+            learning_rate = trial.suggest_float(f"learning_rate_{key}_{item}", 0.1, 1.0)
+            loss = trial.suggest_categorical(
+                f"loss_{key}_{item}",
+                ["squared_error", "absolute_error", "huber", "quantile"],
+            )
+            subsample = trial.suggest_float(f"subsample_{key}_{item}", 0.1, 1.0)
+            criterion = trial.suggest_categorical(
+                f"criterion_{key}_{item}", ["friedman_mse", "squared_error"]
+            )
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=False,
+                head_model=item,
+                n_estimators=n_estimators,
+                learning_rate=learning_rate,
+                loss=loss,
+                subsample=subsample,
+                criterion=criterion,
+                random_state=0,
+            )
+        elif item == RandomForestRegressor:
+            n_estimators = trial.suggest_int(f"n_estimators_{key}_{item}", 10, 1000)
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=False,
+                head_model=item,
+                n_estimators=n_estimators,
+                random_state=0,
+            )
+        elif item == BayesianRidge:
+            alpha_1 = trial.suggest_float(f"alpha_1_{key}_{item}", 1e-6, 1e-3)
+            alpha_2 = trial.suggest_float(f"alpha_2_{key}_{item}", 1e-6, 1e-3)
+            lambda_1 = trial.suggest_float(f"lambda_1_{key}_{item}", 1e-6, 1e-3)
+            lambda_2 = trial.suggest_float(f"lambda_2_{key}_{item}", 1e-6, 1e-3)
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=False,
+                head_model=item,
+                alpha_1=alpha_1,
+                alpha_2=alpha_2,
+                lambda_1=lambda_1,
+                lambda_2=lambda_2,
+            )
+        elif item == SVR:
+            kernel = trial.suggest_categorical(f"kernel_{key}_{item}", ["poly", "rbf"])
+            C = trial.suggest_float(f"C_{key}_{item}", 0.001, 100.0)
+            degree = trial.suggest_int(f"degree_{key}_{item}", 3, 8)
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=True,
+                head_model=item,
+                kernel=kernel,
+                C=C,
+                degree=degree,
+            )
+        elif item == OrthogonalMatchingPursuitCV:
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=True,
+                head_model=item,
+                normalize=False,
+            )
+        elif item == ElasticNet:
+            alpha = trial.suggest_float(f"alpha_{key}_{item}", 0.1, 100.0)
+            l1_ratio = trial.suggest_float(f"l1_ratio_{key}_{item}", 0.1, 1.0)
+            multi_class_multi_head.add_head(
+                attribute=key,
+                use_scaler=True,
+                head_model=item,
+                alpha=alpha,
+                l1_ratio=l1_ratio,
+            )
         else:
+            warn(
+                f"Head regressor {item} does not have parameter trials implemented yet."
+            )
             multi_class_multi_head.add_head(
                 attribute=key, use_scaler=True, head_model=item
             )
@@ -150,7 +240,7 @@ def objective(trial):
 
 
 study_name = (
-    "multi-class-multi-head-deberta-xsmall-lassoridge"  # Unique identifier of the study.
+    "multi-class-multi-head-embeddings-test"  # Unique identifier of the study.
 )
 storage_name = "sqlite:///{}.db".format(study_name)
 study = optuna.create_study(
@@ -160,5 +250,5 @@ study = optuna.create_study(
     direction="minimize",  # we want to minimize the error :)
 )
 
-study.optimize(objective, n_trials=1000, n_jobs=8, show_progress_bar=True)
+study.optimize(objective, n_trials=100, n_jobs=8, show_progress_bar=True)
 print(study.best_trial)

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from json import JSONEncoder
+from operator import mod
 
 
 def _default(self, obj):
@@ -64,6 +65,20 @@ class ModelCatalog:
         model_name="all-roberta-large-v1",
         model_truncate_length=256,
         recommended_batch_size=8,
+        is_from_library=True,
+    )
+
+    WordEmbeddingsKomminos = ModelDescription(
+        model_name="average_word_embeddings_komninos",
+        model_truncate_length=20000,
+        recommended_batch_size=1024,
+        is_from_library=True,
+    )
+
+    WordEmbeddingsGlove = ModelDescription(
+        model_name="average_word_embeddings_glove.6B.300d",
+        model_truncate_length=20000,
+        recommended_batch_size=1024,
         is_from_library=True,
     )
 
