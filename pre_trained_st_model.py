@@ -5,6 +5,7 @@ from sklearn.linear_model import RidgeCV
 
 from model_stacker import ModelStack
 
+
 class HeadModel:
     def __init__(self, model_class, *model_args):
         self.model = model_class(*model_args)
@@ -100,7 +101,7 @@ class MultiHeadSentenceTransformerModel:
         )
 
     def fit(self, attribute, X_train, y_train):
-        print(f"Fitting {self.head_model}...")
+        print(f"Fitting {self.head_model.__class__.__name__} on {attribute} ...")
         self.heads[attribute] = self.head_model(
             *self.head_model_args, **self.head_model_kwargs
         )
@@ -111,7 +112,6 @@ class MultiHeadSentenceTransformerModel:
         return score
 
     def predict(self, attribute, X_test):
-        print("Predicting...")
         predictions = self.heads[attribute].predict(X_test)
         return predictions
 
@@ -133,3 +133,22 @@ class MultiHeadSentenceTransformerFactory:
                 super().__init__(model, head_model, *head_args, **head_model_kwargs)
 
         return MultiHeadSentenceTransformerFromFactory
+
+
+class MultiClassMultiHeadSentenceTransformerModel(MultiHeadSentenceTransformerModel):
+    def __init__(self, model: Union[str, SentenceTransformer, "ModelStack"]):
+        super().__init__(model, None, None)
+        self.heads = {}
+
+    def add_head(self, attribute, head_model, *head_args, **head_model_kwargs):
+        self.heads[attribute] = MultiHeadSentenceTransformerModel(
+            self.model, head_model, *head_args, **head_model_kwargs
+        )
+
+    def fit(self, attribute, X_train, y_train):
+        if attribute not in self.heads:
+            TypeError(
+                f"You must add a new head to the model for the attribute: {attribute}, before you can fit it."
+            )
+        print(f"Fitting {self.head_model.__class__.__name__} on {attribute} ...")
+        self.heads[attribute].fit(X_train, y_train)

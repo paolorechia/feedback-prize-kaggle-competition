@@ -2,10 +2,12 @@ import json
 
 import pandas as pd
 
+from typing import Union
 from load_data import create_train_test_df
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 from pre_trained_st_model import (
+    MultiClassMultiHeadSentenceTransformerModel,
     MultiHeadSentenceTransformerModel,
     MultiHeadSentenceTransformerFactory,
 )
@@ -19,13 +21,13 @@ from sklearn import svm
 
 def benchmark_stack(
     stack: ModelStack,
-    multi_head_class: MultiHeadSentenceTransformerModel,
+    multi_head: Union[
+        MultiHeadSentenceTransformerModel, MultiClassMultiHeadSentenceTransformerModel
+    ],
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,
     use_cache=True,
 ):
-    multi_head = multi_head_class(stack)
-
     X_train = list(train_df["full_text"])
     X_test = list(test_df["full_text"])
 
@@ -33,22 +35,22 @@ def benchmark_stack(
     X_train_embeddings = multi_head.encode(
         X_train, batch_size=32, type_path="train", use_cache=use_cache
     )
-    print(X_train_embeddings.shape)
+    # print(X_train_embeddings.shape)
     X_test_embeddings = multi_head.encode(
         X_test, batch_size=32, type_path="test", use_cache=use_cache
     )
-    print(X_test_embeddings.shape)
+    # print(X_test_embeddings.shape)
 
     t1 = datetime.now()
     time_to_encode_in_seconds = (t1 - t0).total_seconds()
 
-    print("Time to encode:", time_to_encode_in_seconds)
+    # print("Time to encode:", time_to_encode_in_seconds)
     preds_df = pd.DataFrame()
     preds_df["text_id"] = test_df["text_id"]
     preds_df["full_text"] = test_df["full_text"]
 
     for attribute in attributes:
-        print("Evaluating on attribute: ", attribute)
+        # print("Evaluating on attribute: ", attribute)
         multi_head.fit(attribute, X_train_embeddings, train_df[attribute])
         s = multi_head.score(attribute, X_test_embeddings, test_df[attribute])
         print("Regressor Score:", s)

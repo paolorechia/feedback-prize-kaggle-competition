@@ -1,8 +1,7 @@
-from benchmark_models import benchmark_stack
-from load_data import create_train_test_df
-from model_catalog import ModelCatalog
-from model_stacker import ModelStack
-from pre_trained_st_model import MultiHeadSentenceTransformerFactory
+import logging
+import sys
+
+import optuna
 from sklearn.ensemble import (
     AdaBoostRegressor,
     GradientBoostingRegressor,
@@ -17,10 +16,16 @@ from sklearn.linear_model import (
     SGDRegressor,
 )
 from sklearn.svm import SVR
-import logging
-import sys
 
-import optuna
+from benchmark_models import benchmark_stack
+from load_data import create_train_test_df
+from model_catalog import ModelCatalog
+from model_stacker import ModelStack
+from pre_trained_st_model import (
+    MultiClassMultiHeadSentenceTransformerModel,
+    MultiHeadSentenceTransformerFactory,
+)
+from utils import attributes
 
 optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
 # ModelBenchmark(rmse_score=0.4511073552381755, model_name='microsoft/deberta-v3-base', time_to_encode_in_seconds=530.214186)
@@ -42,6 +47,47 @@ available_head_regressors = {
     "SGDRegressor": SGDRegressor,
     "SVR": SVR,
 }
+regressors = [
+    "BayesianRidge",
+    "ElasticNet",
+    "OrthogonalMatchingPursuit",
+    "SGDRegressor",
+    "RidgeCV",
+    "LassoCV",
+    "SVR",
+    "AdaBoostRegressor",
+    "GradientBoostingRegressor",
+    "RandomForestRegressor",
+]
+
+networks = [
+    "AllMiniLML6v2",
+    "AllMiniLML6v2",
+    "AllMpnetBasev2",
+    "AllMpnetBasev1",
+    "AllDistilrobertaV1",
+    "RobertaLarge",
+    "BertBaseUncased",
+    "DebertaV3",
+    "DebertaV3Large",
+    "DebertaV3Small",
+    "DebertaV3XSmall",
+    "BartBase",
+    "BartLarge",
+    "AlbertV2",
+    "T5Base",
+    "T5Large",
+    "T5V1Base",
+    "T5V1Large",
+    # "T03B",
+]
+
+
+# Models to try with parametrization:
+# 1. AdaBoostRegressor
+# 2. GradientBoostingRegressor
+# 3. LassoCV
+# 4. SVR
 
 
 def objective(trial):
@@ -52,57 +98,29 @@ def objective(trial):
     stack_trials = []
     for i in range(num_stacks):
         # Categorical parameter
-        stack_trial = trial.suggest_categorical(
-            f"stack_{i}",
-            [
-                "AllMiniLML6v2",
-                "AllMiniLML6v2",
-                "AllMpnetBasev2",
-                "AllMpnetBasev1",
-                "AllDistilrobertaV1",
-                "RobertaLarge",
-                "BertBaseUncased",
-                "DebertaV3",
-                "DebertaV3Large",
-                "DebertaV3Small",
-                "DebertaV3XSmall",
-                "BartBase",
-                "BartLarge",
-                "AlbertV2",
-                "T5Base",
-                "T5Large",
-                "T5V1Base",
-                "T5V1Large",
-                # "T03B",
-            ],
-        )
+        stack_trial = trial.suggest_categorical(f"stack_{i}", networks)
         stack_trials.append(stack_trial)
 
     for stack_trial in stack_trials:
         model_stack.append(ModelCatalog.from_string(stack_trial))
-    head_regressor_trial = trial.suggest_categorical(
-        "head_regressor",
-        [
-            "BayesianRidge",
-            "ElasticNet",
-            "OrthogonalMatchingPursuit",
-            "SGDRegressor",
-            "RidgeCV",
-            "LassoCV",
-            "SVR",
-            "AdaBoostRegressor",
-            "GradientBoostingRegressor",
-            "RandomForestRegressor",
-        ],
-    )
-    head_regressor = available_head_regressors[head_regressor_trial]
+
+    heads = {}
+    for attribute in attributes:
+        head_regressor_trial = trial.suggest_categorical(
+            f"{attribute}_head_regressor", regressors
+        )
+        head_regressor = available_head_regressors[head_regressor_trial]
+        heads[attribute] = head_regressor
 
     stack = ModelStack(
         model_stack,
     )
-    multi_head_class = MultiHeadSentenceTransformerFactory.create_class(head_regressor)
 
-    result = benchmark_stack(stack, multi_head_class, train_df, test_df)
+    multi_class_multi_head = MultiClassMultiHeadSentenceTransformerModel(stack)
+    for key, item in heads.items():
+        multi_class_multi_head.add_head(key, item)
+
+    result = benchmark_stack(stack, multi_class_multi_head, train_df, test_df)
     return result.rmse_score
 
 
@@ -115,5 +133,5 @@ study = optuna.create_study(
     direction="minimize",  # we want to minimize the error :)
 )
 
-study.optimize(objective, n_trials=100, n_jobs=8, show_progress_bar=True)
+# study.optimize(objective, n_trials=100, n_jobs=8, show_progress_bar=True)
 print(study.best_trial)
