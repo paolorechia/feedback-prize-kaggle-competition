@@ -21,7 +21,7 @@ from sklearn.ensemble import (
 )
 from pre_trained_st_model import MultiHeadSentenceTransformerFactory
 from model_catalog import ModelCatalog
-from model_stacker import ModelStack
+from model_stacker import ModelStack, TFIDFEncoder, TfidfVectorizer
 
 
 def unroll_sentence_df(
@@ -126,6 +126,10 @@ compare_full = True
 # Load the model
 train_df, test_df = create_train_test_df(test_size, "full")
 
+# tf_idf_vec = TfidfVectorizer()
+# tf_idf_vec.fit_transform(train_df["full_text"])
+# tf_idf_encoder = TFIDFEncoder(tf_idf_vec)
+
 model_info = ModelCatalog.DebertaV3
 multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
     RidgeCV,
@@ -136,8 +140,6 @@ multi_head = multi_head_class(
         [
             model_info,
             ModelCatalog.T03B,
-            # ModelCatalog.T5V1Base,
-            # ModelCatalog.T5Large,
         ],
     ),
 )

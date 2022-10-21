@@ -201,6 +201,13 @@ class ModelCatalog:
         is_from_library=False,
     )
 
+    TFIDF = ModelDescription(
+        model_name="tfidf",
+        model_truncate_length=20000,
+        recommended_batch_size=1,
+        is_from_library=False,
+    )
+
     @staticmethod
     def from_string(model_catalog_name: str):
         return getattr(ModelCatalog, model_catalog_name)
