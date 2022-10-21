@@ -85,7 +85,9 @@ def break_sentences(
     assert train_df.isna().values.any() == False
 
     broken_sentences = pd.DataFrame()
-    train_df["sentence_length"] = train_df.apply(lambda x: len(x.sentence_text), axis=1)
+    train_df["sentence_length"] = train_df.apply(
+        lambda x: len(x.sentence_text.split), axis=1
+    )
     train_df["too_long"] = train_df.apply(
         lambda x: x.sentence_length > setfit_model_max_length, axis=1
     )
@@ -172,10 +174,22 @@ def break_sentences(
     return merged_df
 
 
-def split_df_into_sentences(train_df: pd.DataFrame, binary_label=None) -> pd.DataFrame:
-    def split_text_into_sentences(text):
-        sentences = text.split(".")
-        return sentences
+def _split_text_into_sentences(text):
+    sentences = text.split(".")
+    return sentences
+
+
+def split_text_into_half(text):
+    half_len = len(text) // 2
+    sentences = [text[0:half_len], text[half_len:]]
+    return sentences
+
+
+def split_df_into_sentences(
+    train_df: pd.DataFrame,
+    sentence_function=_split_text_into_sentences,
+    binary_label=None,
+) -> pd.DataFrame:
 
     new_columns = [
         "text_id",
@@ -199,7 +213,7 @@ def split_df_into_sentences(train_df: pd.DataFrame, binary_label=None) -> pd.Dat
         # get the text
         text = row["full_text"]
         # split the text into sentences
-        sentences = split_text_into_sentences(text)
+        sentences = sentence_function(text)
         # iterate over each sentence
         for sentence in sentences:
             # create a new row in the dataframe
