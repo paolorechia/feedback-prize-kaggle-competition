@@ -49,9 +49,9 @@ available_head_regressors = {
     "SVR": SVR,
 }
 regressors = [
-    "BayesianRidge",
+    # "BayesianRidge",
     # "ElasticNet",
-    "OrthogonalMatchingPursuitCV",
+    # "OrthogonalMatchingPursuitCV",
     # "SGDRegressor",
     "RidgeCV",
     # "LassoCV",
@@ -62,16 +62,16 @@ regressors = [
 ]
 
 networks = [
-    "AllMiniLML6v2",
+    # "AllMiniLML6v2",
     # "AllMpnetBasev2",
     # "AllMpnetBasev1",
     # "AllDistilrobertaV1",
     # "RobertaLarge",
     # "BertBaseUncased",
-    # "DebertaV3",
-    # "DebertaV3Large",
+    "DebertaV3",
+    "DebertaV3Large",
     # "DebertaV3Small",
-    "DebertaV3XSmall",
+    # "DebertaV3XSmall",
     # "BartBase",
     # "BartLarge",
     # "AlbertV2",
@@ -80,8 +80,8 @@ networks = [
     # "T5V1Base",
     # "T5V1Large",
     # "T03B",
-    "WordEmbeddingsKomminos",
-    "WordEmbeddingsGlove",
+    # "WordEmbeddingsKomminos",
+    # "WordEmbeddingsGlove",
 ]
 
 
@@ -90,7 +90,7 @@ def objective(trial):
 
     multi_stack = MultiEncodingStack()
     for attribute in attributes:
-        num_stacks = trial.suggest_int(f"{attribute}_num_stacks", 1, 4)
+        num_stacks = trial.suggest_int(f"{attribute}_num_stacks", 1, 1)
 
         model_stack = []
         stack_trials = []
@@ -117,7 +117,7 @@ def objective(trial):
     return result
 
 
-study_name = "multi-stack-test"  # Unique identifier of the study.
+study_name = "multi-stack-deberta-fever"  # Unique identifier of the study.
 storage_name = "sqlite:///{}.db".format(study_name)
 study = optuna.create_study(
     study_name=study_name,
@@ -126,5 +126,5 @@ study = optuna.create_study(
     direction="minimize",  # we want to minimize the error :)
 )
 
-study.optimize(objective, n_trials=1000, n_jobs=1, show_progress_bar=True)
+study.optimize(objective, n_trials=10, n_jobs=1, show_progress_bar=True)
 print(study.best_trial)

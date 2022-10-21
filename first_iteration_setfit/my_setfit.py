@@ -42,10 +42,10 @@ from mongo_api import Experiment
 ########### Model/Training Config
 
 minimum_chunk_length = 64
-attention_probs_dropout_prob = 0.9
-hidden_dropout_prob = 0.9
-num_iters = 2
-num_epochs = 4
+attention_probs_dropout_prob = 0.0
+hidden_dropout_prob = 0.0
+num_iters = 1
+num_epochs = 1
 learning_rate = 2e-5
 unique_id = uuid4()
 test_size = 0.8
@@ -67,17 +67,17 @@ setfit_model_max_length = 512
 
 model_ = model_name
 
-with open(f"dropout_test/{model_}/config.json", "r") as f:
+with open(f"/data/dropout_test/{model_}/config.json", "r") as f:
     model_config = json.load(f)
 
 model_config["attention_probs_dropout_prob"] = attention_probs_dropout_prob
 model_config["hidden_dropout_prob"] = hidden_dropout_prob
 
 # Save the new config to the same file
-with open(f"dropout_test/{model_}/config.json", "w") as f:
+with open(f"/data/dropout_test/{model_}/config.json", "w") as f:
     json.dump(model_config, f, indent=4)
 
-model = SetFitModel.from_pretrained(f"dropout_test/{model_}")
+model = SetFitModel.from_pretrained(f"/data/dropout_test/{model_}")
 
 
 intermediary_csv_dir = "./intermediary_csvs"

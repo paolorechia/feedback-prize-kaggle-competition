@@ -1,4 +1,6 @@
+import numpy as np
 import pandas as pd
+from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
 minimum_chunk_length = 10
@@ -66,30 +68,15 @@ def test_fit_float_score_to_nearest_valid_point():
     assert fit_float_score_to_nearest_valid_point(10.0) == 5.0
 
 
-class MCRMSECalculator:
-    def __init__(self):
-        self._sum = 0.0
-        self._samples = 0
+def calculate_rmse_score_attribute(attribute, y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_true[attribute], y_pred[attribute]))
 
-    def compute_score_for_df(self, df):
-        for index, row in df.iterrows():
-            inner_sum = 0.0
-            for attribute in attributes:
-                inner_sum += (row[attribute] - row[f"{attribute}_predictions"]) ** 2
-            inner_sum /= len(attributes)
-            self._sum += inner_sum
-            self._samples += 1
 
-    def compute_column(self, labels, predictions):
-        points = zip(labels, predictions)
-        column_sum = 0.0
-        for point in points:
-            column_sum += (point[0] - point[1]) ** 2
-        self._sum += column_sum / len(labels)
-        self._samples += 1
-
-    def get_score(self):
-        return self._sum / self._samples
+def calculate_rmse_score(y_true, y_pred):
+    rmse_scores = []
+    for i in range(len(attributes)):
+        rmse_scores.append(np.sqrt(mean_squared_error(y_true[:, i], y_pred[:, i])))
+    return np.mean(rmse_scores)
 
 
 def break_sentences(

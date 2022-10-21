@@ -52,15 +52,15 @@ available_head_regressors = {
 }
 regressors = [
     "BayesianRidge",
-    "ElasticNet",
+    # "ElasticNet",
     "OrthogonalMatchingPursuitCV",
-    "SGDRegressor",
+    # "SGDRegressor",
     "RidgeCV",
-    "LassoCV",
-    "SVR",
-    "AdaBoostRegressor",
-    "GradientBoostingRegressor",
-    "RandomForestRegressor",
+    # "LassoCV",
+    # "SVR",
+    # "AdaBoostRegressor",
+    # "GradientBoostingRegressor",
+    # "RandomForestRegressor",
 ]
 
 networks = [
@@ -70,7 +70,7 @@ networks = [
     # "AllDistilrobertaV1",
     # "RobertaLarge",
     # "BertBaseUncased",
-    # "DebertaV3",
+    "DebertaV3",
     # "DebertaV3Large",
     # "DebertaV3Small",
     # "DebertaV3XSmall",
@@ -82,9 +82,10 @@ networks = [
     # "T5V1Base",
     # "T5V1Large",
     # "T03B",
-    "WordEmbeddingsKomninos",
-    "WordEmbeddingsGlove",
+    # "WordEmbeddingsKomminos",
+    # "WordEmbeddingsGlove",
 ]
+
 
 def objective(trial):
     # Integer parameter
@@ -239,9 +240,7 @@ def objective(trial):
     return result.rmse_score
 
 
-study_name = (
-    "multi-class-multi-head-embeddings-test"  # Unique identifier of the study.
-)
+study_name = "deberta-smart-move"  # Unique identifier of the study.
 storage_name = "sqlite:///{}.db".format(study_name)
 study = optuna.create_study(
     study_name=study_name,
@@ -250,5 +249,5 @@ study = optuna.create_study(
     direction="minimize",  # we want to minimize the error :)
 )
 
-study.optimize(objective, n_trials=100, n_jobs=8, show_progress_bar=True)
+study.optimize(objective, n_trials=10000, n_jobs=1, show_progress_bar=True)
 print(study.best_trial)

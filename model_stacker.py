@@ -10,6 +10,8 @@ import os
 
 cache_encodings_dir = "/data/cache_encodings"
 
+# TODO: write a TF-IDF encoder that implements the same interface as the StackedModel
+
 
 class StackedModel:
     def __init__(self, model_info: ModelDescription, st: SentenceTransformer) -> None:

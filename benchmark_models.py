@@ -138,10 +138,10 @@ def benchmark_multi_stack(
 
     for attribute in attributes:
         X_train_embeddings = multi_stack.encode(
-            attribute, X_train, batch_size=32, type_path="train", use_cache=use_cache
+            attribute, X_train, batch_size=32, cache_type="train", use_cache=use_cache
         )
         X_test_embeddings = multi_stack.encode(
-            attribute, X_test, batch_size=32, type_path="test", use_cache=use_cache
+            attribute, X_test, batch_size=32, cache_type="test", use_cache=use_cache
         )
         multi_stack.fit(attribute, X_train_embeddings, train_df[attribute])
         s = multi_stack.score(attribute, X_test_embeddings, test_df[attribute])

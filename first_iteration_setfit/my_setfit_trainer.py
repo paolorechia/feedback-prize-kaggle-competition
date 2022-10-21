@@ -15,7 +15,7 @@ from setfit import SetFitModel
 from setfit.modeling import SupConLoss, sentence_pairs_generation
 from torch.utils.data import DataLoader
 
-from utils import MCRMSECalculator, reverse_labels, round_border_score
+from utils import reverse_labels, round_border_score, calculate_rmse_score_attribute
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -171,26 +171,19 @@ def evaluate(
         print("Accuracy: ", accuracy)
         return accuracy
     else:
-        test_df[f"{attribute}_predictions"] = model.predict(
-            test_df[text_label].tolist()
-        )
-
+        predictions_df = test_df.copy()
+        predictions_df[attribute] = model.predict(test_df[text_label].tolist())
         if is_regression:
-            test_df[f"{attribute}_predictions"] = test_df[
-                f"{attribute}_predictions"
-            ].apply(lambda x: round_border_score(x))
+            predictions_df[attribute] = predictions_df[attribute].apply(
+                lambda x: round_border_score(x)
+            )
         else:
-            test_df[f"{attribute}_predictions"] = test_df[
-                f"{attribute}_predictions"
-            ].apply(lambda x: reverse_labels[x])
-
+            predictions_df[attribute] = predictions_df[attribute].apply(
+                lambda x: reverse_labels[x]
+            )
         t1 = datetime.now()
         print(f"Time taken to predict: {t1 - t0}")
 
-        mcrmse_calculator = MCRMSECalculator()
-        mcrmse_calculator.compute_column(
-            test_df[f"{attribute}"], test_df[f"{attribute}_predictions"]
-        )
-        score = mcrmse_calculator.get_score()
+        score = calculate_rmse_score_attribute(attribute, test_df, predictions_df)
         print("MCRMSE score: ", score)
         return score
