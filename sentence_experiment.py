@@ -12,7 +12,7 @@ from model_loader import load_model_with_dropout
 from load_data import create_train_test_df
 from utils import attributes, calculate_rmse_score
 
-from sklearn.linear_model import LassoCV, RidgeCV, SGDRegressor
+from sklearn.linear_model import LassoCV, RidgeCV, SGDRegressor, BayesianRidge
 from sklearn.ensemble import (
     GradientBoostingRegressor,
     RandomForestRegressor,
@@ -129,9 +129,17 @@ train_df, test_df = create_train_test_df(test_size, "full")
 model_info = ModelCatalog.DebertaV3
 multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
     RidgeCV,
+    # BayesianRidge,
 )
 multi_head = multi_head_class(
-    model=ModelStack([model_info]),
+    model=ModelStack(
+        [
+            model_info,
+            ModelCatalog.T03B,
+            # ModelCatalog.T5V1Base,
+            # ModelCatalog.T5Large,
+        ],
+    ),
 )
 
 sentence_train_df_path = (
