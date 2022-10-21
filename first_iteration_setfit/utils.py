@@ -179,6 +179,16 @@ def _split_text_into_sentences(text):
     return sentences
 
 
+def split_text_into_n_parts(text, n):
+    part_length = len(text) // n
+    sentences = []
+    for i in range(0, len(text), part_length):
+        part = text[i : i + part_length]
+        if len(part.strip()) > 10:
+            sentences.append(part)
+    return sentences
+
+
 def split_text_into_half(text):
     half_len = len(text) // 2
     sentences = [text[0:half_len], text[half_len:]]

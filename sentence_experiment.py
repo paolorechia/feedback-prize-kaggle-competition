@@ -3,6 +3,7 @@ from first_iteration_setfit.utils import (
     calculate_rmse_score_attribute,
     break_sentences,
     split_df_into_sentences,
+    split_text_into_n_parts,
     split_text_into_half,
 )
 import pandas as pd
@@ -22,6 +23,12 @@ from pre_trained_st_model import MultiHeadSentenceTransformerFactory
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 
+
+splitter_n = 2
+def splitter(text):
+    return split_text_into_n_parts(text, splitter_n)
+
+
 test_size = 0.2
 sentence_csv_dir = "./sentence_csvs"
 compare_full = True
@@ -31,32 +38,27 @@ train_df, test_df = create_train_test_df(test_size, "full")
 model_info = ModelCatalog.DebertaV3
 multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
     RidgeCV,
-    # max_iter=4000
 )
 multi_head = multi_head_class(
     model=ModelStack([model_info]),
 )
 
-# print("Sentence breaking...")
 mml = model_info.model_truncate_length
-minimum_chunk_length = 64
 
-sentence_train_df_path = (
-    f"{sentence_csv_dir}/train_{test_size}_{mml}_{minimum_chunk_length}.csv"
-)
-sentence_test_df_path = (
-    f"{sentence_csv_dir}/test_{test_size}_{mml}_{minimum_chunk_length}.csv"
-)
+sentence_train_df_path = f"{sentence_csv_dir}/train_{test_size}_{splitter_n}.csv"
+sentence_test_df_path = f"{sentence_csv_dir}/test_{test_size}_{splitter_n}.csv"
+
+
 try:
     sentence_train_df = pd.read_csv(sentence_train_df_path)
 except Exception:
-    sentence_train_df = split_df_into_sentences(train_df, split_text_into_half)
+    sentence_train_df = split_df_into_sentences(train_df, splitter)
     sentence_train_df.to_csv(sentence_train_df_path, index=False)
 
 try:
     sentence_test_df = pd.read_csv(sentence_test_df_path)
 except Exception:
-    sentence_test_df = split_df_into_sentences(test_df, split_text_into_half)
+    sentence_test_df = split_df_into_sentences(test_df, splitter)
     sentence_test_df.to_csv(sentence_test_df_path, index=False)
 
 if compare_full:
@@ -73,8 +75,6 @@ if compare_full:
     )
     original_preds_df = pd.DataFrame()
     for attribute in attributes:
-        # print(X_original_test_embeddings[0])
-        # print(X_original_test_embeddings.shape)
         multi_head.fit(attribute, X_original_train_embeddings, train_df[attribute])
         preds = multi_head.predict(attribute, X_original_test_embeddings)
         original_preds_df[attribute] = preds
@@ -96,11 +96,14 @@ X_test = list(sentence_test_df[text_label])
 X_train_embeddings = multi_head.encode(
     X_train,
     batch_size=32,
-    type_path=f"train-half-text-{test_size}",
+    type_path=f"train-splitter-{splitter_n}-text-{test_size}",
     use_cache=True,
 )
 X_test_embeddings = multi_head.encode(
-    X_test, batch_size=32, type_path=f"test-half-text-{test_size}", use_cache=True
+    X_test,
+    batch_size=32,
+    type_path=f"test-splitter-{splitter_n}-{test_size}",
+    use_cache=True,
 )
 
 
@@ -110,7 +113,6 @@ def unroll_sentence_df(
     unrolled = []
     texts = {}
     max_length = 0
-    N = 768
     for text_id, embedding, attribute_value in zip(
         sentence_df["text_id"], embeddings, sentence_df[attribute]
     ):
@@ -119,9 +121,7 @@ def unroll_sentence_df(
                 "embeddings": [],
                 "attributes": [],
             }
-        if len(texts[text_id]["embeddings"]) < N:
-            texts[text_id]["embeddings"].extend(embedding)
-            texts[text_id]["embeddings"] = texts[text_id]["embeddings"][:N]
+        texts[text_id]["embeddings"].extend(embedding)
         if trained_model:
             predicted_attribute = trained_model.predict(
                 f"{attribute}_embeddings", [embedding]
@@ -131,7 +131,6 @@ def unroll_sentence_df(
             texts[text_id]["attributes"].append(attribute_value)
         max_length = max(len(texts[text_id]["embeddings"]), max_length)
 
-    # print("Max length found: ", max_length)
     if train_max_length > 0:
         safe_guard = train_max_length
     else:
@@ -174,8 +173,6 @@ for attribute in attributes:
         sentence_train_df, X_train_embeddings, attribute
     )
 
-    # print(unrolled_train_df.head())
-
     X_train_features = unrolled_train_df["features"].tolist()
 
     multi_head.fit(
@@ -191,18 +188,12 @@ for attribute in attributes:
         trained_model=multi_head,
     )
     X_test_features = unrolled_test_df["features"].tolist()
-    # print(unrolled_test_df.head())
 
     s = multi_head.score(attribute, X_test_features, test_df[attribute])
-    # print("Regressor Score:", s)
 
-    # print(preds_df.head())
     preds = multi_head.predict(attribute, X_test_features)
     preds_df[attribute] = preds
 
-    # print(preds_df.head())
-
-    # print(test_df.head())
     sentence_score = calculate_rmse_score_attribute(attribute, test_df, preds_df)
 
     print(f"RMSE Unrolled Sentences Embeddings Score ({attribute}):", sentence_score)
