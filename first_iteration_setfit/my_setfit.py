@@ -50,7 +50,7 @@ learning_rate = 2e-5
 unique_id = uuid4()
 test_size = 0.8
 loss_function = CosineSimilarityLoss
-use_sentences = False
+use_sentences = True
 batch_size = 16
 
 # model_name = "all-MiniLM-L6-v2"
@@ -234,6 +234,7 @@ for attribute in attributes:
         head_model=head_model,
         is_regression=is_regression,
         save_results=True,
+        use_sentences=use_sentences,
     )
 
     for idx, epoch in enumerate(epoch_results):
