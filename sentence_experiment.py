@@ -1,4 +1,17 @@
 import os
+from scipy import stats
+from statistics import (
+    fmean,
+    median,
+    median_grouped,
+    median_high,
+    median_low,
+    pstdev,
+    pvariance,
+    quantiles,
+    stdev,
+    variance,
+)
 from first_iteration_setfit.utils import (
     calculate_rmse_score_attribute,
     split_df_into_sentences,
@@ -12,6 +25,7 @@ from model_loader import load_model_with_dropout
 from load_data import create_train_test_df
 from utils import attributes, calculate_rmse_score
 
+from sklearn.svm import SVR
 from sklearn.linear_model import LassoCV, RidgeCV, SGDRegressor, BayesianRidge
 from sklearn.ensemble import (
     GradientBoostingRegressor,
@@ -22,6 +36,7 @@ from sklearn.ensemble import (
 from pre_trained_st_model import MultiHeadSentenceTransformerFactory
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack, TFIDFEncoder, TfidfVectorizer
+import numpy as np
 
 
 def unroll_sentence_df(
@@ -66,11 +81,22 @@ def unroll_sentence_df(
                 "embeddings": text["embeddings"],
                 "attributes": text["attributes"],
                 "features": []
-                + text["embeddings"]
+                + np.quantile(
+                    text["attributes"], [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+                ).tolist()
                 + [sum(text["attributes"]) / len(text["attributes"])]
                 + [max(text["attributes"])]
                 + [min(text["attributes"])]
-                + [len(text["attributes"])],
+                + [len(text["attributes"])]
+                + [median(text["attributes"])]
+                + [fmean(text["attributes"])]
+                + [stats.gmean(text["attributes"])]
+                + [stats.kurtosis(text["attributes"])]
+                + [stats.skew(text["attributes"])]
+                + [stats.moment(text["attributes"], moment=1)]
+                + [stats.moment(text["attributes"], moment=2)]
+                + [stats.moment(text["attributes"], moment=3)]
+                + [stats.moment(text["attributes"], moment=4)],
             }
         )
 
@@ -79,8 +105,8 @@ def unroll_sentence_df(
 
 
 minimum_chunk_length = 10
-window_size = 1024
-step_size = window_size
+window_size = 512
+step_size = 512
 
 splitter_n = 2  # Only used if sliding window is not used
 
@@ -122,7 +148,7 @@ else:
 
 test_size = 0.2
 sentence_csv_dir = "./sentence_csvs"
-compare_full = True
+compare_full = False
 # Load the model
 train_df, test_df = create_train_test_df(test_size, "full")
 
@@ -132,8 +158,11 @@ train_df, test_df = create_train_test_df(test_size, "full")
 
 model_info = ModelCatalog.DebertaV3
 multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
+    # GradientBoostingRegressor,
     RidgeCV,
     # BayesianRidge,
+    # RandomForestRegressor
+    # SGDRegressor
 )
 multi_head = multi_head_class(
     model=ModelStack(
@@ -235,8 +264,8 @@ for attribute in attributes:
         train_max_length=train_max_length,
         trained_model=multi_head,
     )
+    print(unrolled_test_df["features"].head())
     X_test_features = unrolled_test_df["features"].tolist()
-
     s = multi_head.score(attribute, X_test_features, test_df[attribute])
 
     preds = multi_head.predict(attribute, X_test_features)
