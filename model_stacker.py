@@ -2,7 +2,9 @@ from typing import List, Union
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import RidgeCV
 from model_catalog import ModelDescription
 from model_loader import load_model_with_dropout
 
@@ -48,6 +50,41 @@ class StackedModel:
             show_progress_bar=show_progress_bar,
             convert_to_numpy=convert_to_numpy,
         )
+        if use_cache:
+            np.save(cache_file, array)
+        return array
+
+
+class TFIDFEncoder(StackedModel):
+    def __init__(self, model_info: ModelDescription, tfidf: TfidfVectorizer) -> None:
+        self.model_info = model_info
+        self.model = tfidf  # Must be pre-trained
+
+    def encode(
+        self,
+        text: Union[List[str], str],
+        batch_size: int,
+        show_progress_bar: bool,
+        convert_to_numpy=True,
+        use_cache=True,
+        cache_type="train",
+    ):
+        if isinstance(text, str):
+            text = [text]
+
+        if use_cache:
+            if not os.path.exists(cache_encodings_dir):
+                os.makedirs(cache_encodings_dir)
+
+            cache_file = os.path.join(
+                cache_encodings_dir,
+                self.info.model_name.replace("/", "_") + f"_{cache_type}" + ".npy",
+            )
+
+            if os.path.exists(cache_file):
+                return np.load(cache_file)
+
+        array = self.model.transform(text)
         if use_cache:
             np.save(cache_file, array)
         return array
