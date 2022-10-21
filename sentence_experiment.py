@@ -125,14 +125,13 @@ def unroll_sentence_df(
         if len(texts[text_id]["embeddings"]) < N:
             texts[text_id]["embeddings"].extend(embedding)
             texts[text_id]["embeddings"] = texts[text_id]["embeddings"][:N]
-        # TODO: finish this 
-        # if trained_model:
-        #     predicted_attribute = trained_model.predict(
-        #         f"{attribute}_embeddings", [embedding]
-        #     )[0]
-        #     texts[text_id]["attributes"].append(predicted_attribute)
-        # else:
-        #     texts[text_id]["attributes"].append(attribute_value)
+        if trained_model:
+            predicted_attribute = trained_model.predict(
+                f"{attribute}_embeddings", [embedding]
+            )[0]
+            texts[text_id]["attributes"].append(predicted_attribute)
+        else:
+            texts[text_id]["attributes"].append(attribute_value)
         max_length = max(len(texts[text_id]["embeddings"]), max_length)
 
     print("Max length found: ", max_length)
@@ -153,12 +152,11 @@ def unroll_sentence_df(
                 "text_id": text_id,
                 "embeddings": text["embeddings"],
                 "attributes": text["attributes"],
-                "features": []
-                + text["embeddings"]
-                # + [sum(text["attributes"]) / len(text["attributes"])]
-                # + [max(text["attributes"])]
-                # + [min(text["attributes"])]
-                # + [len(text["attributes"])],
+                "features": [] + text["embeddings"]
+                + [sum(text["attributes"]) / len(text["attributes"])]
+                + [max(text["attributes"])]
+                + [min(text["attributes"])]
+                + [len(text["attributes"])],
             }
         )
 
@@ -172,10 +170,11 @@ unrolled_train_df, train_max_length = unroll_sentence_df(
 
 print(unrolled_train_df.head())
 
-X_train_embeddings = unrolled_train_df["embeddings"].to_list()
 X_train_features = unrolled_train_df["features"].tolist()
 
-multi_head.fit(f"{attribute}_embeddings", X_train_embeddings, train_df[attribute])
+multi_head.fit(
+    f"{attribute}_embeddings", X_train_embeddings, sentence_train_df[attribute]
+)
 multi_head.fit(attribute, X_train_features, train_df[attribute])
 
 unrolled_test_df, _ = unroll_sentence_df(
