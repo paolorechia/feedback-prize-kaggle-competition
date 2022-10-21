@@ -179,12 +179,21 @@ def _split_text_into_sentences(text):
     return sentences
 
 
-def split_text_into_n_parts(text, n):
-    part_length = len(text) // n
+def split_text_into_n_parts(text, n, minimum_chunk_length):
+    part_length = int(len(text) // n)
     sentences = []
     for i in range(0, len(text), part_length):
         part = text[i : i + part_length]
-        if len(part.strip()) > 10:
+        if len(part.strip()) > minimum_chunk_length:
+            sentences.append(part)
+    return sentences
+
+
+def split_text_into_sliding_windows(text, window_size, step_size, minimum_chunk_length):
+    sentences = []
+    for i in range(0, len(text), step_size):
+        part = text[i : i + window_size]
+        if len(part.strip()) > minimum_chunk_length:
             sentences.append(part)
     return sentences
 

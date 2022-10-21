@@ -1,10 +1,10 @@
 import os
 from first_iteration_setfit.utils import (
     calculate_rmse_score_attribute,
-    break_sentences,
     split_df_into_sentences,
     split_text_into_n_parts,
     split_text_into_half,
+    split_text_into_sliding_windows,
 )
 import pandas as pd
 from datetime import datetime
@@ -22,89 +22,6 @@ from sklearn.ensemble import (
 from pre_trained_st_model import MultiHeadSentenceTransformerFactory
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
-
-
-splitter_n = 2
-def splitter(text):
-    return split_text_into_n_parts(text, splitter_n)
-
-
-test_size = 0.2
-sentence_csv_dir = "./sentence_csvs"
-compare_full = True
-# Load the model
-train_df, test_df = create_train_test_df(test_size, "full")
-
-model_info = ModelCatalog.DebertaV3
-multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
-    RidgeCV,
-)
-multi_head = multi_head_class(
-    model=ModelStack([model_info]),
-)
-
-mml = model_info.model_truncate_length
-
-sentence_train_df_path = f"{sentence_csv_dir}/train_{test_size}_{splitter_n}.csv"
-sentence_test_df_path = f"{sentence_csv_dir}/test_{test_size}_{splitter_n}.csv"
-
-
-try:
-    sentence_train_df = pd.read_csv(sentence_train_df_path)
-except Exception:
-    sentence_train_df = split_df_into_sentences(train_df, splitter)
-    sentence_train_df.to_csv(sentence_train_df_path, index=False)
-
-try:
-    sentence_test_df = pd.read_csv(sentence_test_df_path)
-except Exception:
-    sentence_test_df = split_df_into_sentences(test_df, splitter)
-    sentence_test_df.to_csv(sentence_test_df_path, index=False)
-
-if compare_full:
-    text_label = "full_text"
-    # print("Encoding full texts...")
-    X_original_train_embeddings = multi_head.encode(
-        list(train_df[text_label]),
-        batch_size=32,
-        type_path="train",
-        use_cache=True,
-    )
-    X_original_test_embeddings = multi_head.encode(
-        list(test_df[text_label]), batch_size=32, type_path="test", use_cache=True
-    )
-    original_preds_df = pd.DataFrame()
-    for attribute in attributes:
-        multi_head.fit(attribute, X_original_train_embeddings, train_df[attribute])
-        preds = multi_head.predict(attribute, X_original_test_embeddings)
-        original_preds_df[attribute] = preds
-        original_score = calculate_rmse_score_attribute(
-            attribute, test_df, original_preds_df
-        )
-        print(f"Original score ({attribute}):", original_score)
-    all_original_score = calculate_rmse_score(
-        test_df[attributes].values, original_preds_df[attributes].values
-    )
-    print("Overall original score:", all_original_score)
-
-
-text_label = "sentence_text"
-X_train = list(sentence_train_df[text_label])
-X_test = list(sentence_test_df[text_label])
-
-# print("Encoding sentences...")
-X_train_embeddings = multi_head.encode(
-    X_train,
-    batch_size=32,
-    type_path=f"train-splitter-{splitter_n}-text-{test_size}",
-    use_cache=True,
-)
-X_test_embeddings = multi_head.encode(
-    X_test,
-    batch_size=32,
-    type_path=f"test-splitter-{splitter_n}-{test_size}",
-    use_cache=True,
-)
 
 
 def unroll_sentence_df(
@@ -161,6 +78,127 @@ def unroll_sentence_df(
     return unrolled_df, safe_guard
 
 
+minimum_chunk_length = 10
+window_size = 1024
+step_size = window_size
+
+splitter_n = 2  # Only used if sliding window is not used
+
+
+class SplittingStrategy:
+    def __init__(self, splitter, name):
+        self.splitter = splitter
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+
+def splitter(text):
+    return split_text_into_n_parts(text, splitter_n, minimum_chunk_length)
+
+
+def splitter_window(text):
+    return split_text_into_sliding_windows(
+        text,
+        window_size=window_size,
+        step_size=step_size,
+        minimum_chunk_length=minimum_chunk_length,
+    )
+
+
+use_sliding_window = False
+if use_sliding_window:
+    splitting_strategy = SplittingStrategy(
+        splitter=splitter_window, name=f"splitter_window-{window_size}-{step_size}"
+    )
+else:
+    splitting_strategy = SplittingStrategy(
+        splitter=splitter, name=f"splitter-{splitter_n}"
+    )
+
+test_size = 0.2
+sentence_csv_dir = "./sentence_csvs"
+compare_full = True
+# Load the model
+train_df, test_df = create_train_test_df(test_size, "full")
+
+model_info = ModelCatalog.DebertaV3
+multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
+    RidgeCV,
+)
+multi_head = multi_head_class(
+    model=ModelStack([model_info]),
+)
+
+sentence_train_df_path = (
+    f"{sentence_csv_dir}/train_{test_size}_{splitting_strategy.name}.csv"
+)
+sentence_test_df_path = (
+    f"{sentence_csv_dir}/test_{test_size}_{splitting_strategy.name}.csv"
+)
+
+
+try:
+    sentence_train_df = pd.read_csv(sentence_train_df_path)
+except Exception:
+    sentence_train_df = split_df_into_sentences(train_df, splitting_strategy.splitter)
+    sentence_train_df.to_csv(sentence_train_df_path, index=False)
+
+try:
+    sentence_test_df = pd.read_csv(sentence_test_df_path)
+except Exception:
+    sentence_test_df = split_df_into_sentences(test_df, splitting_strategy.splitter)
+    sentence_test_df.to_csv(sentence_test_df_path, index=False)
+
+if compare_full:
+    text_label = "full_text"
+    # print("Encoding full texts...")
+    X_original_train_embeddings = multi_head.encode(
+        list(train_df[text_label]),
+        batch_size=32,
+        type_path="train",
+        use_cache=True,
+    )
+    X_original_test_embeddings = multi_head.encode(
+        list(test_df[text_label]), batch_size=32, type_path="test", use_cache=True
+    )
+    original_preds_df = pd.DataFrame()
+    for attribute in attributes:
+        multi_head.fit(attribute, X_original_train_embeddings, train_df[attribute])
+        preds = multi_head.predict(attribute, X_original_test_embeddings)
+        original_preds_df[attribute] = preds
+        original_score = calculate_rmse_score_attribute(
+            attribute, test_df, original_preds_df
+        )
+        print(f"Original score ({attribute}):", original_score)
+    all_original_score = calculate_rmse_score(
+        test_df[attributes].values, original_preds_df[attributes].values
+    )
+    print("Overall original score:", all_original_score)
+
+
+text_label = "sentence_text"
+X_train = list(sentence_train_df[text_label])
+X_test = list(sentence_test_df[text_label])
+
+# print("Encoding sentences...")
+X_train_embeddings = multi_head.encode(
+    X_train,
+    batch_size=32,
+    type_path=f"train_splitter:{splitting_strategy.name}_test-size:{test_size}",
+    use_cache=True,
+)
+X_test_embeddings = multi_head.encode(
+    X_test,
+    batch_size=32,
+    type_path=f"test_splitter:{splitting_strategy.name}_test-size:{test_size}",
+    use_cache=True,
+)
+
 preds_df = pd.DataFrame()
 preds_df["text_id"] = test_df["text_id"]
 preds_df["full_text"] = test_df["full_text"]
@@ -175,9 +213,9 @@ for attribute in attributes:
 
     X_train_features = unrolled_train_df["features"].tolist()
 
-    multi_head.fit(
-        f"{attribute}_embeddings", X_train_embeddings, sentence_train_df[attribute]
-    )
+    print(len(X_train_embeddings), len(y_train), len(X_train_features), len(train_df))
+    multi_head.fit(f"{attribute}_embeddings", X_train_embeddings, y_train)
+
     multi_head.fit(attribute, X_train_features, train_df[attribute])
 
     unrolled_test_df, _ = unroll_sentence_df(
