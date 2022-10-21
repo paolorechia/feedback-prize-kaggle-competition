@@ -24,8 +24,7 @@ from model_stacker import ModelStack
 
 test_size = 0.2
 sentence_csv_dir = "./sentence_csvs"
-attribute = "cohesion"
-compare_full = False
+compare_full = True
 # Load the model
 train_df, test_df = create_train_test_df(test_size, "full")
 
@@ -38,41 +37,16 @@ multi_head = multi_head_class(
     model=ModelStack([model_info]),
 )
 
-if compare_full:
-    text_label = "full_text"
-    print("Encoding full texts...")
-    X_original_train_embeddings = multi_head.encode(
-        list(train_df[text_label]),
-        batch_size=32,
-        type_path="train",
-        use_cache=True,
-    )
-    X_original_test_embeddings = multi_head.encode(
-        list(test_df[text_label]), batch_size=32, type_path="test", use_cache=True
-    )
-    # print(X_original_test_embeddings[0])
-    # print(X_original_test_embeddings.shape)
-    multi_head.fit(attribute, X_original_train_embeddings, train_df[attribute])
-    preds = multi_head.predict(attribute, X_original_test_embeddings)
-    original_preds_df = pd.DataFrame()
-    original_preds_df[attribute] = preds
-    original_score = calculate_rmse_score_attribute(
-        attribute, test_df, original_preds_df
-    )
-
-    print("Original score:", original_score)
-
-print("Sentence breaking...")
+# print("Sentence breaking...")
 mml = model_info.model_truncate_length
 minimum_chunk_length = 64
 
 sentence_train_df_path = (
-    f"{sentence_csv_dir}/train_{attribute}_{test_size}_{mml}_{minimum_chunk_length}.csv"
+    f"{sentence_csv_dir}/train_{test_size}_{mml}_{minimum_chunk_length}.csv"
 )
 sentence_test_df_path = (
-    f"{sentence_csv_dir}/test{attribute}_{test_size}_{mml}_{minimum_chunk_length}.csv"
+    f"{sentence_csv_dir}/test_{test_size}_{mml}_{minimum_chunk_length}.csv"
 )
-text_label = "sentence_text"
 try:
     sentence_train_df = pd.read_csv(sentence_train_df_path)
 except Exception:
@@ -85,17 +59,40 @@ except Exception:
     sentence_test_df = split_df_into_sentences(test_df, split_text_into_half)
     sentence_test_df.to_csv(sentence_test_df_path, index=False)
 
+if compare_full:
+    text_label = "full_text"
+    # print("Encoding full texts...")
+    X_original_train_embeddings = multi_head.encode(
+        list(train_df[text_label]),
+        batch_size=32,
+        type_path="train",
+        use_cache=True,
+    )
+    X_original_test_embeddings = multi_head.encode(
+        list(test_df[text_label]), batch_size=32, type_path="test", use_cache=True
+    )
+    original_preds_df = pd.DataFrame()
+    for attribute in attributes:
+        # print(X_original_test_embeddings[0])
+        # print(X_original_test_embeddings.shape)
+        multi_head.fit(attribute, X_original_train_embeddings, train_df[attribute])
+        preds = multi_head.predict(attribute, X_original_test_embeddings)
+        original_preds_df[attribute] = preds
+        original_score = calculate_rmse_score_attribute(
+            attribute, test_df, original_preds_df
+        )
+        print(f"Original score ({attribute}):", original_score)
+    all_original_score = calculate_rmse_score(
+        test_df[attributes].values, original_preds_df[attributes].values
+    )
+    print("Overall original score:", all_original_score)
+
+
 text_label = "sentence_text"
 X_train = list(sentence_train_df[text_label])
-y_train = sentence_train_df[attribute]
 X_test = list(sentence_test_df[text_label])
-y_test = sentence_test_df[attribute]
 
-
-# print("Time to encode:", time_to_encode_in_seconds)
-
-# print("Evaluating on attribute: ", attribute)
-print("Encoding sentences...")
+# print("Encoding sentences...")
 X_train_embeddings = multi_head.encode(
     X_train,
     batch_size=32,
@@ -134,7 +131,7 @@ def unroll_sentence_df(
             texts[text_id]["attributes"].append(attribute_value)
         max_length = max(len(texts[text_id]["embeddings"]), max_length)
 
-    print("Max length found: ", max_length)
+    # print("Max length found: ", max_length)
     if train_max_length > 0:
         safe_guard = train_max_length
     else:
@@ -152,7 +149,8 @@ def unroll_sentence_df(
                 "text_id": text_id,
                 "embeddings": text["embeddings"],
                 "attributes": text["attributes"],
-                "features": [] + text["embeddings"]
+                "features": []
+                + text["embeddings"]
                 + [sum(text["attributes"]) / len(text["attributes"])]
                 + [max(text["attributes"])]
                 + [min(text["attributes"])]
@@ -164,68 +162,52 @@ def unroll_sentence_df(
     return unrolled_df, safe_guard
 
 
-unrolled_train_df, train_max_length = unroll_sentence_df(
-    sentence_train_df, X_train_embeddings, attribute
-)
-
-print(unrolled_train_df.head())
-
-X_train_features = unrolled_train_df["features"].tolist()
-
-multi_head.fit(
-    f"{attribute}_embeddings", X_train_embeddings, sentence_train_df[attribute]
-)
-multi_head.fit(attribute, X_train_features, train_df[attribute])
-
-unrolled_test_df, _ = unroll_sentence_df(
-    sentence_test_df,
-    X_test_embeddings,
-    attribute,
-    train_max_length=train_max_length,
-    trained_model=multi_head,
-)
-X_test_features = unrolled_test_df["features"].tolist()
-print(unrolled_test_df.head())
-
-s = multi_head.score(attribute, X_test_features, test_df[attribute])
-print("Regressor Score:", s)
-
-text_label = "full_text"
 preds_df = pd.DataFrame()
 preds_df["text_id"] = test_df["text_id"]
-preds_df[text_label] = test_df[text_label]
+preds_df["full_text"] = test_df["full_text"]
 
-print(preds_df.head())
-preds = multi_head.predict(attribute, X_test_features)
-preds_df[attribute] = preds
+for attribute in attributes:
+    y_train = sentence_train_df[attribute]
+    y_test = sentence_test_df[attribute]
 
-print(preds_df.head())
+    unrolled_train_df, train_max_length = unroll_sentence_df(
+        sentence_train_df, X_train_embeddings, attribute
+    )
 
-# preds_dict = {}
-# for _, row in preds_df.iterrows():
-#     if row["text_id"] not in preds_dict:
-#         preds_dict[row["text_id"]] = []
-#     preds_dict[row["text_id"]].append(row[attribute])
+    # print(unrolled_train_df.head())
 
-# preds_dict = {k: sum(v) / len(v) for k, v in preds_dict.items()}
-# preds_dict = {k: max(v) for k, v in preds_dict.items()}
-# preds_dict = {k: min(v) for k, v in preds_dict.items()}
+    X_train_features = unrolled_train_df["features"].tolist()
 
-# print(preds_df.head())
+    multi_head.fit(
+        f"{attribute}_embeddings", X_train_embeddings, sentence_train_df[attribute]
+    )
+    multi_head.fit(attribute, X_train_features, train_df[attribute])
 
-# new_preds_df = pd.DataFrame()
-# new_preds_df["text_id"] = test_df["text_id"]
+    unrolled_test_df, _ = unroll_sentence_df(
+        sentence_test_df,
+        X_test_embeddings,
+        attribute,
+        train_max_length=train_max_length,
+        trained_model=multi_head,
+    )
+    X_test_features = unrolled_test_df["features"].tolist()
+    # print(unrolled_test_df.head())
 
-# # There is something wrong with this pipeline, it's missing values
-# new_preds_df[attribute] = new_preds_df["text_id"].apply(lambda x: preds_dict[x])
+    s = multi_head.score(attribute, X_test_features, test_df[attribute])
+    # print("Regressor Score:", s)
 
-# means_preds_df = means_preds_df.sort_values(by=["text_id"])
-# original_test_df = original_test_df.sort_values(by=["text_id"])
+    # print(preds_df.head())
+    preds = multi_head.predict(attribute, X_test_features)
+    preds_df[attribute] = preds
 
-# print(new_preds_df.head())
-print(test_df.head())
-sentence_score = calculate_rmse_score_attribute(attribute, test_df, preds_df)
-# mean_score = calculate_rmse_score_attribute(attribute, test_df, new_preds_df)
+    # print(preds_df.head())
 
-print("RMSE Unrolled Sentences Embeddings Score:", sentence_score)
-# print("RMSE Mean Score:", mean_score)
+    # print(test_df.head())
+    sentence_score = calculate_rmse_score_attribute(attribute, test_df, preds_df)
+
+    print(f"RMSE Unrolled Sentences Embeddings Score ({attribute}):", sentence_score)
+
+print(
+    "Overall RMSE Unrolled Sentences Embeddings Score:",
+    calculate_rmse_score(test_df[attributes].values, preds_df[attributes].values),
+)
