@@ -1,126 +1,20 @@
-import os
-from scipy import stats
-from statistics import (
-    fmean,
-    median,
-    median_grouped,
-    median_high,
-    median_low,
-    pstdev,
-    pvariance,
-    quantiles,
-    stdev,
-    variance,
-)
-from first_iteration_setfit.utils import (
-    calculate_rmse_score_attribute,
+from first_iteration_setfit.utils import calculate_rmse_score_attribute
+from splitter import (
     split_df_into_sentences,
     split_text_into_n_parts,
-    split_text_into_half,
     split_text_into_sliding_windows,
+    unroll_sentence_df,
+    SplittingStrategy,
 )
 import pandas as pd
-from datetime import datetime
-from model_loader import load_model_with_dropout
 from load_data import create_train_test_df
 from utils import attributes, calculate_rmse_score
 
-from sklearn.svm import SVR
-from sklearn.linear_model import LassoCV, RidgeCV, SGDRegressor, BayesianRidge
-from sklearn.ensemble import (
-    GradientBoostingRegressor,
-    RandomForestRegressor,
-    AdaBoostRegressor,
-    HistGradientBoostingRegressor,
-)
+from sklearn.linear_model import RidgeCV
 from pre_trained_st_model import MultiHeadSentenceTransformerFactory
 from model_catalog import ModelCatalog
-from model_stacker import ModelStack, TFIDFEncoder, TfidfVectorizer
+from model_stacker import ModelStack
 import numpy as np
-
-
-def unroll_sentence_df(
-    sentence_df, embeddings, attribute, train_max_length=0, trained_model=None
-):
-    unrolled = []
-    texts = {}
-    max_length = 0
-    for text_id, embedding, attribute_value in zip(
-        sentence_df["text_id"], embeddings, sentence_df[attribute]
-    ):
-        if text_id not in texts:
-            texts[text_id] = {
-                "embeddings": [],
-                "attributes": [],
-            }
-        texts[text_id]["embeddings"].extend(embedding)
-        if trained_model:
-            predicted_attribute = trained_model.predict(
-                f"{attribute}_embeddings", [embedding]
-            )[0]
-            texts[text_id]["attributes"].append(predicted_attribute)
-        else:
-            texts[text_id]["attributes"].append(attribute_value)
-        max_length = max(len(texts[text_id]["embeddings"]), max_length)
-
-    if train_max_length > 0:
-        safe_guard = train_max_length
-    else:
-        safe_guard = max_length * 4
-    if safe_guard < max_length:
-        raise ValueError(
-            "Max length of test set is larger than train set, cannot fit model."
-        )
-    for text_id, text in texts.items():
-        if len(text["embeddings"]) < safe_guard:
-            text["embeddings"].extend([0] * (safe_guard - len(text["embeddings"])))
-
-        unrolled.append(
-            {
-                "text_id": text_id,
-                "embeddings": text["embeddings"],
-                "attributes": text["attributes"],
-                "features": []
-                + np.quantile(
-                    text["attributes"], [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-                ).tolist()
-                + [sum(text["attributes"]) / len(text["attributes"])]
-                + [max(text["attributes"])]
-                + [min(text["attributes"])]
-                + [len(text["attributes"])]
-                + [median(text["attributes"])]
-                + [fmean(text["attributes"])]
-                + [stats.gmean(text["attributes"])]
-                + [stats.kurtosis(text["attributes"])]
-                + [stats.skew(text["attributes"])]
-                + [stats.moment(text["attributes"], moment=1)]
-                + [stats.moment(text["attributes"], moment=2)]
-                + [stats.moment(text["attributes"], moment=3)]
-                + [stats.moment(text["attributes"], moment=4)],
-            }
-        )
-
-    unrolled_df = pd.DataFrame(unrolled)
-    return unrolled_df, safe_guard
-
-
-minimum_chunk_length = 10
-window_size = 512
-step_size = 512
-
-splitter_n = 2  # Only used if sliding window is not used
-
-
-class SplittingStrategy:
-    def __init__(self, splitter, name):
-        self.splitter = splitter
-        self.name = name
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
 
 
 def splitter(text):
@@ -136,6 +30,11 @@ def splitter_window(text):
     )
 
 
+minimum_chunk_length = 10
+window_size = 512
+step_size = 512
+splitter_n = 2  # Only used if sliding window is not used
+
 use_sliding_window = False
 if use_sliding_window:
     splitting_strategy = SplittingStrategy(
@@ -149,20 +48,12 @@ else:
 test_size = 0.2
 sentence_csv_dir = "./sentence_csvs"
 compare_full = False
+
 # Load the model
 train_df, test_df = create_train_test_df(test_size, "full")
-
-# tf_idf_vec = TfidfVectorizer()
-# tf_idf_vec.fit_transform(train_df["full_text"])
-# tf_idf_encoder = TFIDFEncoder(tf_idf_vec)
-
 model_info = ModelCatalog.DebertaV3
 multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
-    # GradientBoostingRegressor,
     RidgeCV,
-    # BayesianRidge,
-    # RandomForestRegressor
-    # SGDRegressor
 )
 multi_head = multi_head_class(
     model=ModelStack(

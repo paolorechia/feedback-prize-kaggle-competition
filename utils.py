@@ -55,3 +55,11 @@ def calculate_rmse_score(y_true, y_pred):
     for i in range(len(attributes)):
         rmse_scores.append(np.sqrt(mean_squared_error(y_true[:, i], y_pred[:, i])))
     return np.mean(rmse_scores)
+
+
+def calculate_rmse_score_single(y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_true, y_pred))
+
+
+def calculate_rmse_score_attribute(attribute, y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_true[attribute], y_pred[attribute]))

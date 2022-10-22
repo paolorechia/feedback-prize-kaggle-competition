@@ -3,6 +3,13 @@ from typing import Dict, Union
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import RidgeCV
 from sklearn.preprocessing import StandardScaler
+from utils import (
+    round_border_score,
+    calculate_rmse_score,
+    calculate_rmse_score_single,
+    attributes,
+)
+
 
 from model_stacker import ModelStack
 
@@ -75,6 +82,28 @@ class MultiHeadSentenceTransformerModel:
         self.head_model = head_model
         self.head_model_args = head_model_args
         self.head_model_kwargs = head_model_kwargs
+
+    def fit_best_model(self, attribute, X_train, y_train, X_test, y_test):
+        new_model = RidgeCV()
+        new_model.fit(X_train, y_train)
+        preds = new_model.predict(X_test)
+        predictions = [round_border_score(p) for p in preds]
+        mcrmse = calculate_rmse_score_single(y_test, predictions)
+        if attribute not in self.heads_scores:
+            self.heads_scores[attribute] = mcrmse
+            self.heads[attribute] = new_model
+        else:
+            if mcrmse < self.heads_scores[attribute]:
+                print(f"New best model for {attribute}: {mcrmse}")
+                self.heads[attribute] = new_model
+                self.heads_scores[attribute] = mcrmse
+
+    def get_mean_score(self):
+        mean_score = 0.0
+        for _, value in self.heads_scores.items():
+            mean_score += value
+        mean_score = mean_score / len(attributes)
+        return mean_score
 
     def encode(
         self,
