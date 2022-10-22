@@ -80,7 +80,6 @@ except Exception:
     sentence_df.to_csv(sentence_df_path, index=False)
 
 X = np.array(full_df["full_text"])
-y = np.array(full_df[attributes])
 
 text_label = "sentence_text"
 
@@ -97,37 +96,40 @@ X_embeddings = multi_head.encode(
 unrolled_df, train_max_length = unroll_labelled_sentence_df_all(
     sentence_df, X_embeddings
 )
+print(unrolled_df.head())
 X_unrolled_embeddings = np.array(unrolled_df["embeddings"])
-X_features = np.array(unrolled_df["features"])
-y = np.array(unrolled_df["attributes"])
+for attribute in attributes:
+    print(len(full_df), attribute)
+    y = list(full_df[attribute])
+    print("y: ", y[0:5])
+    skf = StratifiedShuffleSplit(n_splits=splits, test_size=test_size)
+    for train, test in skf.split(X, y):
+        train_unrolled_df = unrolled_df.filter(train, axis=0)
+        X_train_unrolled_embeddings = X_unrolled_embeddings[train]
+        y_train = y[train]
 
-# print(full_df.head())
-skf = StratifiedShuffleSplit(n_splits=splits, test_size=test_size)
-for train, test in skf.split(X, y):
-    train_unrolled_df = unrolled_df.filter(train, axis=0)
-    X_train_unrolled_embeddings = X_unrolled_embeddings[train]
-    X_train_features = X_features[train]
-    y_train = y[train]
+        test_unrolled_df = unrolled_df.filter(test, axis=0)
+        X_test_unrolled_embeddings = X_unrolled_embeddings[test]
+        y_test = y[test]
 
-    test_unrolled_df = unrolled_df.filter(test, axis=0)
-    X_test_unrolled_embeddings = X_unrolled_embeddings[test]
-    y_test = y[test]
+        X_train_features = train_unrolled_df[f"{attribute}_features"]
 
-    for attribute in attributes:
-        y_attr_train = y_train[attribute]
-        y_attr_test = y_test[attribute]
-
-        multi_head.fit_best_model(
-            f"{attribute}_embeddings", X_train_unrolled_embeddings, y_attr_train
+        # print(X_test_unrolled_embeddings[0:5])s
+        print(y_train[0:5])
+        multi_head.fit(
+            f"{attribute}_embeddings",
+            X_train_unrolled_embeddings,
+            y_train,
+            # np.array(X_test_unrolled_embeddings),
+            # np.array(y_test),
         )
-        multi_head.fit_best_model(attribute, X_train_features, y_attr_train)
+        multi_head.fit(attribute, X_train_features, y_train)
 
-    # Have to build the test features using the trained models
-    X_test_features = infer_labels(
-        test_unrolled_df, X_test_unrolled_embeddings, multi_head
-    )
+        # Have to build the test features using the trained models
+        X_test_features = infer_labels(
+            test_unrolled_df, X_test_unrolled_embeddings, multi_head
+        )
 
-    for attribute in attributes:
         y_pred = multi_head.predict(X_test_features[attribute])
         rmse = calculate_rmse_score_attribute(y_test, y_pred, attribute)
         print(f"{attribute} RMSE: {rmse}")
