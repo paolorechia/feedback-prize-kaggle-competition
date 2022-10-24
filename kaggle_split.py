@@ -38,8 +38,8 @@ window_size = 512
 step_size = 512
 splitter_n = 2  # Only used if sliding window is not used
 
-test_size = 0.2
-splits = 1
+test_size = 0.1
+splits = 5
 
 use_sliding_window = False
 if use_sliding_window:
@@ -74,7 +74,6 @@ multi_head = multi_head_class(
 X = np.array(full_df["full_text"])
 
 best_scores = {}
-
 for attribute in attributes:
     y = np.array(full_df[attribute])
 
@@ -91,7 +90,7 @@ for attribute in attributes:
 
         text_label = "sentence_text"
 
-        train_sentence_df_path = f"{sentence_csv_dir}/train_fold_{idx}_{attribute}_{splitting_strategy.name}.csv"
+        train_sentence_df_path = f"{sentence_csv_dir}/train_{test_size}_fold_{splits}_{idx}_{attribute}_{splitting_strategy.name}.csv"
 
         try:
             train_sentence_df = pd.read_csv(train_sentence_df_path)
@@ -107,7 +106,7 @@ for attribute in attributes:
         X_train_embeddings = multi_head.encode(
             X_train_sentences,
             batch_size=32,
-            type_path=f"full_splitter_train_:{splitting_strategy.name}_attribute_{attribute}_split_{idx}",
+            type_path=f"full_splitter_train_:{test_size}_{splitting_strategy.name}_attribute_{attribute}_splits_{splits}_{idx}",
             use_cache=True,
         )
 
@@ -129,7 +128,7 @@ for attribute in attributes:
         test_df = full_df.filter(items=test, axis=0)
         y_test = test_df[attribute]
 
-        test_sentence_df_path = f"{sentence_csv_dir}/test_fold_{idx}_{attribute}_{splitting_strategy.name}.csv"
+        test_sentence_df_path = f"{sentence_csv_dir}/test_{test_size}_fold_{splits}_{idx}_{attribute}_{splitting_strategy.name}.csv"
         try:
             test_sentence_df = pd.read_csv(test_sentence_df_path)
         except Exception:
@@ -143,7 +142,7 @@ for attribute in attributes:
         X_test_embeddings = multi_head.encode(
             X_test_sentences,
             batch_size=32,
-            type_path=f"full_splitter_test_:{splitting_strategy.name}_attribute_{attribute}_split_{idx}",
+            type_path=f"full_splitter_test_:{test_size}-{splitting_strategy.name}_attribute_{attribute}_splits_{splits}_{idx}",
             use_cache=True,
         )
 
@@ -157,13 +156,18 @@ for attribute in attributes:
         y_preds = multi_head.predict(attribute, X_test_features)
         score = calculate_rmse_score_single(y_test, y_preds)
         print(f"RMSE {attribute}: {score}")
+        if attribute not in best_scores:
+            best_scores[attribute] = score
+        else:
+            if score < best_scores[attribute]:
+                best_scores[attribute] = score
+                print(f"A better score was found ({attribute}):", score)
+        idx += 1
 
-    idx += 1
-    # print(f"RMSE Unrolled Sentences Embeddings Score ({attribute}):", sentence_score)
+print("Heads Mean Embeddings MCRMSE score: ", multi_head.get_mean_score())
 
-# print("Mean Embeddings MCRMSE score: ", multi_head.get_mean_score())
-
-# mean = np.mean(list(best_scores.values()))
-# for key, item in best_scores.items():
-#     print(f"{key}: {item}")
-# print(f"Mean: {mean}")
+print("Best scores\n\n-------------------------------------\n\n")
+mean = np.mean(list(best_scores.values()))
+for key, item in best_scores.items():
+    print(f"{key}: {item}")
+print(f"Mean: {mean}")
