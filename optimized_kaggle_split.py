@@ -1,11 +1,8 @@
 from splitter import (
-    infer_labels,
-    split_df_into_sentences,
     split_text_into_n_parts,
     split_text_into_sliding_windows,
-    unroll_sentence_df,
     SplittingStrategy,
-    unroll_labelled_sentence_df_all,
+    smart_blockenizer,
 )
 import pandas as pd
 from utils import attributes, calculate_rmse_score, calculate_rmse_score_single
@@ -72,82 +69,18 @@ multi_head = multi_head_class(
     ),
 )
 
-sentence_df_path = f"{sentence_csv_dir}/full_optimized_{splitting_strategy.name}.csv"
-
-try:
-    full_sentence_df = pd.read_csv(sentence_df_path)
-except Exception:
-    full_sentence_df = split_df_into_sentences(full_df, splitting_strategy.splitter)
-    full_sentence_df.to_csv(sentence_df_path, index=False)
-
-
-print("Length of full_sentence_df", len(full_sentence_df))
-print(full_sentence_df)
-
-embeddings = [
-    np.array(e)
-    for e in multi_head.encode(
-        full_sentence_df["sentence_text"],
-        batch_size=32,
-        show_progress_bar=True,
-        use_cache=f"full-dataframe-optimized-sentence-encoding-{splitting_strategy.name}",
-    )
-]
-full_sentence_df["embeddings"] = embeddings
-model_embedding_length = len(embeddings[0])
-
-print("Model embedding length", model_embedding_length)
-
-# Make each row in full sentence DF become a new column in the full df
-subset = list(
-    zip(
-        full_sentence_df["text_id"],
-        full_sentence_df["sentence_text"],
-        full_sentence_df["embeddings"],
-    )
+# This still needs improvement before it's generic
+# In particular, the function 'split_df_into_sentences' has columns values hardcoded
+smart_blockenizer(
+    full_df,
+    sentence_csv_dir,
+    columns_mapping={
+        "text": "sentence_text",
+        "id": "text_id",
+    },
+    multi_head=multi_head,
+    splitting_strategy=splitting_strategy,
 )
-
-
-blocks_dict = {}
-
-num_blocks = 0
-for tuple_ in subset:
-    text_id = tuple_[0]
-    sentence = tuple_[1]
-    embeddings = tuple_[2]
-    if text_id not in blocks_dict:
-        blocks_dict[text_id] = []
-        blocks_dict[text_id].append({"sentence": sentence, "embeddings": embeddings})
-    else:
-        blocks_dict[text_id].append({"sentence": sentence, "embeddings": embeddings})
-    num_blocks = max(num_blocks, len(blocks_dict[text_id]))
-
-
-block_columns = []
-block_embeddings = []
-n_blocks_column = []
-for j in range(num_blocks):
-    block_columns.append([])
-    block_embeddings.append([])
-
-required_length = num_blocks
-
-for idx, row in full_df.iterrows():
-    text_id = row["text_id"]
-    blocks_ = blocks_dict[text_id]
-    n_blocks_column.append(len(blocks_))
-    # Pad with empty strings
-    while len(blocks_) < required_length:
-        blocks_.append({"sentence": "", "embeddings": np.zeros(model_embedding_length)})
-
-    for j in range(num_blocks):
-        block_columns[j].append(blocks_[j]["sentence"])
-        block_embeddings[j].append(blocks_[j]["embeddings"])
-
-full_df["number_blocks"] = n_blocks_column
-for j in range(num_blocks):
-    full_df[f"block_{j}"] = block_columns[j]
-    full_df[f"embeddings_{j}"] = block_embeddings[j]
 
 print("Full DF POST Merge \n\n ------------------")
 print(full_df)

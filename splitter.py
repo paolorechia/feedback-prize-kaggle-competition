@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import pandas as pd
 from tqdm import tqdm
 from scipy import stats
@@ -298,3 +299,102 @@ class SplittingStrategy:
 
     def __repr__(self):
         return self.name
+
+
+class Encoder:
+    @abstractmethod
+    def encode(self, text):
+        raise NotImplementedError()
+
+
+def smart_blockenizer(
+    input_df: pd.DataFrame,
+    sentence_csv_dir: str,
+    columns_mapping,
+    multi_head: Encoder,
+    splitting_strategy: SplittingStrategy,
+):
+
+    sentence_df_path = (
+        f"{sentence_csv_dir}/full_optimized_{splitting_strategy.name}.csv"
+    )
+    try:
+        full_sentence_df = pd.read_csv(sentence_df_path)
+    except Exception:
+        full_sentence_df = split_df_into_sentences(
+            input_df, splitting_strategy.splitter
+        )
+        full_sentence_df.to_csv(sentence_df_path, index=False)
+
+    print("Length of full_sentence_df", len(full_sentence_df))
+    print(full_sentence_df)
+
+    cm = columns_mapping
+    embeddings = [
+        np.array(e)
+        for e in multi_head.encode(
+            full_sentence_df[cm["text"]],
+            batch_size=32,
+            show_progress_bar=True,
+            use_cache=f"full-dataframe-optimized-sentence-encoding-{splitting_strategy.name}",
+        )
+    ]
+    full_sentence_df["embeddings"] = embeddings
+    model_embedding_length = len(embeddings[0])
+
+    print("Model embedding length", model_embedding_length)
+
+    # Make each row in full sentence DF become a new column in the full df
+    subset = list(
+        zip(
+            full_sentence_df[cm["id"]],
+            full_sentence_df[cm["text"]],
+            full_sentence_df["embeddings"],
+        )
+    )
+
+    blocks_dict = {}
+
+    num_blocks = 0
+    for tuple_ in subset:
+        text_id = tuple_[0]
+        sentence = tuple_[1]
+        embeddings = tuple_[2]
+        if text_id not in blocks_dict:
+            blocks_dict[text_id] = []
+            blocks_dict[text_id].append(
+                {"sentence": sentence, "embeddings": embeddings}
+            )
+        else:
+            blocks_dict[text_id].append(
+                {"sentence": sentence, "embeddings": embeddings}
+            )
+        num_blocks = max(num_blocks, len(blocks_dict[text_id]))
+
+    block_columns = []
+    block_embeddings = []
+    n_blocks_column = []
+    for j in range(num_blocks):
+        block_columns.append([])
+        block_embeddings.append([])
+
+    required_length = num_blocks
+
+    for idx, row in input_df.iterrows():
+        text_id = row[cm["id"]]
+        blocks_ = blocks_dict[text_id]
+        n_blocks_column.append(len(blocks_))
+        # Pad with empty strings
+        while len(blocks_) < required_length:
+            blocks_.append(
+                {"sentence": "", "embeddings": np.zeros(model_embedding_length)}
+            )
+
+        for j in range(num_blocks):
+            block_columns[j].append(blocks_[j]["sentence"])
+            block_embeddings[j].append(blocks_[j]["embeddings"])
+
+    input_df["number_blocks"] = n_blocks_column
+    for j in range(num_blocks):
+        input_df[f"block_{j}"] = block_columns[j]
+        input_df[f"embeddings_{j}"] = block_embeddings[j]
