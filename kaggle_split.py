@@ -73,6 +73,8 @@ multi_head = multi_head_class(
 
 X = np.array(full_df["full_text"])
 
+
+
 best_scores = {}
 for attribute in attributes:
     y = np.array(full_df[attribute])
