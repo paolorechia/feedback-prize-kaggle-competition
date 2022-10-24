@@ -16,6 +16,7 @@ from pre_trained_st_model import MultiHeadSentenceTransformerFactory
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 import numpy as np
+from seeds import KFOLD_RANDOM_STATE
 
 
 def splitter(text):
@@ -38,7 +39,7 @@ step_size = 512
 splitter_n = 1  # Only used if sliding window is not used
 
 test_size = 0.1
-splits = 10
+splits = 5
 
 use_sliding_window = False
 if use_sliding_window:
@@ -103,7 +104,9 @@ for attribute in attributes:
     print(len(full_df), attribute)
     y = np.array(full_df[attribute])
     # print("y: ", y[0:5], len(y))
-    skf = StratifiedShuffleSplit(n_splits=splits, test_size=test_size)
+    skf = StratifiedShuffleSplit(
+        n_splits=splits, test_size=test_size, random_state=KFOLD_RANDOM_STATE
+    )
     for train, test in skf.split(X, y):
         train_unrolled_df = unrolled_df.filter(train, axis=0)
         X_train_unrolled_embeddings = np.array(X_unrolled_embeddings[train].tolist())
