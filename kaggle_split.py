@@ -35,10 +35,10 @@ def splitter_window(text):
 minimum_chunk_length = 10
 window_size = 512
 step_size = 512
-splitter_n = 2  # Only used if sliding window is not used
+splitter_n = 1  # Only used if sliding window is not used
 
-test_size = 0.2
-splits = 5
+test_size = 0.1
+splits = 10
 
 use_sliding_window = False
 if use_sliding_window:
