@@ -163,9 +163,6 @@ def unroll_sentence_df(
     return unrolled_df, safe_guard
 
 
-### TODO: unroll_unlabelled_sentence_df with trained model
-
-
 @dataclass
 class Labels:
     cohesion: float
@@ -205,17 +202,20 @@ def unroll_labelled_sentence_df_all(sentence_df, embeddings):
         for attr in attributes:
             texts[text_id]["attributes"][attr].append(getattr(row_labels, attr))
 
-    safe_guard = max_length * 4
+    safe_guard = max_length
     return _create_unrolled_df_with_labels(texts, safe_guard)
 
 
 def infer_labels(
-    unrolled_test_df, embeddings, trained_model, trained_length, attribute=None
+    sentence_df,
+    embeddings,
+    trained_model,
+    trained_length,
+    attribute=None,
 ):
     # Inference flow
-    iterator = zip(unrolled_test_df["text_id"], embeddings)
+    iterator = zip(sentence_df["text_id"], embeddings)
     texts = {}
-
     for (text_id, embedding) in iterator:
         if text_id not in texts:
             texts[text_id] = {
@@ -223,14 +223,17 @@ def infer_labels(
                 "attributes": {k: [] for k in attributes},
             }
         texts[text_id]["embeddings"].extend(embedding)
+
         for key, array in texts[text_id]["attributes"].items():
             if attribute is not None:
                 if key != attribute:
                     continue
+
             predicted_attribute = trained_model.predict(
                 f"{key}_embeddings", [embedding]
             )[0]
             array.append(predicted_attribute)
+
     unrolled_df, _ = _create_unrolled_df_with_labels(texts, trained_length, attribute)
     return unrolled_df
 
@@ -261,23 +264,25 @@ def _create_unrolled_df_with_labels(texts, safe_guard, attribute=None):
                     continue
 
             attr = text["attributes"][label_name]
-            # print(attr)
-            # print(type(attr))
-            unrolled_row[f"{label_name}_features"] = [fmean(attr)]
-            # +[np.quantile(attr, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]).tolist()]
-            # +[sum(attr) / len(attr)]
-            # +[max(attr)]
-            # +[min(attr)]
-            # +[len(attr)]
-            # +[median(attr)]
-            # +[fmean(attr)]
-            # +[stats.gmean(attr)]
-            # +[stats.kurtosis(attr)]
-            # +[stats.skew(attr)]
-            # +[stats.moment(attr, moment=1)]
-            # +[stats.moment(attr, moment=2)]
-            # +[stats.moment(attr, moment=3)]
-            # +[stats.moment(attr, moment=4)]
+            unrolled_row[f"{label_name}_features"] = (
+                []
+                + [sum(attr) / len(attr)]
+                + [max(attr)]
+                + [min(attr)]
+                + [len(attr)]
+                + np.quantile(
+                    text["attributes"][label_name],
+                    [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+                ).tolist()
+                + [median(attr)]
+                + [stats.gmean(attr)]
+                + [stats.kurtosis(attr)]
+                + [stats.skew(attr)]
+                + [stats.moment(attr, moment=1)]
+                + [stats.moment(attr, moment=2)]
+                + [stats.moment(attr, moment=3)]
+                + [stats.moment(attr, moment=4)]
+            )
         unrolled.append(unrolled_row)
     unrolled_df = pd.DataFrame(unrolled)
     return unrolled_df, safe_guard

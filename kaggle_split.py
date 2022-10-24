@@ -36,10 +36,10 @@ def splitter_window(text):
 minimum_chunk_length = 10
 window_size = 512
 step_size = 512
-splitter_n = 1  # Only used if sliding window is not used
+splitter_n = 2  # Only used if sliding window is not used
 
-test_size = 0.1
-splits = 5
+test_size = 0.2
+splits = 1
 
 use_sliding_window = False
 if use_sliding_window:
@@ -56,6 +56,7 @@ compare_full = False
 
 # Load the model
 full_df = pd.read_csv("/data/feedback-prize/train.csv")
+print("len(full_df)", len(full_df))
 
 model_info = ModelCatalog.DebertaV3
 multi_head_class = MultiHeadSentenceTransformerFactory.create_class(
@@ -70,85 +71,99 @@ multi_head = multi_head_class(
     ),
 )
 
-sentence_df_path = f"{sentence_csv_dir}/train_full_{splitting_strategy.name}.csv"
-
-try:
-    sentence_df = pd.read_csv(sentence_df_path)
-except Exception:
-    sentence_df = split_df_into_sentences(full_df, splitting_strategy.splitter)
-    sentence_df.to_csv(sentence_df_path, index=False)
-
 X = np.array(full_df["full_text"])
-
-text_label = "sentence_text"
-
-X_sentences = np.array(sentence_df[text_label])
-
-print("Encoding sentences...")
-X_embeddings = multi_head.encode(
-    X_sentences,
-    batch_size=32,
-    type_path=f"full_splitter:{splitting_strategy.name}",
-    use_cache=True,
-)
-
-unrolled_df, train_max_length = unroll_labelled_sentence_df_all(
-    sentence_df, X_embeddings
-)
-print(unrolled_df.head())
-X_unrolled_embeddings = np.array(unrolled_df["embeddings"])
 
 best_scores = {}
 
 for attribute in attributes:
-    print(len(full_df), attribute)
     y = np.array(full_df[attribute])
-    # print("y: ", y[0:5], len(y))
+
     skf = StratifiedShuffleSplit(
         n_splits=splits, test_size=test_size, random_state=KFOLD_RANDOM_STATE
     )
+    idx = 0
     for train, test in skf.split(X, y):
-        train_unrolled_df = unrolled_df.filter(train, axis=0)
-        X_train_unrolled_embeddings = np.array(X_unrolled_embeddings[train].tolist())
+        # Filter train DF
+        train_df = full_df.filter(items=train, axis=0)
+        y_train = train_df[attribute]
 
-        y_train = y[train]
+        print(len(train_df), len(train))
 
-        test_unrolled_df = unrolled_df.filter(test, axis=0)
-        X_test_unrolled_embeddings = np.array(X_unrolled_embeddings[test].tolist())
-        y_test = y[test]
+        text_label = "sentence_text"
 
-        X_train_features = np.array(train_unrolled_df[f"{attribute}_features"].tolist())
+        train_sentence_df_path = f"{sentence_csv_dir}/train_fold_{idx}_{attribute}_{splitting_strategy.name}.csv"
 
-        found_new = multi_head.fit_best_model(
-            f"{attribute}_embeddings",
-            X_train_unrolled_embeddings,
-            y_train,
-            X_test_unrolled_embeddings,
-            y_test,
-        )
-        if found_new:
-            multi_head.fit(attribute, X_train_features, y_train)
-
-            # Have to build the test features using the trained models
-            X_test_features = infer_labels(
-                test_unrolled_df,
-                X_test_unrolled_embeddings,
-                multi_head,
-                train_max_length,
-                attribute,
+        try:
+            train_sentence_df = pd.read_csv(train_sentence_df_path)
+        except Exception:
+            train_sentence_df = split_df_into_sentences(
+                train_df, splitting_strategy.splitter
             )
+            train_sentence_df.to_csv(train_sentence_df_path, index=False)
 
-            y_pred = multi_head.predict(attribute, X_test_features[attribute].tolist())
-            # print(y_pred[0:5], y_test[0:5], attribute)
-            rmse = calculate_rmse_score_single(y_test, y_pred)
-            print(f"{attribute} RMSE: {rmse}")
-            best_scores[attribute] = rmse
+        X_train_sentences = np.array(train_sentence_df[text_label])
 
+        # print("Encoding training sentences...")
+        X_train_embeddings = multi_head.encode(
+            X_train_sentences,
+            batch_size=32,
+            type_path=f"full_splitter_train_:{splitting_strategy.name}_attribute_{attribute}_split_{idx}",
+            use_cache=True,
+        )
+
+        train_unrolled_df, train_max_length = unroll_labelled_sentence_df_all(
+            train_sentence_df, X_train_embeddings
+        )
+        X_train_unrolled_embeddings = np.array(train_unrolled_df["embeddings"])
+
+        # Train first head layer
+        multi_head.fit(
+            f"{attribute}_embeddings", X_train_embeddings, train_sentence_df[attribute]
+        )
+
+        X_train_features = train_unrolled_df[f"{attribute}_features"].tolist()
+        # Train second head layer that uses the first layer
+        multi_head.fit(attribute, X_train_features, y_train)
+
+        # Now repeat everything for test split
+        test_df = full_df.filter(items=test, axis=0)
+        y_test = test_df[attribute]
+
+        test_sentence_df_path = f"{sentence_csv_dir}/test_fold_{idx}_{attribute}_{splitting_strategy.name}.csv"
+        try:
+            test_sentence_df = pd.read_csv(test_sentence_df_path)
+        except Exception:
+            test_sentence_df = split_df_into_sentences(
+                full_df.filter(items=test, axis=0), splitting_strategy.splitter
+            )
+            test_sentence_df.to_csv(test_sentence_df_path, index=False)
+
+        X_test_sentences = np.array(test_sentence_df[text_label])
+        # print("Encoding test sentences...")
+        X_test_embeddings = multi_head.encode(
+            X_test_sentences,
+            batch_size=32,
+            type_path=f"full_splitter_test_:{splitting_strategy.name}_attribute_{attribute}_split_{idx}",
+            use_cache=True,
+        )
+
+        test_unrolled_df = infer_labels(
+            test_sentence_df, X_test_embeddings, multi_head, train_max_length, attribute
+        )
+
+        X_test_features = test_unrolled_df[f"{attribute}_features"].tolist()
+        # print("X_test_features\n", X_test_features[0:5])
+        # Predict
+        y_preds = multi_head.predict(attribute, X_test_features)
+        score = calculate_rmse_score_single(y_test, y_preds)
+        print(f"RMSE {attribute}: {score}")
+
+    idx += 1
     # print(f"RMSE Unrolled Sentences Embeddings Score ({attribute}):", sentence_score)
 
-print("Mean Embeddings MCRMSE score: ", multi_head.get_mean_score())
+# print("Mean Embeddings MCRMSE score: ", multi_head.get_mean_score())
 
-mean = np.mean(list(best_scores.values()))
-for key, item in best_scores.items():
-    print(f"{key}: {item}")
-print(f"Mean: {mean}")
+# mean = np.mean(list(best_scores.values()))
+# for key, item in best_scores.items():
+#     print(f"{key}: {item}")
+# print(f"Mean: {mean}")

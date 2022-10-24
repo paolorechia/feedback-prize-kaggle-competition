@@ -59,7 +59,7 @@ multi_head = multi_head_class(
     model=ModelStack(
         [
             model_info,
-            ModelCatalog.T03B,
+            # ModelCatalog.T03B,
         ],
     ),
 )
