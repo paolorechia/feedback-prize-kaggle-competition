@@ -117,7 +117,7 @@ class MultiHeadSentenceTransformerModel:
         show_progress_bar=True,
         convert_to_numpy=True,
         use_cache=True,
-        type_path: str = "train",
+        cache_type: str = "train",
     ):
         if isinstance(self.model, ModelStack):
             return self.model.encode(
@@ -126,7 +126,7 @@ class MultiHeadSentenceTransformerModel:
                 show_progress_bar=show_progress_bar,
                 convert_to_numpy=convert_to_numpy,
                 use_cache=use_cache,
-                cache_type=type_path,
+                cache_type=cache_type,
             )
         return self.model.encode(
             X,

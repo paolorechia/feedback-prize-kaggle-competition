@@ -43,21 +43,18 @@ def split_text_into_half(text):
 
 def split_df_into_sentences(
     train_df: pd.DataFrame,
+    columns_mapping: dict,
     sentence_function=_split_text_into_sentences,
     binary_label=None,
 ) -> pd.DataFrame:
 
     new_columns = [
-        "text_id",
+        columns_mapping["id"],
         "sentence_text",
         "sentence_length",
-        "cohesion",
-        "syntax",
-        "vocabulary",
-        "phraseology",
-        "grammar",
-        "conventions",
+        
     ]
+    new_columns.extend(columns_mapping["labels"])
     if binary_label:
         new_columns.append(binary_label)
 
@@ -67,7 +64,7 @@ def split_df_into_sentences(
     print("Length of df: ", len(train_df))
     for index, row in tqdm(iterable=train_df.iterrows(), total=len(train_df)):
         # get the text
-        text = row["full_text"]
+        text = row[columns_mapping["full_text"]]
         # split the text into sentences
         sentences = sentence_function(text)
         # iterate over each sentence
@@ -75,16 +72,12 @@ def split_df_into_sentences(
             # create a new row in the dataframe
             if len(sentence) > 0:
                 data = [
-                    row["text_id"],
+                    row[columns_mapping["id"]],
                     sentence,
                     len(sentence),
-                    row["cohesion"],
-                    row["syntax"],
-                    row["vocabulary"],
-                    row["phraseology"],
-                    row["grammar"],
-                    row["conventions"],
                 ]
+                for label in columns_mapping["labels"]:
+                    data.append(row[label])
                 if binary_label:
                     data.append(row[binary_label])
                 sentence_train_dataframe = pd.concat(
@@ -315,6 +308,7 @@ def smart_blockenizer(
     splitting_strategy: SplittingStrategy,
 ):
 
+    print("Strategy: ", splitting_strategy.name)
     sentence_df_path = (
         f"{sentence_csv_dir}/full_optimized_{splitting_strategy.name}.csv"
     )
@@ -322,7 +316,7 @@ def smart_blockenizer(
         full_sentence_df = pd.read_csv(sentence_df_path)
     except Exception:
         full_sentence_df = split_df_into_sentences(
-            input_df, splitting_strategy.splitter
+            input_df, columns_mapping, splitting_strategy.splitter
         )
         full_sentence_df.to_csv(sentence_df_path, index=False)
 
@@ -330,13 +324,15 @@ def smart_blockenizer(
     print(full_sentence_df)
 
     cm = columns_mapping
+    print(cm)
     embeddings = [
         np.array(e)
         for e in multi_head.encode(
             full_sentence_df[cm["text"]],
             batch_size=32,
             show_progress_bar=True,
-            use_cache=f"full-dataframe-optimized-sentence-encoding-{splitting_strategy.name}",
+            use_cache=True,
+            cache_type=f"full-dataframe-optimized-sentence-encoding-{splitting_strategy.name}",
         )
     ]
     full_sentence_df["embeddings"] = embeddings

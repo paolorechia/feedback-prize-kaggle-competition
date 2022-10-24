@@ -69,14 +69,14 @@ multi_head = multi_head_class(
     ),
 )
 
-# This still needs improvement before it's generic
-# In particular, the function 'split_df_into_sentences' has columns values hardcoded
 smart_blockenizer(
     full_df,
     sentence_csv_dir,
     columns_mapping={
         "text": "sentence_text",
+        "full_text": "full_text",
         "id": "text_id",
+        "labels": attributes,
     },
     multi_head=multi_head,
     splitting_strategy=splitting_strategy,
