@@ -209,7 +209,9 @@ def unroll_labelled_sentence_df_all(sentence_df, embeddings):
     return _create_unrolled_df_with_labels(texts, safe_guard)
 
 
-def infer_labels(unrolled_test_df, embeddings, trained_model, trained_length):
+def infer_labels(
+    unrolled_test_df, embeddings, trained_model, trained_length, attribute=None
+):
     # Inference flow
     iterator = zip(unrolled_test_df["text_id"], embeddings)
     texts = {}
@@ -222,29 +224,42 @@ def infer_labels(unrolled_test_df, embeddings, trained_model, trained_length):
             }
         texts[text_id]["embeddings"].extend(embedding)
         for key, array in texts[text_id]["attributes"].items():
+            if attribute is not None:
+                if key != attribute:
+                    continue
             predicted_attribute = trained_model.predict(
                 f"{key}_embeddings", [embedding]
             )[0]
             array.append(predicted_attribute)
-    unrolled_df, _ = _create_unrolled_df_with_labels(texts, trained_length)
+    unrolled_df, _ = _create_unrolled_df_with_labels(texts, trained_length, attribute)
     return unrolled_df
 
 
-def _create_unrolled_df_with_labels(texts, safe_guard):
+def _create_unrolled_df_with_labels(texts, safe_guard, attribute=None):
     unrolled = []
+
     for text_id, text in texts.items():
         if len(text["embeddings"]) < safe_guard:
             text["embeddings"].extend([0] * (safe_guard - len(text["embeddings"])))
 
+        if len(text["embeddings"]) > safe_guard:
+            raise ValueError("Text is too long for the model.")
+
         unrolled_row = {
             "text_id": text_id,
-            "embeddings": text["embeddings"],
+            "embeddings": np.array(text["embeddings"]),
         }
-
         for attr in attributes:
+            if attribute is not None:
+                if attr != attribute:
+                    continue
             unrolled_row[attr] = text["attributes"][attr]
 
         for label_name in text["attributes"].keys():
+            if attribute is not None:
+                if label_name != attribute:
+                    continue
+
             attr = text["attributes"][label_name]
             # print(attr)
             # print(type(attr))

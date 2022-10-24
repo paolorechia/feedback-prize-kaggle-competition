@@ -82,6 +82,7 @@ class MultiHeadSentenceTransformerModel:
         self.head_model = head_model
         self.head_model_args = head_model_args
         self.head_model_kwargs = head_model_kwargs
+        self.heads_scores = {}
 
     def fit_best_model(self, attribute, X_train, y_train, X_test, y_test):
         new_model = RidgeCV()
@@ -89,6 +90,7 @@ class MultiHeadSentenceTransformerModel:
         preds = new_model.predict(X_test)
         predictions = [round_border_score(p) for p in preds]
         mcrmse = calculate_rmse_score_single(y_test, predictions)
+        # print(f"New model score: {mcrmse}")
         if attribute not in self.heads_scores:
             self.heads_scores[attribute] = mcrmse
             self.heads[attribute] = new_model

@@ -1,4 +1,3 @@
-from first_iteration_setfit.utils import calculate_rmse_score_attribute
 from splitter import (
     infer_labels,
     split_df_into_sentences,
@@ -9,7 +8,7 @@ from splitter import (
     unroll_labelled_sentence_df_all,
 )
 import pandas as pd
-from utils import attributes, calculate_rmse_score
+from utils import attributes, calculate_rmse_score, calculate_rmse_score_single
 
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.linear_model import RidgeCV
@@ -36,10 +35,9 @@ def splitter_window(text):
 minimum_chunk_length = 10
 window_size = 512
 step_size = 512
-
 splitter_n = 2  # Only used if sliding window is not used
 
-test_size = 0.1
+test_size = 0.2
 splits = 1
 
 use_sliding_window = False
@@ -85,7 +83,7 @@ text_label = "sentence_text"
 
 X_sentences = np.array(sentence_df[text_label])
 
-# print("Encoding sentences...")
+print("Encoding sentences...")
 X_embeddings = multi_head.encode(
     X_sentences,
     batch_size=32,
@@ -98,47 +96,65 @@ unrolled_df, train_max_length = unroll_labelled_sentence_df_all(
 )
 print(unrolled_df.head())
 X_unrolled_embeddings = np.array(unrolled_df["embeddings"])
+
 for attribute in attributes:
     print(len(full_df), attribute)
-    y = list(full_df[attribute])
-    print("y: ", y[0:5])
+    y = np.array(full_df[attribute])
+    # print("y: ", y[0:5], len(y))
     skf = StratifiedShuffleSplit(n_splits=splits, test_size=test_size)
     for train, test in skf.split(X, y):
         train_unrolled_df = unrolled_df.filter(train, axis=0)
-        X_train_unrolled_embeddings = X_unrolled_embeddings[train]
+        X_train_unrolled_embeddings = np.array(X_unrolled_embeddings[train].tolist())
+
         y_train = y[train]
 
         test_unrolled_df = unrolled_df.filter(test, axis=0)
-        X_test_unrolled_embeddings = X_unrolled_embeddings[test]
+        X_test_unrolled_embeddings = np.array(X_unrolled_embeddings[test].tolist())
         y_test = y[test]
 
-        X_train_features = train_unrolled_df[f"{attribute}_features"]
+        X_train_features = np.array(train_unrolled_df[f"{attribute}_features"].tolist())
 
-        # print(X_test_unrolled_embeddings[0:5])s
-        print(y_train[0:5])
-        multi_head.fit(
+        multi_head.fit_best_model(
             f"{attribute}_embeddings",
             X_train_unrolled_embeddings,
             y_train,
-            # np.array(X_test_unrolled_embeddings),
-            # np.array(y_test),
+            X_test_unrolled_embeddings,
+            y_test,
         )
         multi_head.fit(attribute, X_train_features, y_train)
 
         # Have to build the test features using the trained models
         X_test_features = infer_labels(
-            test_unrolled_df, X_test_unrolled_embeddings, multi_head
+            test_unrolled_df,
+            X_test_unrolled_embeddings,
+            multi_head,
+            train_max_length,
+            attribute,
         )
 
-        y_pred = multi_head.predict(X_test_features[attribute])
-        rmse = calculate_rmse_score_attribute(y_test, y_pred, attribute)
+        y_pred = multi_head.predict(attribute, X_test_features[attribute].tolist())
+        # print(y_pred[0:5], y_test[0:5], attribute)
+        rmse = calculate_rmse_score_single(y_test, y_pred)
         print(f"{attribute} RMSE: {rmse}")
 
     # print(f"RMSE Unrolled Sentences Embeddings Score ({attribute}):", sentence_score)
 
 print("Mean MCRMSE score: ", multi_head.get_mean_score())
 
-# print(
-#     "Overall RMSE Unrolled Sentences Embeddings Score:",
-#     calculate_rmse_score(test_df[attributes].values, preds_df[attributes].values),
-# )
+preds_df = pd.DataFrame()
+preds_df["text_id"] = full_df["text_id"]
+preds_df["full_text"] = full_df["full_text"]
+
+X_features = infer_labels(
+    unrolled_df,
+    X_embeddings,
+    multi_head,
+    train_max_length,
+)
+for attribute in attributes:
+    preds_df[attribute] = multi_head.predict(attribute, X_features[attribute].tolist())
+
+print(
+    "Overall RMSE Unrolled Sentences Embeddings Score:",
+    calculate_rmse_score(full_df[attributes].values, preds_df[attributes].values),
+)
