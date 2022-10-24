@@ -38,7 +38,7 @@ step_size = 512
 splitter_n = 2  # Only used if sliding window is not used
 
 test_size = 0.2
-splits = 1
+splits = 5
 
 use_sliding_window = False
 if use_sliding_window:
@@ -97,6 +97,8 @@ unrolled_df, train_max_length = unroll_labelled_sentence_df_all(
 print(unrolled_df.head())
 X_unrolled_embeddings = np.array(unrolled_df["embeddings"])
 
+best_scores = {}
+
 for attribute in attributes:
     print(len(full_df), attribute)
     y = np.array(full_df[attribute])
@@ -114,47 +116,36 @@ for attribute in attributes:
 
         X_train_features = np.array(train_unrolled_df[f"{attribute}_features"].tolist())
 
-        multi_head.fit_best_model(
+        found_new = multi_head.fit_best_model(
             f"{attribute}_embeddings",
             X_train_unrolled_embeddings,
             y_train,
             X_test_unrolled_embeddings,
             y_test,
         )
-        multi_head.fit(attribute, X_train_features, y_train)
+        if found_new:
+            multi_head.fit(attribute, X_train_features, y_train)
 
-        # Have to build the test features using the trained models
-        X_test_features = infer_labels(
-            test_unrolled_df,
-            X_test_unrolled_embeddings,
-            multi_head,
-            train_max_length,
-            attribute,
-        )
+            # Have to build the test features using the trained models
+            X_test_features = infer_labels(
+                test_unrolled_df,
+                X_test_unrolled_embeddings,
+                multi_head,
+                train_max_length,
+                attribute,
+            )
 
-        y_pred = multi_head.predict(attribute, X_test_features[attribute].tolist())
-        # print(y_pred[0:5], y_test[0:5], attribute)
-        rmse = calculate_rmse_score_single(y_test, y_pred)
-        print(f"{attribute} RMSE: {rmse}")
+            y_pred = multi_head.predict(attribute, X_test_features[attribute].tolist())
+            # print(y_pred[0:5], y_test[0:5], attribute)
+            rmse = calculate_rmse_score_single(y_test, y_pred)
+            print(f"{attribute} RMSE: {rmse}")
+            best_scores[attribute] = rmse
 
     # print(f"RMSE Unrolled Sentences Embeddings Score ({attribute}):", sentence_score)
 
-print("Mean MCRMSE score: ", multi_head.get_mean_score())
+print("Mean Embeddings MCRMSE score: ", multi_head.get_mean_score())
 
-preds_df = pd.DataFrame()
-preds_df["text_id"] = full_df["text_id"]
-preds_df["full_text"] = full_df["full_text"]
-
-X_features = infer_labels(
-    unrolled_df,
-    X_embeddings,
-    multi_head,
-    train_max_length,
-)
-for attribute in attributes:
-    preds_df[attribute] = multi_head.predict(attribute, X_features[attribute].tolist())
-
-print(
-    "Overall RMSE Unrolled Sentences Embeddings Score:",
-    calculate_rmse_score(full_df[attributes].values, preds_df[attributes].values),
-)
+mean = np.mean(list(best_scores.values()))
+for key, item in best_scores.items():
+    print(f"{key}: {item}")
+print(f"Mean: {mean}")

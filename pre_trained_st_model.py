@@ -94,11 +94,14 @@ class MultiHeadSentenceTransformerModel:
         if attribute not in self.heads_scores:
             self.heads_scores[attribute] = mcrmse
             self.heads[attribute] = new_model
+            return True
         else:
             if mcrmse < self.heads_scores[attribute]:
                 print(f"New best model for {attribute}: {mcrmse}")
                 self.heads[attribute] = new_model
                 self.heads_scores[attribute] = mcrmse
+                return True
+        return False
 
     def get_mean_score(self):
         mean_score = 0.0
