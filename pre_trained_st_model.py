@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import RidgeCV
@@ -235,3 +235,60 @@ class MultiEncodingStack:
     def predict(self, attribute, X_test):
         predictions = self.regressor_heads[attribute].predict(X_test)
         return predictions
+
+
+class MultiBlockMultiHeadSentenceTransformerModel(MultiHeadSentenceTransformerModel):
+    def __init__(
+        self,
+        model: Union[str, SentenceTransformer, "ModelStack"],
+        number_blocks: int,
+        labels: List[str],
+        head_model: HeadModel,
+        *head_model_args,
+        **head_model_kwargs,
+    ) -> None:
+        print(
+            model, number_blocks, labels, head_model, head_model_args, head_model_kwargs
+        )
+        if isinstance(model, str):
+            self.model = SentenceTransformer(model)
+        elif isinstance(model, SentenceTransformer):
+            self.model = model
+        elif isinstance(model, ModelStack):
+            self.model = model
+        else:
+            raise ValueError("Invalid model type")
+
+        self.head_model = head_model
+        self.head_model_args = head_model_args
+        self.head_model_kwargs = head_model_kwargs
+        self.labels = labels
+
+        self.number_blocks = number_blocks
+        self.blocks: List[Dict[str, HeadModel]] = []
+        for _ in range(self.number_blocks):
+            heads = {}
+            self.blocks.append(heads)
+
+    def fit(self, block_number, attribute, X_train, y_train):
+        print(
+            f"Fitting {self.head_model} on block {block_number} for label {attribute} ..."
+        )
+        self.blocks[block_number][attribute] = self.head_model(
+            *self.head_model_args, **self.head_model_kwargs
+        )
+        self.blocks[block_number][attribute].fit(X_train, y_train)
+
+    def predict(self, i, attribute, X_test):
+        return self.blocks[i][attribute].predict(X_test)
+
+
+class MultiBlockRidgeCV(MultiBlockMultiHeadSentenceTransformerModel):
+    def __init__(
+        self,
+        model: Union[str, SentenceTransformer, "ModelStack"],
+        number_blocks,
+        labels,
+    ) -> None:
+        print(model, number_blocks, labels)
+        super().__init__(model, number_blocks, labels=labels, head_model=RidgeCV)
