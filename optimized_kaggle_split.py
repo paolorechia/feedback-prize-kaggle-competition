@@ -5,10 +5,9 @@ from splitter import (
     smart_blockenizer,
 )
 import pandas as pd
-from utils import attributes, calculate_rmse_score, calculate_rmse_score_single
+from utils import attributes, calculate_rmse_score_single
 
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.linear_model import RidgeCV
 from pre_trained_st_model import MultiBlockRidgeCV
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
@@ -62,7 +61,7 @@ multi_block = multi_block_class(
     model=ModelStack(
         [
             model_info,
-            # ModelCatalog.T03B,
+            ModelCatalog.T03B,
         ],
     ),
     number_blocks=splitter_n,
