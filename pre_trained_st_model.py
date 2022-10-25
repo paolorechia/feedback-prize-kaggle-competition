@@ -270,6 +270,13 @@ class MultiBlockMultiHeadSentenceTransformerModel(MultiHeadSentenceTransformerMo
             heads = {}
             self.blocks.append(heads)
 
+    def set_number_blocks(self, n: int):
+        self.number_blocks = n
+        self.blocks = []
+        for _ in range(self.number_blocks):
+            heads = {}
+            self.blocks.append(heads)
+
     def fit(self, block_number, attribute, X_train, y_train):
         print(
             f"Fitting {self.head_model} on block {block_number} for label {attribute} ..."
