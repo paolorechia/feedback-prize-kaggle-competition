@@ -18,16 +18,17 @@ from splitter import (
 )
 from utils import attributes, calculate_rmse_score_single
 from sklearn.linear_model import LassoCV
+from linear_net import LinearNet
 
 
 def objective(trial=None, splitter_n=3):
     # Window parameters
-    use_sliding_window = True
+    use_sliding_window = False
 
     # block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
     block_size = 1152
-    step_size = trial.suggest_int("step_size", low=32, high=block_size, step=32)
-    # step_size = block_size // 2
+    # step_size = trial.suggest_int("step_size", low=32, high=block_size, step=32)
+    step_size = block_size // 2
 
     minimum_chunk_length = 10
     window_size = block_size
@@ -77,6 +78,9 @@ def objective(trial=None, splitter_n=3):
                 return l
 
             return c
+
+        def linear_net(*args):
+            return []
 
     def splitter(text):
         return split_text_into_n_parts(text, splitter_n, minimum_chunk_length)
@@ -151,7 +155,8 @@ def objective(trial=None, splitter_n=3):
     #     weights = weighting_strategy(multi_block.number_blocks)
     # else:
 
-    weighting_strategy = WeightingStrategy.lasso_cv
+    weighting_strategy = WeightingStrategy.linear_net
+    # weighting_strategy = WeightingStrategy.lasso_cv
     # weighting_strategy = WeightingStrategy.linear
     weights = weighting_strategy(multi_block.number_blocks)
 
@@ -172,6 +177,8 @@ def objective(trial=None, splitter_n=3):
         averager_regressor = None
         if weighting_strategy == WeightingStrategy.lasso_cv:
             averager_regressor = LassoCV()
+        elif weighting_strategy == WeightingStrategy.linear_net:
+            averager_regressor = LinearNet(multi_block.number_blocks)
 
         for train, test in skf.split(X, y):
             # Filter train DF
@@ -238,7 +245,7 @@ def objective(trial=None, splitter_n=3):
     return avg
 
 
-use_optuna = True
+use_optuna = False
 
 if use_optuna:
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
