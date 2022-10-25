@@ -22,10 +22,12 @@ from sklearn.linear_model import LassoCV
 
 def objective(trial=None, splitter_n=3):
     # Window parameters
-    use_sliding_window = False
+    use_sliding_window = True
+
+    block_size = trial.suggest_int("block_size", 128, 2048, step_size=128)
     minimum_chunk_length = 10
-    window_size = 512
-    step_size = 512
+    window_size = block_size
+    step_size = block_size // 2
 
     # Only used if sliding window is not used
     # if splitter_n is None and trial is not None:
@@ -145,8 +147,8 @@ def objective(trial=None, splitter_n=3):
         weighting_strategy = WeightingStrategy.custom(*weights)
         weights = weighting_strategy(multi_block.number_blocks)
     else:
-        # weighting_strategy = WeightingStrategy.diminishing
-        weighting_strategy = WeightingStrategy.linear
+        weighting_strategy = WeightingStrategy.lasso_cv
+        # weighting_strategy = WeightingStrategy.linear
         weights = weighting_strategy(multi_block.number_blocks)
 
     print("Weights >>>>", weights)
@@ -189,7 +191,11 @@ def objective(trial=None, splitter_n=3):
                 )
                 train_preds.append(multi_block.predict(i, attribute, embeddings))
 
+            # print(len(train_preds), len(train_preds[0]))
+            # print(train_preds[0:3])
             if averager_regressor is not None:
+                train_preds = np.array(train_preds).transpose()
+                # print(train_preds.shape)
                 averager_regressor.fit(train_preds, y_train)
 
             # Predict
@@ -200,14 +206,16 @@ def objective(trial=None, splitter_n=3):
                 )
                 y_pred.append(multi_block.predict(i, attribute, embeddings))
 
-            print(len(y_pred))
-            print(y_pred[0:5])
+            # print(len(y_pred), len(y_pred[0]))
+            # print(y_pred[0:5])
             if averager_regressor is not None:
+                y_pred = np.array(y_pred).transpose()
+                # print(train_preds.shape)
                 y_pred = averager_regressor.predict(y_pred)
             else:
                 y_pred = average_function(y_pred, weights)
-                print(len(y_pred))
-                print(y_pred[0:5])
+                # print(len(y_pred))
+                # print(y_pred[0:5])
 
             score = calculate_rmse_score_single(y_test, y_pred)
             print(f"Score for {attribute} is {score}")
@@ -226,12 +234,12 @@ def objective(trial=None, splitter_n=3):
     return avg
 
 
-use_optuna = False
+use_optuna = True
 
 if use_optuna:
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
     study_name = (
-        "sliding-window-512-512-weights-deberta"  # Unique identifier of the study.
+        "sliding-window-lassocv-deberta"  # Unique identifier of the study.
     )
     storage_name = "sqlite:///exploration_dbs/{}.db".format(study_name)
     study = optuna.create_study(
