@@ -24,7 +24,7 @@ def objective(trial=None, splitter_n=3):
     # Window parameters
     use_sliding_window = True
 
-    block_size = trial.suggest_int("block_size", 128, 2048, step_size=128)
+    block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
     minimum_chunk_length = 10
     window_size = block_size
     step_size = block_size // 2
@@ -238,9 +238,7 @@ use_optuna = True
 
 if use_optuna:
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
-    study_name = (
-        "sliding-window-lassocv-deberta"  # Unique identifier of the study.
-    )
+    study_name = "sliding-window-lassocv-deberta"  # Unique identifier of the study.
     storage_name = "sqlite:///exploration_dbs/{}.db".format(study_name)
     study = optuna.create_study(
         study_name=study_name,
