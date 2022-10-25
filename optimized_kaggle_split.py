@@ -22,10 +22,10 @@ from sklearn.linear_model import LassoCV
 
 def objective(trial=None, splitter_n=3):
     # Window parameters
-    use_sliding_window = True
+    use_sliding_window = False
     minimum_chunk_length = 10
-    window_size = 256
-    step_size = 128
+    window_size = 512
+    step_size = 512
 
     # Only used if sliding window is not used
     # if splitter_n is None and trial is not None:
@@ -42,6 +42,9 @@ def objective(trial=None, splitter_n=3):
         return sum_ / denonimator
 
     class WeightingStrategy:
+        def linear(n):
+            return [i / n for i in range(n)]
+
         def lasso_cv(*args, **kwargs):
             return []
 
@@ -143,7 +146,7 @@ def objective(trial=None, splitter_n=3):
         weights = weighting_strategy(multi_block.number_blocks)
     else:
         # weighting_strategy = WeightingStrategy.diminishing
-        weighting_strategy = WeightingStrategy.lasso_cv
+        weighting_strategy = WeightingStrategy.linear
         weights = weighting_strategy(multi_block.number_blocks)
 
     print("Weights >>>>", weights)
@@ -163,6 +166,7 @@ def objective(trial=None, splitter_n=3):
         averager_regressor = None
         if weighting_strategy == WeightingStrategy.lasso_cv:
             averager_regressor = LassoCV()
+
         for train, test in skf.split(X, y):
             # Filter train DF
             train_df = full_df.filter(items=train, axis=0)
@@ -183,9 +187,8 @@ def objective(trial=None, splitter_n=3):
                 embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(
                     len(train), -1
                 )
-                train_preds.extend(multi_block.predict(i, attribute, embeddings))
+                train_preds.append(multi_block.predict(i, attribute, embeddings))
 
-            train_preds = np.array(train_preds).reshape(len(train), -1)
             if averager_regressor is not None:
                 averager_regressor.fit(train_preds, y_train)
 
@@ -195,13 +198,16 @@ def objective(trial=None, splitter_n=3):
                 embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(
                     len(test), -1
                 )
-                y_pred.extend(multi_block.predict(i, attribute, embeddings))
+                y_pred.append(multi_block.predict(i, attribute, embeddings))
 
-            y_pred = np.array(y_pred).reshape(len(test), -1)
+            print(len(y_pred))
+            print(y_pred[0:5])
             if averager_regressor is not None:
                 y_pred = averager_regressor.predict(y_pred)
             else:
                 y_pred = average_function(y_pred, weights)
+                print(len(y_pred))
+                print(y_pred[0:5])
 
             score = calculate_rmse_score_single(y_test, y_pred)
             print(f"Score for {attribute} is {score}")
