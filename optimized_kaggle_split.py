@@ -24,10 +24,13 @@ def objective(trial=None, splitter_n=3):
     # Window parameters
     use_sliding_window = True
 
-    block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
+    # block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
+    block_size = 1152
+    step_size = trial.suggest_int("step_size", low=32, high=block_size, step=32)
+    # step_size = block_size // 2
+
     minimum_chunk_length = 10
     window_size = block_size
-    step_size = block_size // 2
 
     # Only used if sliding window is not used
     # if splitter_n is None and trial is not None:
@@ -139,17 +142,18 @@ def objective(trial=None, splitter_n=3):
     else:
         assert multi_block.number_blocks == max(full_df["number_blocks"])
 
-    if trial is not None:
-        weights = []
-        for i in range(1, multi_block.number_blocks + 1):
-            weights.append(trial.suggest_uniform(f"weight_{i}", 0.0, 1.0))
+    # if trial is not None:
+    #     weights = []
+    #     for i in range(1, multi_block.number_blocks + 1):
+    #         weights.append(trial.suggest_uniform(f"weight_{i}", 0.0, 1.0))
 
-        weighting_strategy = WeightingStrategy.custom(*weights)
-        weights = weighting_strategy(multi_block.number_blocks)
-    else:
-        weighting_strategy = WeightingStrategy.lasso_cv
-        # weighting_strategy = WeightingStrategy.linear
-        weights = weighting_strategy(multi_block.number_blocks)
+    #     weighting_strategy = WeightingStrategy.custom(*weights)
+    #     weights = weighting_strategy(multi_block.number_blocks)
+    # else:
+
+    weighting_strategy = WeightingStrategy.lasso_cv
+    # weighting_strategy = WeightingStrategy.linear
+    weights = weighting_strategy(multi_block.number_blocks)
 
     print("Weights >>>>", weights)
 
@@ -238,7 +242,9 @@ use_optuna = True
 
 if use_optuna:
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
-    study_name = "sliding-window-lassocv-deberta"  # Unique identifier of the study.
+    study_name = (
+        "sliding-window-block-1152-lassocv-deberta"  # Unique identifier of the study.
+    )
     storage_name = "sqlite:///exploration_dbs/{}.db".format(study_name)
     study = optuna.create_study(
         study_name=study_name,
