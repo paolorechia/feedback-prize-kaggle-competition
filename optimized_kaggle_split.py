@@ -23,7 +23,7 @@ from linear_net import LinearNet
 
 def objective(trial=None, splitter_n=3):
     # Window parameters
-    use_sliding_window = False
+    use_sliding_window = True
 
     # block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
     block_size = 1152

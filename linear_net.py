@@ -19,7 +19,7 @@ class LinearNet(torch.nn.Module):
         # y = self.relu2(y)
         return y
 
-    def fit(self, X, Y, epochs=100, lr=0.001):
+    def fit(self, X, Y, epochs=100, lr=0.0001):
         criterion = torch.nn.MSELoss(reduction="mean")
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
@@ -28,7 +28,7 @@ class LinearNet(torch.nn.Module):
         self.train()
 
         print("Dataset size ", len(X))
-        batch_size = 512
+        batch_size = 32
 
         target_loss = 0.0001
         iters_per_epoch = 20
@@ -42,6 +42,7 @@ class LinearNet(torch.nn.Module):
 
                     x = torch.tensor(x, dtype=torch.float32)
                     y = torch.tensor(y, dtype=torch.float32)
+
                     # reshape y
                     y = y.view(-1, 1)
 
@@ -56,9 +57,7 @@ class LinearNet(torch.nn.Module):
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-            print(
-                f"Epoch {epoch} loss {running_loss / batch_size / iters_per_epoch}"
-            )
+            print(f"Epoch {epoch} loss {running_loss / batch_size / iters_per_epoch}")
             if running_loss / batch_size / iters_per_epoch < target_loss:
                 print("Target loss reached, early stopping")
                 break
@@ -67,9 +66,10 @@ class LinearNet(torch.nn.Module):
         self.eval()
         with torch.no_grad():
             x = torch.tensor(X, dtype=torch.float32)
+            x.cuda()
             y_pred = self.forward(x)
             # print(y_pred)
-            return y_pred.numpy()
+            return y_pred.detach().cpu().numpy()
 
 
 def test_linear_net():
