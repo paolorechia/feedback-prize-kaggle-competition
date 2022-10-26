@@ -3,13 +3,13 @@ from datetime import datetime
 
 
 class LinearNet(torch.nn.Module):
-    def __init__(self, in_features):
+    def __init__(self, in_features, hidden_size=1024, dropout=0.2):
         super(LinearNet, self).__init__()
-        self.hidden_size = 16
+        self.hidden_size = hidden_size
 
         self.bn1 = torch.nn.BatchNorm1d(in_features)
 
-        self.dropout1 = torch.nn.Dropout(0.2)
+        self.dropout1 = torch.nn.Dropout(dropout)
         self.fc = torch.nn.Linear(in_features, self.hidden_size)
 
         self.relu = torch.nn.LeakyReLU()
@@ -39,7 +39,7 @@ class LinearNet(torch.nn.Module):
 
         self.train()
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        device = "cpu"
+        # device = "cpu"
         print("Using device:", device)
         if device != "cpu":
             self.cuda()
@@ -57,8 +57,8 @@ class LinearNet(torch.nn.Module):
                 tensor_batch = (tensor_batch[0].cuda(), tensor_batch[1].cuda())
             batches.append(tensor_batch)
 
-        target_loss = 0.001
-        iters_per_epoch = 1
+        target_loss = 0.1
+        iters_per_epoch = 10
         for epoch in range(epochs):
             t0 = datetime.now()
             running_loss = 0.0
@@ -88,6 +88,78 @@ class LinearNet(torch.nn.Module):
             if running_loss / batch_size / iters_per_epoch < target_loss:
                 print("Target loss reached, early stopping")
                 break
+
+    def train_with_eval(self, X, Y, X_eval, Y_eval, epochs=50, batch_size=32, lr=0.001):
+        criterion = torch.nn.MSELoss(reduction="mean")
+        optimizer = torch.optim.Adam(self.parameters(), lr=lr)
+
+        epochs = epochs
+
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # device = "cpu"
+        print("Using device:", device)
+        if device != "cpu":
+            self.cuda()
+
+        print("Dataset size ", len(X))
+        batches = []
+        for i in range(0, len(X), batch_size):
+            batch = (X[i : i + batch_size], Y[i : i + batch_size])
+            tensor_batch = (
+                torch.tensor(batch[0], dtype=torch.float32),
+                torch.tensor(batch[1], dtype=torch.float32),
+            )
+            if device != "cpu":
+                tensor_batch = (tensor_batch[0].cuda(), tensor_batch[1].cuda())
+            batches.append(tensor_batch)
+
+        target_loss = 0.1
+        iters_per_epoch = 1
+        min_avg_loss = 100.0
+
+        for epoch in range(epochs):
+            self.train()
+            t0 = datetime.now()
+            running_loss = 0.0
+            for iter in range(iters_per_epoch):
+                for batch in batches:
+                    x, y = batch
+
+                    # reshape y
+                    y = y.view(-1, 1)
+
+                    # print(x.shape, y.shape)
+                    y_pred = self.forward(x)
+                    # print(y_pred.shape)
+
+                    loss = criterion(y_pred, y)
+
+                    running_loss += loss.item()
+
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+            t1 = datetime.now()
+            elapsed_time_in_seconds = (t1 - t0).total_seconds()
+            eval_prediction = self.predict(X_eval)
+            loss = criterion(torch.tensor(eval_prediction), torch.tensor(Y_eval))
+            eval_loss = loss.item()
+            training_loss = running_loss / batch_size / iters_per_epoch
+            average_loss = (training_loss + eval_loss) / 2
+            print(
+                f"Epoch {epoch} loss {running_loss / batch_size / iters_per_epoch} (used time: {elapsed_time_in_seconds} seconds) || Evaluation loss {eval_loss} || Average loss {average_loss}"
+            )
+            if average_loss < min_avg_loss:
+                min_avg_loss = average_loss
+                print("Saving model")
+                torch.save(self.state_dict(), "model.pt")
+
+            if average_loss < target_loss:
+                print("Target loss reached, early stopping")
+                break
+        print("Best eval loss", min_avg_loss)
+        print("Loading best model with this eval loss")
+        self.load_state_dict(torch.load("model.pt"))
 
     def predict(self, X):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

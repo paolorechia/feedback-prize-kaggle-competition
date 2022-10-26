@@ -17,70 +17,20 @@ from splitter import (
     split_text_into_sliding_windows,
 )
 from utils import attributes, calculate_rmse_score_single
-from sklearn.linear_model import LassoCV
 from linear_net import LinearNet
 
 
 def objective(trial=None, splitter_n=3):
-    # Window parameters
     use_sliding_window = False
 
-    # block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
     block_size = 1152
-    # step_size = trial.suggest_int("step_size", low=32, high=block_size, step=32)
     step_size = block_size // 2
 
     minimum_chunk_length = 10
     window_size = block_size
 
-    # Only used if sliding window is not used
-    # if splitter_n is None and trial is not None:
-    #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
-
     test_size = 0.2
     splits = 1
-
-    def average_function(preds, weights):
-        sum_ = 0.0
-        denonimator = sum(weights)
-        for idx, p in enumerate(preds):
-            sum_ += weights[idx] * p
-        return sum_ / denonimator
-
-    class WeightingStrategy:
-        def linear(n):
-            return [i / n for i in range(n)]
-
-        def lasso_cv(*args, **kwargs):
-            return []
-
-        def diminishing(n):
-            return [1 / (i + 1) for i in range(n)]
-
-        def diminishing_2(n):
-            d = [1 / (i + 1) ** 2 for i in range(n)]
-            d[0] = 0.5
-            d[1] = 0.3
-            d[2] = 0.2
-            return d
-
-        def step_decrease(n):
-            return [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.01][:n]
-
-        def uniform(n):
-            return [1 / n for _ in range(n)]
-
-        def custom(*args):
-            def c(_):
-                l = []
-                for i in args:
-                    l.append(i)
-                return l
-
-            return c
-
-        def linear_net(*args):
-            return []
 
     def splitter(text):
         return split_text_into_n_parts(text, splitter_n, minimum_chunk_length)
@@ -146,22 +96,6 @@ def objective(trial=None, splitter_n=3):
     else:
         assert multi_block.number_blocks == max(full_df["number_blocks"])
 
-    # if trial is not None:
-    #     weights = []
-    #     for i in range(1, multi_block.number_blocks + 1):
-    #         weights.append(trial.suggest_uniform(f"weight_{i}", 0.0, 1.0))
-
-    #     weighting_strategy = WeightingStrategy.custom(*weights)
-    #     weights = weighting_strategy(multi_block.number_blocks)
-    # else:
-
-    # weighting_strategy = WeightingStrategy.linear_net
-    weighting_strategy = WeightingStrategy.lasso_cv
-    # weighting_strategy = WeightingStrategy.linear
-    weights = weighting_strategy(multi_block.number_blocks)
-
-    print("Weights >>>>", weights)
-
     print("Full DF POST Merge \n\n ------------------")
     print(full_df)
 
@@ -174,11 +108,6 @@ def objective(trial=None, splitter_n=3):
         skf = StratifiedShuffleSplit(
             n_splits=splits, test_size=test_size, random_state=KFOLD_RANDOM_STATE
         )
-        averager_regressor = None
-        if weighting_strategy == WeightingStrategy.lasso_cv:
-            averager_regressor = LassoCV()
-        elif weighting_strategy == WeightingStrategy.linear_net:
-            averager_regressor = LinearNet(multi_block.number_blocks)
 
         for train, test in skf.split(X, y):
             # Filter train DF
@@ -189,53 +118,57 @@ def objective(trial=None, splitter_n=3):
             test_df = full_df.filter(items=test, axis=0)
             y_test = np.array(test_df[attribute])
 
-            for i in range(multi_block.number_blocks):
-                embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(
-                    len(train), -1
-                )
-                multi_block.fit(i, attribute, embeddings, y_train)
+            train_embeddings_matrix = []
+            for _, row in train_df.iterrows():
 
-            train_preds = []
-            for i in range(multi_block.number_blocks):
-                embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(
-                    len(train), -1
-                )
-                train_preds.append(multi_block.predict(i, attribute, embeddings))
+                embeddings = []
+                for i in range(multi_block.number_blocks):
+                    embeddings.extend(row[f"embeddings_{i}"])
+                embeddings = np.array(embeddings).reshape(-1)
+                train_embeddings_matrix.append(embeddings)
 
-            # print(len(train_preds), len(train_preds[0]))
-            # print(train_preds[0:3])
-            if averager_regressor is not None:
-                train_preds = np.array(train_preds).transpose()
-                # print(train_preds.shape)
-                averager_regressor.fit(train_preds, y_train)
+            train_embeddings_matrix = np.array(train_embeddings_matrix)
+            print("train_embeddings_matrix.shape", train_embeddings_matrix.shape)
+            train_embeddings_matrix.reshape(len(train), -1)
+            print("train_embeddings_matrix.shape", train_embeddings_matrix.shape)
 
-            # Predict
-            y_pred = []
-            for i in range(multi_block.number_blocks):
-                embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(
-                    len(test), -1
-                )
-                y_pred.append(multi_block.predict(i, attribute, embeddings))
+            test_embeddings_matrix = []
+            for _, row in test_df.iterrows():
 
-            # print(len(y_pred), len(y_pred[0]))
-            # print(y_pred[0:5])
-            if averager_regressor is not None:
-                y_pred = np.array(y_pred).transpose()
-                # print(train_preds.shape)
-                y_pred = averager_regressor.predict(y_pred)
-            else:
-                y_pred = average_function(y_pred, weights)
-                # print(len(y_pred))
-                # print(y_pred[0:5])
+                embeddings = []
+                for i in range(multi_block.number_blocks):
+                    embeddings.extend(row[f"embeddings_{i}"])
+                embeddings = np.array(embeddings).reshape(-1)
+                test_embeddings_matrix.append(embeddings)
 
+            test_embeddings_matrix = np.array(test_embeddings_matrix)
+            print("test_embeddings_matrix.shape", test_embeddings_matrix.shape)
+            test_embeddings_matrix.reshape(len(test), -1)
+            print("test_embeddings_matrix.shape", test_embeddings_matrix.shape)
+
+            net = LinearNet(
+                len(train_embeddings_matrix[0]), hidden_size=2048, dropout=0.1
+            )
+
+            net.train_with_eval(
+                X=train_embeddings_matrix,
+                Y=y_train,
+                X_eval=test_embeddings_matrix,
+                Y_eval=y_test,
+                batch_size=8,
+                epochs=5000,
+                lr=0.001,
+            )
+
+            y_pred = net.predict(test_embeddings_matrix)
             score = calculate_rmse_score_single(y_test, y_pred)
             print(f"Score for {attribute} is {score}")
 
             if attribute not in best_scores:
                 best_scores[attribute] = score
             else:
-                best_scores[attribute] = min(score, best_scores[attribute])
-
+                best_scores[attribute] = min(score,  best_scores[attribute])
+            sys.exit(1)
     print("Best scores")
     print(best_scores)
 
