@@ -5,7 +5,7 @@ from datetime import datetime
 class LinearNet(torch.nn.Module):
     def __init__(self, in_features):
         super(LinearNet, self).__init__()
-        self.hidden_size = 1024
+        self.hidden_size = 16
 
         self.bn1 = torch.nn.BatchNorm1d(in_features)
 
@@ -31,7 +31,7 @@ class LinearNet(torch.nn.Module):
         y = self.relu2(y)
         return y
 
-    def fit(self, X, Y, epochs=200, lr=0.001):
+    def fit(self, X, Y, epochs=50, lr=0.001):
         criterion = torch.nn.MSELoss(reduction="mean")
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
