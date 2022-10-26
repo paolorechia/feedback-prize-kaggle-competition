@@ -212,10 +212,10 @@ class ConvolutionalNet(TrainableNet):
         #     raise Exception("Invalid number of channels")
 
         self.num_channels = num_channels
-        self.intermediate_channels = 128
-        self.linear_layer_size = 1408
-        self.kernel_size = 6
-        self.pooling_size = 4
+        self.intermediate_channels = 256
+        self.linear_layer_size = 768
+        self.kernel_size = 24
+        self.pooling_size = 1
         self.stride = 1
 
         # First convolutional layer
