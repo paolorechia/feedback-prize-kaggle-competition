@@ -150,7 +150,7 @@ def objective(trial=None, splitter_n=2):
             #     len(train_embeddings_matrix[0]), hidden_size=2048, dropout=0.0
             # )
             net = ConvolutionalNet(
-                len(train_embeddings_matrix[0]), num_channels=128, dropout=0.5
+                len(train_embeddings_matrix[0]), num_channels=128, dropout=0.8
             )
 
             net.train_with_eval(
@@ -158,8 +158,8 @@ def objective(trial=None, splitter_n=2):
                 Y=y_train,
                 X_eval=test_embeddings_matrix,
                 Y_eval=y_test,
-                batch_size=32,
-                epochs=100,
+                batch_size=512,
+                epochs=200,
                 lr=0.001,
             )
 

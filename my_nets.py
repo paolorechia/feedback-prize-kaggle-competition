@@ -193,58 +193,43 @@ class ConvolutionalNet(TrainableNet):
     def __init__(self, in_features, num_channels=16, dropout=0.2):
         super(TrainableNet, self).__init__()
 
+        # self.linear_layer_size = in_features
+        # if self.num_channels == 2:
+        #     self.linear_layer_size *= 8
+        # elif self.num_channels == 4:
+        #     self.linear_layer_size *= 4
+        # elif self.num_channels == 8:
+        #     self.linear_layer_size *= 2
+        # elif self.num_channels == 16:
+        #     self.linear_layer_size *= 1
+        # elif self.num_channels == 32:
+        #     self.linear_layer_size = int(self.linear_layer_size / 2)
+        # elif self.num_channels == 64:
+        #     self.linear_layer_size = int(self.linear_layer_size / 4)
+        # elif self.num_channels == 128:
+        #     self.linear_layer_size = int(self.linear_layer_size / 8)
+        # else:
+        #     raise Exception("Invalid number of channels")
+
         self.num_channels = num_channels
-
-        self.linear_layer_size = in_features
-        if self.num_channels == 2:
-            self.linear_layer_size *= 8
-        elif self.num_channels == 4:
-            self.linear_layer_size *= 4
-        elif self.num_channels == 8:
-            self.linear_layer_size *= 2
-        elif self.num_channels == 16:
-            self.linear_layer_size *= 1
-        elif self.num_channels == 32:
-            self.linear_layer_size = int(self.linear_layer_size / 2)
-        elif self.num_channels == 64:
-            self.linear_layer_size = int(self.linear_layer_size / 4)
-        elif self.num_channels == 128:
-            self.linear_layer_size = int(self.linear_layer_size / 8)
-        # elif self.num_channels == 256:
-        #     self.linear_layer_size = 64
-        # elif self.num_channels == 512:
-        #     self.linear_layer_size = 32
-        else:
-            raise Exception("Invalid number of channels")
-
-        self.intermediate_channels = 32
-        self.pooling_size = 2
+        self.intermediate_channels = 128
+        self.linear_layer_size = self.intermediate_channels * 2
+        self.kernel_size = 6
+        self.pooling_size = 4
+        self.stride = 1
 
         # First convolutional layer
         self.bn1 = torch.nn.BatchNorm1d(in_features)
         self.conv1 = torch.nn.Conv1d(
             in_channels=num_channels,
-            out_channels=32,
-            kernel_size=3,
-            stride=1,
+            out_channels=self.intermediate_channels,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
             padding=1,
         )
         self.pool1 = torch.nn.MaxPool1d(self.pooling_size)
         self.dropout1 = torch.nn.Dropout(dropout)
         self.leaky1 = torch.nn.LeakyReLU()
-
-        # Second convolutional layer
-        self.bn2 = torch.nn.BatchNorm1d(self.intermediate_channels)
-        self.conv2 = torch.nn.Conv1d(
-            in_channels=self.intermediate_channels,
-            out_channels=self.intermediate_channels * 2,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-        )
-        self.pool2 = torch.nn.MaxPool1d(self.pooling_size)
-        self.dropout2 = torch.nn.Dropout(dropout)
-        self.leaky2 = torch.nn.LeakyReLU()
 
         # Linear head
         self.flatten = torch.nn.Flatten()
@@ -266,17 +251,6 @@ class ConvolutionalNet(TrainableNet):
         # print("dropout1", y.shape)
         y = self.leaky1(y)
         # print("leaky1", y.shape)
-
-        y = self.bn2(y)
-        # print("bn2", y.shape)
-        y = self.conv2(y)
-        # print("conv2", y.shape)
-        y = self.pool2(y)
-        # print("pool2", y.shape)
-        y = self.dropout2(y)
-        # print("dropout2", y.shape)
-        y = self.leaky2(y)
-        # print("leaky2", y.shape)
 
         y = self.flatten(y)
         # print("flatten", y.shape)
