@@ -213,8 +213,8 @@ class ConvolutionalNet(TrainableNet):
 
         self.num_channels = num_channels
         self.intermediate_channels = 128
-        self.linear_layer_size = 1280
-        self.kernel_size = 9
+        self.linear_layer_size = 1408
+        self.kernel_size = 6
         self.pooling_size = 4
         self.stride = 1
 
