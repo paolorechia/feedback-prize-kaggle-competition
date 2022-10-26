@@ -17,7 +17,7 @@ from splitter import (
     split_text_into_sliding_windows,
 )
 from utils import attributes, calculate_rmse_score_single
-from my_nets import LinearNet
+from my_nets import ConvolutionalNet, LinearNet
 
 
 def objective(trial=None, splitter_n=3):
@@ -146,8 +146,11 @@ def objective(trial=None, splitter_n=3):
             test_embeddings_matrix.reshape(len(test), -1)
             print("test_embeddings_matrix.shape", test_embeddings_matrix.shape)
 
-            net = LinearNet(
-                len(train_embeddings_matrix[0]), hidden_size=2048, dropout=0.0
+            # net = LinearNet(
+            #     len(train_embeddings_matrix[0]), hidden_size=2048, dropout=0.0
+            # )
+            net = ConvolutionalNet(
+                len(train_embeddings_matrix[0]), num_channels=2, dropout=0.0
             )
 
             net.train_with_eval(
@@ -156,7 +159,7 @@ def objective(trial=None, splitter_n=3):
                 X_eval=test_embeddings_matrix,
                 Y_eval=y_test,
                 batch_size=16,
-                epochs=500,
+                epochs=100,
                 lr=0.001,
             )
 
@@ -167,7 +170,7 @@ def objective(trial=None, splitter_n=3):
             if attribute not in best_scores:
                 best_scores[attribute] = score
             else:
-                best_scores[attribute] = min(score,  best_scores[attribute])
+                best_scores[attribute] = min(score, best_scores[attribute])
             sys.exit(1)
     print("Best scores")
     print(best_scores)

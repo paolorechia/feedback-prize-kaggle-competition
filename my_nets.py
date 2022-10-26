@@ -188,13 +188,85 @@ class LinearNet(TrainableNet):
         return y
 
 
+class ConvolutionalNet(TrainableNet):
+    def __init__(self, in_features, num_channels=2, dropout=0.2):
+        super(TrainableNet, self).__init__()
+
+        self.num_channels = num_channels
+        self.intermediate_channels = 32
+        self.pooling_size = 2
+        self.linear_layer_size = in_features * 8
+
+        # First convolutional layer
+        self.bn1 = torch.nn.BatchNorm1d(in_features)
+        self.conv1 = torch.nn.Conv1d(
+            in_channels=num_channels,
+            out_channels=32,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+        )
+        self.pool1 = torch.nn.MaxPool1d(self.pooling_size)
+        self.dropout1 = torch.nn.Dropout(dropout)
+        self.leaky1 = torch.nn.LeakyReLU()
+
+        # Second convolutional layer
+        self.bn2 = torch.nn.BatchNorm1d(self.intermediate_channels)
+        self.conv2 = torch.nn.Conv1d(
+            in_channels=self.intermediate_channels,
+            out_channels=self.intermediate_channels * 2,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+        )
+        self.pool2 = torch.nn.MaxPool1d(self.pooling_size)
+        self.dropout2 = torch.nn.Dropout(dropout)
+        self.leaky2 = torch.nn.LeakyReLU()
+
+        # Linear head
+        self.flatten = torch.nn.Flatten()
+        self.bn3 = torch.nn.BatchNorm1d(self.linear_layer_size)
+        self.ln = torch.nn.Linear(in_features=self.linear_layer_size, out_features=1)
+        self.leaky3 = torch.nn.LeakyReLU()
+
+    def forward(self, x):
+        # print("x", x.shape)
+        y = self.bn1(x)
+        # print("bn1", y.shape)
+        y = y.reshape((len(x), self.num_channels, -1))
+        # print("reshape", y.shape)
+        y = self.conv1(y)
+        # print("conv1", y.shape)
+        y = self.pool1(y)
+        # print("pool1", y.shape)
+        y = self.dropout1(y)
+        # print("dropout1", y.shape)
+        y = self.leaky1(y)
+        # print("leaky1", y.shape)
+
+        y = self.bn2(y)
+        # print("bn2", y.shape)
+        y = self.conv2(y)
+        # print("conv2", y.shape)
+        y = self.pool2(y)
+        # print("pool2", y.shape)
+        y = self.dropout2(y)
+        # print("dropout2", y.shape)
+        y = self.leaky2(y)
+        # print("leaky2", y.shape)
+
+        y = self.flatten(y)
+        # print("flatten", y.shape)
+        y = self.bn3(y)
+        # print("bn3", y.shape)
+        y = self.ln(y)
+        # print("ln", y.shape)
+        y = self.leaky3(y)
+        # print("leaky3", y.shape)
+        return y
+
+
 def test_linear_net():
-    net = LinearNet(5)
-    result = net.forward(torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0]))
-    print(result)
-
-
-if __name__ == "__main__":
     net = LinearNet(5)
 
     X = [
@@ -210,3 +282,26 @@ if __name__ == "__main__":
 
     pred = net.predict(X)
     print(pred)
+
+
+def test_conv_net():
+
+    X = [
+        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0] * 100,
+        [2.0, 2.0, 3.0, 4.0, 5.0, 6.0] * 100,
+        [3.0, 3.0, 3.0, 4.0, 5.0, 6.0] * 100,
+        [4.0, 4.0, 4.0, 4.0, 5.0, 6.0] * 100,
+        [5.0, 5.0, 5.0, 5.0, 5.0, 6.0] * 100,
+    ]
+    y = [1.0, 2.0, 3.0, 4.0, 5.0]
+    net = ConvolutionalNet(len(X[0]))
+
+    net.fit(X, y)
+
+    pred = net.predict(X)
+    print(pred)
+
+
+if __name__ == "__main__":
+    # test_linear_net()
+    test_conv_net()
