@@ -92,7 +92,7 @@ class TrainableNet(torch.nn.Module):
         iters_per_epoch = 1
         min_avg_loss = 100.0
         best_state = None
-
+        print_interval = epochs // 10
         for epoch in range(epochs):
             self.train()
             t0 = datetime.now()
@@ -123,7 +123,7 @@ class TrainableNet(torch.nn.Module):
             training_loss = running_loss / batch_size / iters_per_epoch
             # Average loss applies more weight to evaluation loss
             average_loss = (training_loss + eval_loss * 10) / 11
-            if epoch % 10 == 0:
+            if epoch % print_interval == 0:
                 print(
                     f"Epoch {epoch} loss {running_loss / batch_size / iters_per_epoch} (used time: {elapsed_time_in_seconds} seconds) || Evaluation loss {eval_loss} || Average loss {average_loss}"
                 )
