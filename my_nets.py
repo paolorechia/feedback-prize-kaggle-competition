@@ -122,10 +122,11 @@ class TrainableNet(torch.nn.Module):
             eval_loss = loss.item()
             training_loss = running_loss / batch_size / iters_per_epoch
             # Average loss applies more weight to evaluation loss
-            average_loss = (training_loss + eval_loss * 3) / 4
-            print(
-                f"Epoch {epoch} loss {running_loss / batch_size / iters_per_epoch} (used time: {elapsed_time_in_seconds} seconds) || Evaluation loss {eval_loss} || Average loss {average_loss}"
-            )
+            average_loss = (training_loss + eval_loss * 10) / 11
+            if epoch % 10 == 0:
+                print(
+                    f"Epoch {epoch} loss {running_loss / batch_size / iters_per_epoch} (used time: {elapsed_time_in_seconds} seconds) || Evaluation loss {eval_loss} || Average loss {average_loss}"
+                )
             if average_loss < min_avg_loss:
                 min_avg_loss = average_loss
 
@@ -189,13 +190,35 @@ class LinearNet(TrainableNet):
 
 
 class ConvolutionalNet(TrainableNet):
-    def __init__(self, in_features, num_channels=2, dropout=0.2):
+    def __init__(self, in_features, num_channels=16, dropout=0.2):
         super(TrainableNet, self).__init__()
 
         self.num_channels = num_channels
+
+        self.linear_layer_size = in_features
+        if self.num_channels == 2:
+            self.linear_layer_size *= 8
+        elif self.num_channels == 4:
+            self.linear_layer_size *= 4
+        elif self.num_channels == 8:
+            self.linear_layer_size *= 2
+        elif self.num_channels == 16:
+            self.linear_layer_size *= 1
+        elif self.num_channels == 32:
+            self.linear_layer_size = int(self.linear_layer_size / 2)
+        elif self.num_channels == 64:
+            self.linear_layer_size = int(self.linear_layer_size / 4)
+        elif self.num_channels == 128:
+            self.linear_layer_size = int(self.linear_layer_size / 8)
+        # elif self.num_channels == 256:
+        #     self.linear_layer_size = 64
+        # elif self.num_channels == 512:
+        #     self.linear_layer_size = 32
+        else:
+            raise Exception("Invalid number of channels")
+
         self.intermediate_channels = 32
         self.pooling_size = 2
-        self.linear_layer_size = in_features * 8
 
         # First convolutional layer
         self.bn1 = torch.nn.BatchNorm1d(in_features)

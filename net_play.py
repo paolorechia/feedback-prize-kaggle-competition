@@ -20,7 +20,7 @@ from utils import attributes, calculate_rmse_score_single
 from my_nets import ConvolutionalNet, LinearNet
 
 
-def objective(trial=None, splitter_n=3):
+def objective(trial=None, splitter_n=2):
     use_sliding_window = False
 
     block_size = 1152
@@ -150,7 +150,7 @@ def objective(trial=None, splitter_n=3):
             #     len(train_embeddings_matrix[0]), hidden_size=2048, dropout=0.0
             # )
             net = ConvolutionalNet(
-                len(train_embeddings_matrix[0]), num_channels=2, dropout=0.0
+                len(train_embeddings_matrix[0]), num_channels=128, dropout=0.5
             )
 
             net.train_with_eval(
@@ -158,7 +158,7 @@ def objective(trial=None, splitter_n=3):
                 Y=y_train,
                 X_eval=test_embeddings_matrix,
                 Y_eval=y_test,
-                batch_size=16,
+                batch_size=32,
                 epochs=100,
                 lr=0.001,
             )
@@ -171,7 +171,6 @@ def objective(trial=None, splitter_n=3):
                 best_scores[attribute] = score
             else:
                 best_scores[attribute] = min(score, best_scores[attribute])
-            sys.exit(1)
     print("Best scores")
     print(best_scores)
 
