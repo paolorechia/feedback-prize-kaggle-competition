@@ -17,7 +17,7 @@ from splitter import (
     split_text_into_sliding_windows,
 )
 from utils import attributes, calculate_rmse_score_single
-from linear_net import LinearNet
+from my_nets import LinearNet
 
 
 def objective(trial=None, splitter_n=3):
@@ -147,7 +147,7 @@ def objective(trial=None, splitter_n=3):
             print("test_embeddings_matrix.shape", test_embeddings_matrix.shape)
 
             net = LinearNet(
-                len(train_embeddings_matrix[0]), hidden_size=2048, dropout=0.1
+                len(train_embeddings_matrix[0]), hidden_size=2048, dropout=0.0
             )
 
             net.train_with_eval(
@@ -155,8 +155,8 @@ def objective(trial=None, splitter_n=3):
                 Y=y_train,
                 X_eval=test_embeddings_matrix,
                 Y_eval=y_test,
-                batch_size=8,
-                epochs=5000,
+                batch_size=16,
+                epochs=500,
                 lr=0.001,
             )
 
