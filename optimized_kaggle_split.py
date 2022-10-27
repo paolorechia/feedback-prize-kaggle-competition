@@ -21,11 +21,11 @@ from sklearn.linear_model import LassoCV
 from my_nets import LinearNet
 
 
-def objective(trial=None, splitter_n=2):
+def objective(trial=None, splitter_n=1):
     # Window parameters
     use_sliding_window = False
 
-    use_data_augmentation = True
+    use_data_augmentation = False
     augmentation_csvs = [
         "gpt_neo_full_2022-10-27-20-36-14.csv",
     ]
@@ -43,7 +43,7 @@ def objective(trial=None, splitter_n=2):
     #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
 
     test_size = 0.2
-    splits = 5
+    splits = 1
 
     def average_function(preds, weights):
         sum_ = 0.0

@@ -25,6 +25,15 @@ from splitter import (
 from utils import attributes, calculate_rmse_score_single
 
 
+import torch
+
+
+def loss_function(old_score, new_score):
+    t = torch.div(new_score, old_score)
+    t.requires_grad = True
+    return t
+
+
 def objective(trial=None, splitter_n=1):
     # Window parameters
     use_sliding_window = False
@@ -36,11 +45,16 @@ def objective(trial=None, splitter_n=1):
 
     test_size = 0.2
     splits = 1
+
+    # For now must be 1, because text generation might fail and lead to unaligned data
     generation_sample_size = 1
 
-    text_generator = GPTNeoGenerator()
-    target_generated_datapoints = 2
-    max_generation_attempts = 5
+    import random
+
+    text_generation_seed = random.randint(0, 100000)
+    text_generator = GPTNeoGenerator(seed=text_generation_seed)
+    target_generated_datapoints = 100
+    max_generation_attempts = 200
     generation_uuid = str(uuid4())
     minimum_improvement = 0.0001
 
@@ -206,7 +220,10 @@ def objective(trial=None, splitter_n=1):
                 # Data Augmentation (Naive) Online Flow
                 generated_datapoints = 0
                 attempts = 0
-                max_generation_attempts = 10
+                text_generator.generator.model.train()
+                optimizer = torch.optim.AdamW(
+                    text_generator.generator.model.parameters(), lr=1e-5
+                )
                 while (
                     generated_datapoints < target_generated_datapoints
                     and attempts < max_generation_attempts
@@ -218,7 +235,12 @@ def objective(trial=None, splitter_n=1):
 
                     print(generated_df)
                     augmented_df = pd.concat([train_df.copy(), generated_df])
-                    new_y = np.array(generated_df[attribute])
+                    try:
+                        new_y = np.array(generated_df[attribute])
+                    except KeyError:
+                        print("Failed to generate new data, retrying")
+                        continue
+
                     print(y_train.shape)
                     print(new_y.shape)
 
@@ -238,6 +260,12 @@ def objective(trial=None, splitter_n=1):
                     new_score = calculate_rmse_score_single(y_test, y_pred)
                     print(f"Score ({attribute}) post generation is {new_score}")
                     attempts += 1
+                    loss = loss_function(score, new_score)
+                    optimizer.zero_grad()
+                    print("Experimental Loss", loss)
+                    loss.backward()
+                    optimizer.step()
+
                     if new_score < (score - minimum_improvement):
                         score = new_score
                         print(
@@ -265,7 +293,7 @@ def objective(trial=None, splitter_n=1):
                                 )
                             )
                             f.write("\n")
-                        print("Score did not improve, discarding generated data")
+                    print("Score did not improve, discarding generated data")
 
                 if attribute not in best_scores:
                     best_scores[attribute] = score

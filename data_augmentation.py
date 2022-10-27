@@ -23,14 +23,16 @@ class GPTNeoGenerator(TextGenerator):
         device="cuda:0",
         do_sample=True,
         temperature=0.9,
+        seed=42,
     ):
-        from transformers import pipeline
+        from transformers import pipeline, set_seed
 
         self.generator = pipeline(
             "text-generation",
             model=model_path,
             device=device,
         )
+        set_seed(seed)
         self.do_sample = do_sample
         self.temperature = temperature
 
@@ -70,6 +72,33 @@ class T0Generator(TextGenerator):
             return_tensors="pt",
         )
         self.model.generate(inputs)
+
+
+class GPT2Generator(TextGenerator):
+    def __init__(self, seed=42) -> None:
+        from transformers import pipeline, set_seed
+
+        self.generator = pipeline("text-generation", model="gpt2")
+        set_seed(seed)
+
+    def generate(
+        self,
+        text: str,
+        max_length: int,
+        do_sample: bool = None,
+        temperature: float = None,
+    ) -> str:
+        if do_sample is None:
+            do_sample = self.do_sample
+        if temperature is None:
+            temperature = self.temperature
+
+        return self.generator(
+            text,
+            max_length=max_length,
+            do_sample=do_sample,
+            temperature=temperature,
+        )[0]["generated_text"]
 
 
 def get_low_quality_df():
@@ -181,7 +210,6 @@ if __name__ == "__main__":
         print("Getting low quality essays")
 
         reused_length = 512
-
 
         print("Generating new essays")
         output_df = generate_from_df(low_quality_df, generator, reused_length)
