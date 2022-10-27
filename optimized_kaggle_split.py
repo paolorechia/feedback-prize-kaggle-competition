@@ -21,9 +21,12 @@ from sklearn.linear_model import LassoCV
 from my_nets import LinearNet
 
 
-def objective(trial=None, splitter_n=3):
+def objective(trial=None, splitter_n=2):
     # Window parameters
     use_sliding_window = False
+
+    use_data_augmentation = True
+    augmentation_csv = "gpt_neo_full_2022-10-27-20-36-14.csv"
 
     # block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
     block_size = 1152
@@ -93,19 +96,29 @@ def objective(trial=None, splitter_n=3):
             minimum_chunk_length=minimum_chunk_length,
         )
 
+    strategy_name = (
+        f"splitter_window-{window_size}-{step_size}"
+        if use_sliding_window
+        else f"splitter-{splitter_n}"
+    )
+    if use_data_augmentation:
+        strategy_name += f"-augmentation-{augmentation_csv}"
     if use_sliding_window:
         splitting_strategy = SplittingStrategy(
-            splitter=splitter_window, name=f"splitter_window-{window_size}-{step_size}"
+            splitter=splitter_window, name=strategy_name
         )
     else:
-        splitting_strategy = SplittingStrategy(
-            splitter=splitter, name=f"splitter-{splitter_n}"
-        )
+        splitting_strategy = SplittingStrategy(splitter=splitter, name=strategy_name)
 
     sentence_csv_dir = "./sentence_csvs"
 
     # Load the model
     full_df = pd.read_csv("/data/feedback-prize/train.csv")
+
+    if use_data_augmentation:
+        augmentation = pd.read_csv(f"./generated_csvs/{augmentation_csv}")
+        full_df = pd.concat([full_df, augmentation], ignore_index=True)
+
     print("Original len(full_df)", len(full_df))
     print(full_df)
 

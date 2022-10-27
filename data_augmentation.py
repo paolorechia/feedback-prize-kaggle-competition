@@ -1,4 +1,6 @@
 from abc import abstractmethod
+import sys
+from uuid import uuid4
 from load_data import create_train_test_df
 from datetime import datetime
 from utils import attributes
@@ -86,11 +88,11 @@ def get_low_quality_df():
     low_quality = pd.concat(
         [
             low_cohesion,
-            low_syntax,
-            low_grammar,
-            low_conventions,
-            low_phraseology,
-            low_vocabulary,
+            # low_syntax,
+            # low_grammar,
+            # low_conventions,
+            # low_phraseology,
+            # low_vocabulary,
         ]
     )
     return low_quality
@@ -139,55 +141,69 @@ def generate_from_df(
         print("Generated Text", generated_text)
         generated_text = generated_text[(len(prompt_instruction) + len(text)) :]
         generated_text = re.sub(r"\s+", " ", generated_text)
-        generated_texts.append(generated_text)
 
-        output = output.append(
-            {
-                "full_text": generated_text,
-                "cohesion": row["cohesion"],
-                "syntax": row["syntax"],
-                "vocabulary": row["vocabulary"],
-                "grammar": row["grammar"],
-                "conventions": row["conventions"],
-                "phraseology": row["phraseology"],
-                "labels": row["labels"],
-                "source_text": text,
-            },
-            ignore_index=True,
-        )
+        if len(generated_text) > 0:
+            generated_texts.append(generated_text)
+
+            output = output.append(
+                {
+                    "text_id": str(uuid4()),
+                    "full_text": generated_text,
+                    "cohesion": row["cohesion"],
+                    "syntax": row["syntax"],
+                    "vocabulary": row["vocabulary"],
+                    "grammar": row["grammar"],
+                    "conventions": row["conventions"],
+                    "phraseology": row["phraseology"],
+                    "labels": row["labels"],
+                    "source_text": text,
+                },
+                ignore_index=True,
+            )
     return output
 
 
 if __name__ == "__main__":
-    print("Getting low quality essays")
+
+    if len(sys.argv) > 1:
+        generation_batches = sys.argv[1]
+    else:
+        generation_batches = 1
+
     low_quality_df = get_low_quality_df()
     add_labels_to_df(low_quality_df)
 
-    reused_length = 256
+    print("Using GPT-Neo with {} batches".format(generation_batches))
 
-    print("Initializing GPT-Neo generator")
-    generator = GPTNeoGenerator()
-    print("Generating new essays")
-    output_df = generate_from_df(low_quality_df, generator, reused_length)
-    output_df.to_csv(
-        "generated_csvs/gpt_neo_{}_{}.csv".format(
-            "full", datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        ),
-        index=False,
-    )
-    print("Done")
+    for i in range(generation_batches):
+        print(f"Starting batch {i}")
+        print("Getting low quality essays")
 
-    for idx, row in output_df.iterrows():
-        print(f"TEXT: {idx} ===========================================")
-        print(row["labels"])
+        reused_length = 512
 
-        print("ORIGINAL TEXT")
-        text = re.sub(r"\s+", " ", row["source_text"])
-        print(text[0:reused_length])
-        print("===========================================")
+        print("Initializing GPT-Neo generator")
+        generator = GPTNeoGenerator()
+        print("Generating new essays")
+        output_df = generate_from_df(low_quality_df, generator, reused_length)
+        output_df.to_csv(
+            "generated_csvs/gpt_neo_{}_{}.csv".format(
+                "full", datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            ),
+            index=False,
+        )
+        print("Done")
 
-        print("GENERATED TEXT")
-        print(row["full_text"])
-        print("===========================================")
-        print("===========================================")
-        print("===========================================")
+        for idx, row in output_df.iterrows():
+            print(f"TEXT: {idx} ===========================================")
+            print(row["labels"])
+
+            print("ORIGINAL TEXT")
+            text = re.sub(r"\s+", " ", row["source_text"])
+            print(text[0:reused_length])
+            print("===========================================")
+
+            print("GENERATED TEXT")
+            print(row["full_text"])
+            print("===========================================")
+            print("===========================================")
+            print("===========================================")
