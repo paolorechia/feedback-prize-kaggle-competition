@@ -31,17 +31,16 @@ from splitter import (
 )
 from utils import attributes, calculate_rmse_score_single
 
-
+from torch.nn.functional import normalize
 import torch
 
 
 def loss_function(net_outputs, old_score, new_score):
-
-    mean = torch.mean(net_outputs, dtype=torch.float32)
-    normal = torch.norm(mean)
+    net_outputs = torch.tensor(net_outputs, dtype=torch.float32)
+    mean = torch.mean(normalize(net_outputs), dtype=torch.float32)
     t = torch.div(new_score, old_score)
     t.requires_grad = True
-    return normal - t
+    return t - mean
 
 
 def objective(trial=None, splitter_n=1):
@@ -67,7 +66,7 @@ def objective(trial=None, splitter_n=1):
     target_generated_datapoints = 10000
     max_generation_attempts = 20000
     generation_uuid = str(uuid4())
-    minimum_improvement = 0.0000001
+    minimum_improvement = 0.00001
 
     def average_function(preds, weights):
         sum_ = 0.0
