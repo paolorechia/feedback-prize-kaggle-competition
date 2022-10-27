@@ -18,7 +18,7 @@ from splitter import (
 )
 from utils import attributes, calculate_rmse_score_single
 from sklearn.linear_model import LassoCV
-from linear_net import LinearNet
+from my_nets import LinearNet
 
 
 def objective(trial=None, splitter_n=3):
