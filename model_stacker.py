@@ -123,9 +123,9 @@ class ModelStack:
                 use_cache=use_cache,
                 cache_type=cache_type,
             )
-            print("embeddings_.shape", embeddings_.shape)
+            # print("embeddings_.shape", embeddings_.shape)
             embeddings.append(embeddings_)
 
         encoded = np.concatenate(embeddings, axis=1)
-        print(f"Encoded shape: {encoded.shape}")
+        # print(f"Encoded shape: {encoded.shape}")
         return encoded

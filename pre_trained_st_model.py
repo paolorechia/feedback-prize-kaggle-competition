@@ -136,7 +136,7 @@ class MultiHeadSentenceTransformerModel:
         )
 
     def fit(self, attribute, X_train, y_train):
-        print(f"Fitting {self.head_model.__class__.__name__} on {attribute} ...")
+        # print(f"Fitting {self.head_model.__class__.__name__} on {attribute} ...")
         self.heads[attribute] = self.head_model(
             *self.head_model_args, **self.head_model_kwargs
         )

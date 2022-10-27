@@ -164,7 +164,7 @@ def generate_from_df(
     output = pd.DataFrame()
 
     net_outputs = []
-    for _, row in tqdm(iterable=input_df.iterrows(), total=len(input_df)):
+    for _, row in input_df.iterrows():
         full_text = row["full_text"]
         # Remove all repeated whitespaces
         text = re.sub(r"\s+", " ", full_text)[:reused_length]
@@ -174,11 +174,11 @@ def generate_from_df(
         generated_texts = []
 
         max_length = len(text) * 2
-        print(len(text), max_length)
-        print(prompt)
+        # print(len(text), max_length)
+        # print(prompt)
         generated_text, net_output = text_generator.generate(prompt, max_length)
         net_outputs.append(net_output)
-        print("Generated Text", generated_text)
+        # print("Generated Text", generated_text)
         generated_text = generated_text[(len(prompt_instruction) + len(text)) :]
         generated_text = re.sub(r"\s+", " ", generated_text)
 

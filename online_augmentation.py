@@ -3,6 +3,8 @@ import logging
 import sys
 from random import random
 from uuid import uuid4
+from warnings import warn
+import warnings
 
 import numpy as np
 import optuna
@@ -34,11 +36,12 @@ import torch
 
 
 def loss_function(net_outputs, old_score, new_score):
-    print(net_outputs.shape)
+
     mean = torch.mean(net_outputs, dtype=torch.float32)
+    normal = torch.norm(mean)
     t = torch.div(new_score, old_score)
     t.requires_grad = True
-    return torch.abs(mean - t)
+    return normal - t
 
 
 def objective(trial=None, splitter_n=1):
@@ -61,10 +64,10 @@ def objective(trial=None, splitter_n=1):
     # text_generation_seed = random.randint(0, 100000)
     # text_generator = GPTNeoGenerator(seed=text_generation_seed)
     text_generator = GPT2Generator()
-    target_generated_datapoints = 100
-    max_generation_attempts = 200
+    target_generated_datapoints = 10000
+    max_generation_attempts = 20000
     generation_uuid = str(uuid4())
-    minimum_improvement = 0.0001
+    minimum_improvement = 0.0000001
 
     def average_function(preds, weights):
         sum_ = 0.0
@@ -189,6 +192,8 @@ def objective(trial=None, splitter_n=1):
     best_scores = {}
     X = full_df["full_text"]
 
+    # ignore warnings
+    warnings.filterwarnings("ignore")
     with open(f"generated_texts_{generation_uuid}.txt", "w") as f:
         for attribute in attributes:
             y = np.array(full_df[attribute])
@@ -237,13 +242,13 @@ def objective(trial=None, splitter_n=1):
                     and attempts < max_generation_attempts
                 ):
                     random_sample = train_df.sample(n=generation_sample_size)
-                    print(random_sample)
+                    # print(random_sample)
                     add_labels_to_df(random_sample)
                     generated_df, net_outputs = generate_from_df(
                         random_sample, text_generator
                     )
 
-                    print(generated_df)
+                    # print(generated_df)
                     augmented_df = pd.concat([train_df.copy(), generated_df])
                     try:
                         new_y = np.array(generated_df[attribute])
@@ -251,16 +256,16 @@ def objective(trial=None, splitter_n=1):
                         print("Failed to generate new data, retrying")
                         continue
 
-                    print(y_train.shape)
-                    print(new_y.shape)
+                    # print(y_train.shape)
+                    # print(new_y.shape)
 
                     augmented_y = np.append(y_train, new_y)
 
                     generated_embeddings = multi_block.encode(
                         generated_df["full_text"].to_list()
                     )
-                    print(generated_embeddings.shape)
-                    print(train_embeddings.shape)
+                    # print(generated_embeddings.shape)
+                    # print(train_embeddings.shape)
                     augmented_X = np.vstack((train_embeddings, generated_embeddings))
 
                     multi_block.fit(0, attribute, augmented_X, augmented_y)
@@ -303,7 +308,7 @@ def objective(trial=None, splitter_n=1):
                                 )
                             )
                             f.write("\n")
-                    print("Score did not improve, discarding generated data")
+                    # print("Score did not improve, discarding generated data")
 
                 if attribute not in best_scores:
                     best_scores[attribute] = score
