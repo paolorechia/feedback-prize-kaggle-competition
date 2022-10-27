@@ -166,7 +166,7 @@ def generate_from_df(
 if __name__ == "__main__":
 
     if len(sys.argv) > 1:
-        generation_batches = sys.argv[1]
+        generation_batches = int(sys.argv[1])
     else:
         generation_batches = 1
 
@@ -174,15 +174,15 @@ if __name__ == "__main__":
     add_labels_to_df(low_quality_df)
 
     print("Using GPT-Neo with {} batches".format(generation_batches))
-
+    print("Initializing GPT-Neo generator")
+    generator = GPTNeoGenerator()
     for i in range(generation_batches):
         print(f"Starting batch {i}")
         print("Getting low quality essays")
 
         reused_length = 512
 
-        print("Initializing GPT-Neo generator")
-        generator = GPTNeoGenerator()
+
         print("Generating new essays")
         output_df = generate_from_df(low_quality_df, generator, reused_length)
         output_df.to_csv(

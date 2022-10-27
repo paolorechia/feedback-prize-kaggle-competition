@@ -26,7 +26,9 @@ def objective(trial=None, splitter_n=2):
     use_sliding_window = False
 
     use_data_augmentation = True
-    augmentation_csv = "gpt_neo_full_2022-10-27-20-36-14.csv"
+    augmentation_csvs = [
+        "gpt_neo_full_2022-10-27-20-36-14.csv",
+    ]
 
     # block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
     block_size = 1152
@@ -41,7 +43,7 @@ def objective(trial=None, splitter_n=2):
     #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
 
     test_size = 0.2
-    splits = 1
+    splits = 5
 
     def average_function(preds, weights):
         sum_ = 0.0
@@ -102,7 +104,9 @@ def objective(trial=None, splitter_n=2):
         else f"splitter-{splitter_n}"
     )
     if use_data_augmentation:
-        strategy_name += f"-augmentation-{augmentation_csv}"
+        strategy_name += (
+            f"-augmentation-{augmentation_csvs[0]}-2-{len(augmentation_csvs)}"
+        )
     if use_sliding_window:
         splitting_strategy = SplittingStrategy(
             splitter=splitter_window, name=strategy_name
@@ -114,12 +118,14 @@ def objective(trial=None, splitter_n=2):
 
     # Load the model
     full_df = pd.read_csv("/data/feedback-prize/train.csv")
+    print("Original len(full_df)", len(full_df))
 
     if use_data_augmentation:
-        augmentation = pd.read_csv(f"./generated_csvs/{augmentation_csv}")
-        full_df = pd.concat([full_df, augmentation], ignore_index=True)
+        for csv in augmentation_csvs:
+            path = f"./generated_csvs/{csv}"
+            full_df = pd.concat([full_df, pd.read_csv(path)], ignore_index=True)
+        print("Augmented len(full_df)", len(full_df))
 
-    print("Original len(full_df)", len(full_df))
     print(full_df)
 
     model_info = ModelCatalog.DebertaV3
@@ -128,6 +134,7 @@ def objective(trial=None, splitter_n=2):
         model=ModelStack(
             [
                 model_info,
+                # ModelCatalog.T5V1Large,
             ],
         ),
         number_blocks=splitter_n,
