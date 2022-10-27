@@ -75,30 +75,39 @@ class T0Generator(TextGenerator):
 
 
 class GPT2Generator(TextGenerator):
-    def __init__(self, seed=42) -> None:
-        from transformers import pipeline, set_seed
+    def __init__(self) -> None:
+        from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
-        self.generator = pipeline("text-generation", model="gpt2")
-        set_seed(seed)
+        self.tokenizer = GPT2Tokenizer.from_pretrained(
+            "gpt2",
+        )
+        self.model = GPT2LMHeadModel.from_pretrained(
+            "gpt2",
+        ).cuda()
+        self.model.resize_token_embeddings(len(self.tokenizer))
 
     def generate(
         self,
         text: str,
         max_length: int,
-        do_sample: bool = None,
-        temperature: float = None,
+        do_sample=True,
+        temperature=0.9,
     ) -> str:
         if do_sample is None:
             do_sample = self.do_sample
         if temperature is None:
             temperature = self.temperature
 
-        return self.generator(
-            text,
+        input_ids = self.tokenizer.encode(text, return_tensors="pt").cuda()
+        outputs = self.model.generate(
+            input_ids,
             max_length=max_length,
             do_sample=do_sample,
             temperature=temperature,
-        )[0]["generated_text"]
+        )
+        # print(outputs)
+        generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return generated_text, outputs
 
 
 def get_low_quality_df():
@@ -154,6 +163,7 @@ def generate_from_df(
 
     output = pd.DataFrame()
 
+    net_outputs = []
     for _, row in tqdm(iterable=input_df.iterrows(), total=len(input_df)):
         full_text = row["full_text"]
         # Remove all repeated whitespaces
@@ -166,7 +176,8 @@ def generate_from_df(
         max_length = len(text) * 2
         print(len(text), max_length)
         print(prompt)
-        generated_text = text_generator.generate(prompt, max_length)
+        generated_text, net_output = text_generator.generate(prompt, max_length)
+        net_outputs.append(net_output)
         print("Generated Text", generated_text)
         generated_text = generated_text[(len(prompt_instruction) + len(text)) :]
         generated_text = re.sub(r"\s+", " ", generated_text)
@@ -189,7 +200,7 @@ def generate_from_df(
                 },
                 ignore_index=True,
             )
-    return output
+    return output, net_outputs
 
 
 if __name__ == "__main__":

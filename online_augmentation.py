@@ -10,7 +10,12 @@ import pandas as pd
 from sklearn.linear_model import LassoCV
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from data_augmentation import GPTNeoGenerator, generate_from_df, add_labels_to_df
+from data_augmentation import (
+    GPT2Generator,
+    GPTNeoGenerator,
+    generate_from_df,
+    add_labels_to_df,
+)
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 from my_nets import LinearNet
@@ -28,10 +33,12 @@ from utils import attributes, calculate_rmse_score_single
 import torch
 
 
-def loss_function(old_score, new_score):
+def loss_function(net_outputs, old_score, new_score):
+    print(net_outputs.shape)
+    mean = torch.mean(net_outputs, dtype=torch.float32)
     t = torch.div(new_score, old_score)
     t.requires_grad = True
-    return t
+    return torch.abs(mean - t)
 
 
 def objective(trial=None, splitter_n=1):
@@ -51,8 +58,9 @@ def objective(trial=None, splitter_n=1):
 
     import random
 
-    text_generation_seed = random.randint(0, 100000)
-    text_generator = GPTNeoGenerator(seed=text_generation_seed)
+    # text_generation_seed = random.randint(0, 100000)
+    # text_generator = GPTNeoGenerator(seed=text_generation_seed)
+    text_generator = GPT2Generator()
     target_generated_datapoints = 100
     max_generation_attempts = 200
     generation_uuid = str(uuid4())
@@ -220,9 +228,9 @@ def objective(trial=None, splitter_n=1):
                 # Data Augmentation (Naive) Online Flow
                 generated_datapoints = 0
                 attempts = 0
-                text_generator.generator.model.train()
+                text_generator.model.train()
                 optimizer = torch.optim.AdamW(
-                    text_generator.generator.model.parameters(), lr=1e-5
+                    text_generator.model.parameters(), lr=1e-5
                 )
                 while (
                     generated_datapoints < target_generated_datapoints
@@ -231,7 +239,9 @@ def objective(trial=None, splitter_n=1):
                     random_sample = train_df.sample(n=generation_sample_size)
                     print(random_sample)
                     add_labels_to_df(random_sample)
-                    generated_df = generate_from_df(random_sample, text_generator)
+                    generated_df, net_outputs = generate_from_df(
+                        random_sample, text_generator
+                    )
 
                     print(generated_df)
                     augmented_df = pd.concat([train_df.copy(), generated_df])
@@ -260,7 +270,7 @@ def objective(trial=None, splitter_n=1):
                     new_score = calculate_rmse_score_single(y_test, y_pred)
                     print(f"Score ({attribute}) post generation is {new_score}")
                     attempts += 1
-                    loss = loss_function(score, new_score)
+                    loss = loss_function(net_outputs[0], score, new_score)
                     optimizer.zero_grad()
                     print("Experimental Loss", loss)
                     loss.backward()
