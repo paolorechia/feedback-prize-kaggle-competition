@@ -278,9 +278,9 @@ class MultiBlockMultiHeadSentenceTransformerModel(MultiHeadSentenceTransformerMo
             self.blocks.append(heads)
 
     def fit(self, block_number, attribute, X_train, y_train):
-        print(
-            f"Fitting {self.head_model} on block {block_number} for label {attribute} ..."
-        )
+        # print(
+        #     f"Fitting {self.head_model} on block {block_number} for label {attribute} ..."
+        # )
         self.blocks[block_number][attribute] = self.head_model(
             *self.head_model_args, **self.head_model_kwargs
         )
@@ -297,5 +297,5 @@ class MultiBlockRidgeCV(MultiBlockMultiHeadSentenceTransformerModel):
         number_blocks,
         labels,
     ) -> None:
-        print(model, number_blocks, labels)
+        # print(model, number_blocks, labels)
         super().__init__(model, number_blocks, labels=labels, head_model=RidgeCV)

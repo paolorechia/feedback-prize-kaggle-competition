@@ -30,12 +30,10 @@ from splitter import (
     split_text_into_n_parts,
     split_text_into_sliding_windows,
 )
-from utils import attributes, calculate_rmse_score_single
+from utils import attributes, calculate_rmse_score_single, possible_labels
 
 from torch.nn.functional import normalize
 import torch
-
-possible_labels = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
 
 def loss_function(net_outputs, old_score, new_score):
