@@ -21,7 +21,56 @@ from sklearn.linear_model import LassoCV
 from my_nets import LinearNet
 
 
-def objective(trial=None, splitter_n=1):
+def fit_multi_block(
+    multi_block, attribute, train_df, train, y_train, averager_regressor=None
+):
+    for i in range(multi_block.number_blocks):
+        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
+        multi_block.fit(i, attribute, embeddings, y_train)
+
+    train_preds = []
+    for i in range(multi_block.number_blocks):
+        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
+        train_preds.append(multi_block.predict(i, attribute, embeddings))
+
+    if averager_regressor is not None:
+        train_preds = np.array(train_preds).transpose()
+        averager_regressor.fit(train_preds, y_train)
+    return train_preds
+
+
+def predict_multi_block(multi_block, attribute, test_df, test):
+    y_pred = []
+    for i in range(multi_block.number_blocks):
+        embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(len(test), -1)
+        y_pred.append(multi_block.predict(i, attribute, embeddings))
+    return y_pred
+
+
+def score_multi_block(
+    multi_block,
+    attribute,
+    test_df,
+    test,
+    y_test,
+    y_pred,
+    averager_regressor=None,
+    average_function=np.mean,
+    weights=None,
+):
+    if averager_regressor is not None:
+        y_pred = np.array(y_pred).transpose()
+        y_pred = averager_regressor.predict(y_pred)
+    else:
+        if weights is None:
+            y_pred = average_function(y_pred, axis=0)
+        y_pred = average_function(y_pred, weights)
+
+    score = calculate_rmse_score_single(y_test, y_pred)
+    return score
+
+
+def objective(trial=None, splitter_n=2):
     # Window parameters
     use_sliding_window = False
 
@@ -166,18 +215,7 @@ def objective(trial=None, splitter_n=1):
     else:
         assert multi_block.number_blocks == max(full_df["number_blocks"])
 
-    # if trial is not None:
-    #     weights = []
-    #     for i in range(1, multi_block.number_blocks + 1):
-    #         weights.append(trial.suggest_uniform(f"weight_{i}", 0.0, 1.0))
-
-    #     weighting_strategy = WeightingStrategy.custom(*weights)
-    #     weights = weighting_strategy(multi_block.number_blocks)
-    # else:
-
-    # weighting_strategy = WeightingStrategy.linear_net
-    weighting_strategy = WeightingStrategy.lasso_cv
-    # weighting_strategy = WeightingStrategy.linear
+    weighting_strategy = WeightingStrategy.uniform
     weights = weighting_strategy(multi_block.number_blocks)
 
     print("Weights >>>>", weights)
@@ -209,46 +247,23 @@ def objective(trial=None, splitter_n=1):
             test_df = full_df.filter(items=test, axis=0)
             y_test = np.array(test_df[attribute])
 
-            for i in range(multi_block.number_blocks):
-                embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(
-                    len(train), -1
-                )
-                multi_block.fit(i, attribute, embeddings, y_train)
+            fit_multi_block(
+                multi_block, attribute, train_df, train, y_train, averager_regressor
+            )
 
-            train_preds = []
-            for i in range(multi_block.number_blocks):
-                embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(
-                    len(train), -1
-                )
-                train_preds.append(multi_block.predict(i, attribute, embeddings))
+            y_pred = predict_multi_block(multi_block, attribute, test_df, test)
 
-            # print(len(train_preds), len(train_preds[0]))
-            # print(train_preds[0:3])
-            if averager_regressor is not None:
-                train_preds = np.array(train_preds).transpose()
-                # print(train_preds.shape)
-                averager_regressor.fit(train_preds, y_train)
-
-            # Predict
-            y_pred = []
-            for i in range(multi_block.number_blocks):
-                embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(
-                    len(test), -1
-                )
-                y_pred.append(multi_block.predict(i, attribute, embeddings))
-
-            # print(len(y_pred), len(y_pred[0]))
-            # print(y_pred[0:5])
-            if averager_regressor is not None:
-                y_pred = np.array(y_pred).transpose()
-                # print(train_preds.shape)
-                y_pred = averager_regressor.predict(y_pred)
-            else:
-                y_pred = average_function(y_pred, weights)
-                # print(len(y_pred))
-                # print(y_pred[0:5])
-
-            score = calculate_rmse_score_single(y_test, y_pred)
+            score = score_multi_block(
+                multi_block,
+                attribute,
+                test_df,
+                test,
+                y_test,
+                y_pred,
+                averager_regressor,
+                average_function,
+                weights,
+            )
             print(f"Score for {attribute} is {score}")
 
             if attribute not in best_scores:
