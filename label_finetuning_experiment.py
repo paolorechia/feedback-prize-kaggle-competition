@@ -290,6 +290,14 @@ def objective(trial=None, splitter_n=2):
                 best_combination = None
                 print(f"Current score for {attribute} is {original_score}")
                 # print("Attempting to fine tune labels...")
+
+                # TODO: test fixing this definition
+                # Valid combinations should be generated from the average instead of the sum
+                # Amazingly, it does work quite well as it is now (with the sum)
+                # It seems like aiming for a sum leads to feature selection, e.g., quite often a block
+                # is assigned label 0.0
+
+                # TODO: generalize this to any number of blocks
                 combinations_to_try = [
                     combination
                     for combination in existing_combinations
@@ -334,7 +342,7 @@ def objective(trial=None, splitter_n=2):
             for i in range(multi_block.number_blocks):
                 fine_tuned_labels[f"{attribute}_{i}"] = y_trains[i]
             fine_tuned_labels.to_csv(
-                f"fine_tuned_labels_experiment_{strategy_name}.csv"
+                f"fine_tuned_labels_experiment_{attribute}_{strategy_name}.csv"
             )
 
             if attribute not in best_scores:
