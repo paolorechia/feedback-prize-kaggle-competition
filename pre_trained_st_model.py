@@ -9,8 +9,7 @@ from utils import (
     calculate_rmse_score_single,
     attributes,
 )
-
-
+import numpy as np
 from model_stacker import ModelStack
 
 
@@ -299,3 +298,48 @@ class MultiBlockRidgeCV(MultiBlockMultiHeadSentenceTransformerModel):
     ) -> None:
         # print(model, number_blocks, labels)
         super().__init__(model, number_blocks, labels=labels, head_model=RidgeCV)
+
+
+def fit_multi_block(
+    multi_block, attribute, train_df, train, y_train, y_trains, averager_regressor=None
+):
+    for i in range(multi_block.number_blocks):
+        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
+        multi_block.fit(i, attribute, embeddings, y_trains[i])
+
+    train_preds = []
+    for i in range(multi_block.number_blocks):
+        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
+        train_preds.append(multi_block.predict(i, attribute, embeddings))
+
+    if averager_regressor is not None:
+        train_preds = np.array(train_preds).transpose()
+        averager_regressor.fit(train_preds, y_train)
+    return train_preds
+
+
+def predict_multi_block(multi_block, attribute, test_df, test):
+    y_pred = []
+    for i in range(multi_block.number_blocks):
+        embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(len(test), -1)
+        y_pred.append(multi_block.predict(i, attribute, embeddings))
+    return y_pred
+
+
+def score_multi_block(
+    y_test,
+    y_pred,
+    averager_regressor=None,
+    average_function=np.mean,
+    weights=None,
+):
+    if averager_regressor is not None:
+        y_pred = np.array(y_pred).transpose()
+        y_pred = averager_regressor.predict(y_pred)
+    else:
+        if weights is None:
+            y_pred = average_function(y_pred, axis=0)
+        y_pred = average_function(y_pred, weights)
+
+    score = calculate_rmse_score_single(y_test, y_pred)
+    return score
