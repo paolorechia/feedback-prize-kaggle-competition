@@ -1,7 +1,7 @@
 from datetime import datetime
 from data_augmentation import GPTNeoGenerator, T0Generator, GPT2Generator
 
-generator = GPT2Generator()
+generator = T0Generator()
 while True:
     prompt = input("Prompt: ")
     start = datetime.now()

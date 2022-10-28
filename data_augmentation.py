@@ -1,13 +1,22 @@
-from abc import abstractmethod
-import sys
-from uuid import uuid4
-from load_data import create_train_test_df
-from datetime import datetime
-from utils import attributes
-import pandas as pd
 import re
+import sys
+from abc import abstractmethod
+from datetime import datetime
+from uuid import uuid4
 
+import pandas as pd
 from tqdm import tqdm
+from transformers import (
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    GPT2LMHeadModel,
+    GPT2Tokenizer,
+    pipeline,
+    set_seed,
+)
+
+from load_data import create_train_test_df
+from utils import attributes
 
 
 class TextGenerator:
@@ -23,16 +32,12 @@ class GPTNeoGenerator(TextGenerator):
         device="cuda:0",
         do_sample=True,
         temperature=0.9,
-        seed=42,
     ):
-        from transformers import pipeline, set_seed
-
         self.generator = pipeline(
             "text-generation",
             model=model_path,
             device=device,
         )
-        set_seed(seed)
         self.do_sample = do_sample
         self.temperature = temperature
 
@@ -48,18 +53,19 @@ class GPTNeoGenerator(TextGenerator):
         if temperature is None:
             temperature = self.temperature
 
-        return self.generator(
-            text,
-            max_length=max_length,
-            do_sample=do_sample,
-            temperature=temperature,
-        )[0]["generated_text"]
+        return (
+            self.generator(
+                text,
+                max_length=max_length,
+                do_sample=do_sample,
+                temperature=temperature,
+            )[0]["generated_text"],
+            None,
+        )
 
 
 class T0Generator(TextGenerator):
     def __init__(self) -> None:
-        from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-
         tokenizer = AutoTokenizer.from_pretrained("bigscience/T0_3B")
         model = AutoModelForSeq2SeqLM.from_pretrained("bigscience/T0_3B")
 
@@ -71,13 +77,11 @@ class T0Generator(TextGenerator):
             text,
             return_tensors="pt",
         )
-        self.model.generate(inputs)
+        return self.model.generate(inputs), None
 
 
 class GPT2Generator(TextGenerator):
     def __init__(self) -> None:
-        from transformers import GPT2LMHeadModel, GPT2Tokenizer
-
         self.tokenizer = GPT2Tokenizer.from_pretrained(
             "gpt2",
         )
@@ -208,7 +212,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         generation_batches = int(sys.argv[1])
     else:
-        generation_batches = 1
+        generation_batches = 100
 
     low_quality_df = get_low_quality_df()
     add_labels_to_df(low_quality_df)
@@ -220,12 +224,12 @@ if __name__ == "__main__":
         print(f"Starting batch {i}")
         print("Getting low quality essays")
 
-        reused_length = 512
+        reused_length = 1024
 
         print("Generating new essays")
-        output_df = generate_from_df(low_quality_df, generator, reused_length)
+        output_df, _ = generate_from_df(low_quality_df, generator, reused_length)
         output_df.to_csv(
-            "generated_csvs/gpt_neo_{}_{}.csv".format(
+            "generated_csvs/gpt_neo_low_quality_{}_{}.csv".format(
                 "full", datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             ),
             index=False,

@@ -1,7 +1,7 @@
 import json
 import logging
 import sys
-from random import random
+from random import randint, random
 from uuid import uuid4
 from warnings import warn
 import warnings
@@ -17,6 +17,7 @@ from data_augmentation import (
     GPTNeoGenerator,
     generate_from_df,
     add_labels_to_df,
+    set_seed,
 )
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
@@ -33,6 +34,8 @@ from utils import attributes, calculate_rmse_score_single
 
 from torch.nn.functional import normalize
 import torch
+
+possible_labels = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
 
 def loss_function(net_outputs, old_score, new_score):
@@ -58,15 +61,16 @@ def objective(trial=None, splitter_n=1):
     # For now must be 1, because text generation might fail and lead to unaligned data
     generation_sample_size = 1
 
-    import random
+    text_generator = GPTNeoGenerator()
+    # text_generator = GPT2Generator()
+    reused_length = 1024
 
-    # text_generation_seed = random.randint(0, 100000)
-    # text_generator = GPTNeoGenerator(seed=text_generation_seed)
-    text_generator = GPT2Generator()
-    target_generated_datapoints = 10000
-    max_generation_attempts = 20000
+    target_generated_datapoints = 1000
+    max_generation_attempts = 2000
+    max_ineffective_attempts = 10
+
     generation_uuid = str(uuid4())
-    minimum_improvement = 0.00001
+    minimum_improvement = 0.00000000001
 
     def average_function(preds, weights):
         sum_ = 0.0
@@ -232,22 +236,26 @@ def objective(trial=None, splitter_n=1):
                 # Data Augmentation (Naive) Online Flow
                 generated_datapoints = 0
                 attempts = 0
-                text_generator.model.train()
-                optimizer = torch.optim.AdamW(
-                    text_generator.model.parameters(), lr=1e-5
-                )
+                ineffective_attempts = 0
+                # text_generator.model.train()
+                # optimizer = torch.optim.AdamW(
+                #     text_generator.model.parameters(), lr=1e-5
+                # )
+
+                original_score = score
+                last_score = score
                 while (
                     generated_datapoints < target_generated_datapoints
                     and attempts < max_generation_attempts
                 ):
                     random_sample = train_df.sample(n=generation_sample_size)
+                    print("Random sample", random_sample.full_textx)
                     # print(random_sample)
                     add_labels_to_df(random_sample)
                     generated_df, net_outputs = generate_from_df(
-                        random_sample, text_generator
+                        random_sample, text_generator, reused_length
                     )
-
-                    # print(generated_df)
+                    print("Generated", generated_df.full_text)
                     augmented_df = pd.concat([train_df.copy(), generated_df])
                     try:
                         new_y = np.array(generated_df[attribute])
@@ -257,9 +265,6 @@ def objective(trial=None, splitter_n=1):
 
                     # print(y_train.shape)
                     # print(new_y.shape)
-
-                    augmented_y = np.append(y_train, new_y)
-
                     generated_embeddings = multi_block.encode(
                         generated_df["full_text"].to_list()
                     )
@@ -267,24 +272,44 @@ def objective(trial=None, splitter_n=1):
                     # print(train_embeddings.shape)
                     augmented_X = np.vstack((train_embeddings, generated_embeddings))
 
-                    multi_block.fit(0, attribute, augmented_X, augmented_y)
+                    # Try all scores on generated data
+                    best_label = None
+                    best_label_score = 100.0
+                    for idx, new_y in enumerate(possible_labels):
+                        augmented_y = np.append(y_train, new_y)
+                        multi_block.fit(0, attribute, augmented_X, augmented_y)
+                        y_pred = multi_block.predict(0, attribute, test_embeddings)
+                        new_score = calculate_rmse_score_single(y_test, y_pred)
+                        print("Score for label", new_y, "is", new_score)
+                        if new_score < best_label_score:
+                            best_label_score = new_score
+                            best_label = new_y
 
-                    y_pred = multi_block.predict(0, attribute, test_embeddings)
+                    print("Best label", best_label)
+                    new_score = best_label_score
 
-                    new_score = calculate_rmse_score_single(y_test, y_pred)
                     print(f"Score ({attribute}) post generation is {new_score}")
-                    attempts += 1
-                    loss = loss_function(net_outputs[0], score, new_score)
-                    optimizer.zero_grad()
-                    print("Experimental Loss", loss)
-                    loss.backward()
-                    optimizer.step()
 
+                    attempts += 1
+
+                    # loss = loss_function(net_outputs[0], score, new_score)
+                    # optimizer.zero_grad()
+                    # print("Experimental Loss", loss)
+                    # loss.backward()
+                    # optimizer.step()
+
+                    if new_score == last_score:
+                        ineffective_attempts += 1
+                        print("Oh no, we're stuck. Not improving at all.")
+                        if ineffective_attempts >= max_ineffective_attempts:
+                            print("Let's stop")
+                            print("Generated datapoints", generated_datapoints)
+                            print("Improvement", original_score - last_score)
+                        # break
+                    last_score = new_score
                     if new_score < (score - minimum_improvement):
                         score = new_score
-                        print(
-                            "Score improved in a significant way, accepting generated data"
-                        )
+                        print("Score improved")
                         train_df = augmented_df
                         y_train = augmented_y
                         train_embeddings = augmented_X
@@ -296,12 +321,7 @@ def objective(trial=None, splitter_n=1):
                                 json.dumps(
                                     {
                                         "full_text": row["full_text"],
-                                        "cohesion": row["cohesion"],
-                                        "syntax:": row["syntax"],
-                                        "grammar": row["grammar"],
-                                        "conventions": row["conventions"],
-                                        "phraseology": row["phraseology"],
-                                        "vocabulary": row["vocabulary"],
+                                        attribute: best_label,
                                         "augmentation_used_on_attribute": attribute,
                                     },
                                 )
@@ -310,9 +330,9 @@ def objective(trial=None, splitter_n=1):
                     # print("Score did not improve, discarding generated data")
 
                 if attribute not in best_scores:
-                    best_scores[attribute] = score
+                    best_scores[attribute] = new_score
                 else:
-                    best_scores[attribute] = min(score, best_scores[attribute])
+                    best_scores[attribute] = min(new_score, best_scores[attribute])
 
     print("Best scores")
     print(best_scores)
