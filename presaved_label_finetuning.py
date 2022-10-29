@@ -31,7 +31,7 @@ from my_nets import LinearNet
 def objective(trial=None, splitter_n=2):
     # Window parameters
     use_sliding_window = False
-
+    use_label_fine_tuning = True
     use_data_augmentation = False
     augmentation_csvs = [
         "gpt_neo_full_2022-10-27-20-36-14.csv",
@@ -50,7 +50,7 @@ def objective(trial=None, splitter_n=2):
     #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
 
     test_size = 0.2
-    splits = 1
+    splits = 5
 
     def splitter(text):
         return split_text_into_n_parts(text, splitter_n, minimum_chunk_length)
@@ -193,7 +193,7 @@ def objective(trial=None, splitter_n=2):
                 multi_block.number_blocks, -1
             )
             # print("y_trains", y_trains.shape)
-            if fine_tuned_labels:
+            if use_label_fine_tuning and fine_tuned_labels:
                 print("Found fine tuned labels for attribute", attribute)
                 number_of_fine_tuned_labels = 0
 
@@ -204,7 +204,7 @@ def objective(trial=None, splitter_n=2):
                         for i in range(multi_block.number_blocks):
                             y_trains[i][idx] = fine_tuned_labels[id][i]
 
-            print("Number of fine tuned labels", number_of_fine_tuned_labels)
+                print("Number of fine tuned labels", number_of_fine_tuned_labels)
 
             # print("y_trains", y_trains.shape)
 

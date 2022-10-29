@@ -9,7 +9,12 @@ from sklearn.model_selection import StratifiedShuffleSplit
 
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
-from pre_trained_st_model import MultiBlockRidgeCV
+from pre_trained_st_model import (
+    MultiBlockRidgeCV,
+    fit_multi_block,
+    predict_multi_block,
+    score_multi_block,
+)
 from seeds import KFOLD_RANDOM_STATE
 from splitter import (
     SplittingStrategy,
@@ -20,51 +25,7 @@ from splitter import (
 from utils import attributes, calculate_rmse_score_single, possible_labels
 from sklearn.linear_model import LassoCV
 from my_nets import LinearNet
-
-
-def fit_multi_block(
-    multi_block, attribute, train_df, train, y_train, y_trains, averager_regressor=None
-):
-    for i in range(multi_block.number_blocks):
-        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
-        multi_block.fit(i, attribute, embeddings, y_trains[i])
-
-    train_preds = []
-    for i in range(multi_block.number_blocks):
-        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
-        train_preds.append(multi_block.predict(i, attribute, embeddings))
-
-    if averager_regressor is not None:
-        train_preds = np.array(train_preds).transpose()
-        averager_regressor.fit(train_preds, y_train)
-    return train_preds
-
-
-def predict_multi_block(multi_block, attribute, test_df, test):
-    y_pred = []
-    for i in range(multi_block.number_blocks):
-        embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(len(test), -1)
-        y_pred.append(multi_block.predict(i, attribute, embeddings))
-    return y_pred
-
-
-def score_multi_block(
-    y_test,
-    y_pred,
-    averager_regressor=None,
-    average_function=np.mean,
-    weights=None,
-):
-    if averager_regressor is not None:
-        y_pred = np.array(y_pred).transpose()
-        y_pred = averager_regressor.predict(y_pred)
-    else:
-        if weights is None:
-            y_pred = average_function(y_pred, axis=0)
-        y_pred = average_function(y_pred, weights)
-
-    score = calculate_rmse_score_single(y_test, y_pred)
-    return score
+from weight_strategy import WeightingStrategy, average_function
 
 
 def objective(trial=None, splitter_n=2):
@@ -90,48 +51,6 @@ def objective(trial=None, splitter_n=2):
 
     test_size = 0.2
     splits = 1
-
-    def average_function(preds, weights):
-        sum_ = 0.0
-        denonimator = sum(weights)
-        for idx, p in enumerate(preds):
-            sum_ += weights[idx] * p
-        return sum_ / denonimator
-
-    class WeightingStrategy:
-        def linear(n):
-            return [i / n for i in range(n)]
-
-        def lasso_cv(*args, **kwargs):
-            return []
-
-        def diminishing(n):
-            return [1 / (i + 1) for i in range(n)]
-
-        def diminishing_2(n):
-            d = [1 / (i + 1) ** 2 for i in range(n)]
-            d[0] = 0.5
-            d[1] = 0.3
-            d[2] = 0.2
-            return d
-
-        def step_decrease(n):
-            return [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.01][:n]
-
-        def uniform(n):
-            return [1 / n for _ in range(n)]
-
-        def custom(*args):
-            def c(_):
-                l = []
-                for i in args:
-                    l.append(i)
-                return l
-
-            return c
-
-        def linear_net(*args):
-            return []
 
     def splitter(text):
         return split_text_into_n_parts(text, splitter_n, minimum_chunk_length)
@@ -265,8 +184,6 @@ def objective(trial=None, splitter_n=2):
             # print("Combinations to try ", existing_combinations)
             # print(len(train_df), y_train.shape)
             for idx, original_label in enumerate(y_train):
-                # if idx % 100 != 0:
-                #     continue
                 print("idx", idx)
                 fit_multi_block(
                     multi_block,
@@ -291,17 +208,11 @@ def objective(trial=None, splitter_n=2):
                 print(f"Current score for {attribute} is {original_score}")
                 # print("Attempting to fine tune labels...")
 
-                # TODO: test fixing this definition
-                # Valid combinations should be generated from the average instead of the sum
-                # Amazingly, it does work quite well as it is now (with the sum)
-                # It seems like aiming for a sum leads to feature selection, e.g., quite often a block
-                # is assigned label 0.0
-
                 # TODO: generalize this to any number of blocks
                 combinations_to_try = [
                     combination
                     for combination in existing_combinations
-                    if combination[0] + combination[1] == y_train[idx]
+                    if (combination[0] + combination[1]) / 2 == y_train[idx]
                 ]
                 best_score = 100.0
                 # print("Combinations to try ", combinations_to_try)

@@ -13,13 +13,12 @@ attributes = [
     "conventions",
 ]
 
-possible_labels = [0.0, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+possible_labels = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
 
 def fit_float_score_to_nearest_valid_point(float_score: float):
     """Fit float score to nearest valid point."""
-    valid_points = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
-    return min(valid_points, key=lambda x: abs(x - float_score))
+    return min(possible_labels, key=lambda x: abs(x - float_score))
 
 
 def round_border_score(float_score: float):
