@@ -141,8 +141,7 @@ def objective(trial=None, splitter_n=2):
     X = full_df["full_text"]
 
     for attribute in attributes:
-        if attribute != "cohesion":
-            continue
+        print("Attribute", attribute)
         y = np.array(full_df[attribute])
 
         skf = StratifiedShuffleSplit(
@@ -261,15 +260,15 @@ def objective(trial=None, splitter_n=2):
                 weights,
             )
             original_fold_scores[fold.fold_number] = fold_score
-            print(f"Fold {fold.fold_number} score: ", fold_score)
+            # print(f"Fold {fold.fold_number} score: ", fold_score)
         mean_original_score = np.mean(list(original_fold_scores.values()))
-        print("Mean original score", mean_original_score)
+        # print("Mean original score", mean_original_score)
 
         best_fold_scores = original_fold_scores.copy()
 
         for idx, row in full_df.iterrows():
             # Debug mode :)
-            if idx % 1000 != 0:
+            if idx % 15 != 0:
                 continue
             print(idx)
             text_id = row["text_id"]
@@ -294,7 +293,7 @@ def objective(trial=None, splitter_n=2):
                         average_function,
                         weights,
                     )
-                    print(f"Fold {fold.fold_number} score: {fold_score}")
+                    # print(f"Fold {fold.fold_number} score: {fold_score}")
                     scores += fold_score
                     folds_scores[fold.fold_number] = fold_score
                     fold.restore_labels()
@@ -303,8 +302,8 @@ def objective(trial=None, splitter_n=2):
                 previous_mean_folds_score = sum(
                     [best_fold_scores[f] for f in used_folds]
                 ) / len(used_folds)
-                print("Mean score for combination: ", mean_score)
-                print("Previous folds mean score: ", previous_mean_folds_score)
+                # print("Mean score for combination: ", mean_score)
+                # print("Previous folds mean score: ", previous_mean_folds_score)
                 if mean_score < previous_mean_folds_score:
                     print(
                         "Found better combination (than {})".format(
@@ -322,7 +321,6 @@ def objective(trial=None, splitter_n=2):
                         fold.replace_label(text_id, list(combo))
                         fold.save_labels()
                         fold.restore_labels()
-
 
         for i in range(multi_block.number_blocks):
             fine_tuned_labels_df[f"{attribute}_{i}"] = y_fulls[i]

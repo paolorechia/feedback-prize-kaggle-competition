@@ -31,7 +31,7 @@ from my_nets import LinearNet
 def objective(trial=None, splitter_n=2):
     # Window parameters
     use_sliding_window = False
-    use_label_fine_tuning = True
+    use_label_fine_tuning = False
     use_data_augmentation = False
     augmentation_csvs = [
         "gpt_neo_full_2022-10-27-20-36-14.csv",
