@@ -2,19 +2,16 @@ import logging
 import sys
 
 from itertools import product
-from xml.etree.ElementTree import QName
 import numpy as np
 import optuna
 import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
 
+from copy import deepcopy
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 from pre_trained_st_model import (
     MultiBlockRidgeCV,
-    fit_multi_block,
-    predict_multi_block,
-    score_multi_block,
 )
 from seeds import KFOLD_RANDOM_STATE
 from splitter import (
@@ -23,7 +20,7 @@ from splitter import (
     split_text_into_n_parts,
     split_text_into_sliding_windows,
 )
-from utils import attributes, calculate_rmse_score_single, possible_labels
+from utils import attributes, possible_labels
 from sklearn.linear_model import LassoCV
 from my_nets import LinearNet
 from weight_strategy import WeightingStrategy, average_function
@@ -268,7 +265,7 @@ def objective(trial=None, splitter_n=2):
         mean_original_score = np.mean(list(original_fold_scores.values()))
         print("Mean original score", mean_original_score)
 
-        best_mean_score = mean_original_score
+        best_fold_scores = original_fold_scores.copy()
 
         for idx, row in full_df.iterrows():
             # Debug mode :)
@@ -277,17 +274,16 @@ def objective(trial=None, splitter_n=2):
             print(idx)
             text_id = row["text_id"]
 
-            current_labels = y_fulls[:, idx]
             combos = combinations_to_try[idx]
-            print("Current labels", current_labels)
             for combo in combos:
-                print("Testing combo", combo)
                 scores = 0.0
-                used_folds = 0
+                used_folds = []
+                folds_scores = {}
                 for fold in folds:
                     if not fold.is_text_in_train_fold(text_id):
+                        # print("Ignoring fold ", fold.fold_number)
                         continue
-                    used_folds += 1
+                    used_folds.append(fold.fold_number)
                     fold.replace_label(text_id, list(combo))
                     fit_fold(fold, multi_block, attribute, averager_regressor)
                     fold_score = score_fold(
@@ -298,23 +294,35 @@ def objective(trial=None, splitter_n=2):
                         average_function,
                         weights,
                     )
-                    # print(f"Fold {fold.fold_number} score: {fold_score}")
+                    print(f"Fold {fold.fold_number} score: {fold_score}")
                     scores += fold_score
+                    folds_scores[fold.fold_number] = fold_score
                     fold.restore_labels()
 
-                mean_score = scores / used_folds
+                mean_score = scores / len(used_folds)
+                previous_mean_folds_score = sum(
+                    [best_fold_scores[f] for f in used_folds]
+                ) / len(used_folds)
                 print("Mean score for combination: ", mean_score)
-                sys.exit(1)
-                if mean_score < best_mean_score:
-                    print("Found better combination (than {})".format(best_mean_score))
-                    best_mean_score = mean_score
+                print("Previous folds mean score: ", previous_mean_folds_score)
+                if mean_score < previous_mean_folds_score:
+                    print(
+                        "Found better combination (than {})".format(
+                            previous_mean_folds_score
+                        )
+                    )
+
                     y_fulls[:, idx] = combo
                     for fold in folds:
                         if not fold.is_text_in_train_fold(text_id):
                             continue
+                        best_fold_scores[fold.fold_number] = folds_scores[
+                            fold.fold_number
+                        ]
                         fold.replace_label(text_id, list(combo))
                         fold.save_labels()
                         fold.restore_labels()
+
 
         for i in range(multi_block.number_blocks):
             fine_tuned_labels_df[f"{attribute}_{i}"] = y_fulls[i]
