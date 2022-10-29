@@ -145,7 +145,7 @@ def objective(trial=None, splitter_n=2):
     for attribute in attributes:
 
         fine_tuned_labels = {}
-        fp = f"fine_tuned_labels_experiment_{attribute}_{strategy_name}.csv"
+        fp = f"fine_tuned_labels_kfold_experiment_{attribute}_{strategy_name}.csv"
         if os.path.exists(fp):
             fine_tuned_labels_df = pd.read_csv(fp)
             print("Loaded fine tuned labels")
