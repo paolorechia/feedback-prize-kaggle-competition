@@ -2,6 +2,7 @@ import logging
 import sys
 
 from itertools import product
+from xml.etree.ElementTree import QName
 import numpy as np
 import optuna
 import pandas as pd
@@ -140,7 +141,6 @@ def objective(trial=None, splitter_n=2):
     print("Full DF POST Merge \n\n ------------------")
     print(full_df)
 
-    best_scores = {}
     X = full_df["full_text"]
 
     for attribute in attributes:
@@ -198,25 +198,33 @@ def objective(trial=None, splitter_n=2):
         fp = f"fine_tuned_labels_kfold_experiment_{attribute}_{strategy_name}.csv"
         import os
 
-        if os.path.exists(fp):
-            fine_tuned_labels_df = pd.read_csv(fp)
-            print("Loaded fine tuned labels df")
-            for idx, row in fine_tuned_labels_df.iterrows():
-                attr_labels = []
-                for i in range(multi_block.number_blocks):
-                    attr_labels.append(row[f"{attribute}_{i}"])
-                fine_tuned_labels[row["text_id"]] = np.array(attr_labels)
-        else:
-            text_ids = list(full_df["text_id"])
-            y_full = np.array(full_df[attribute])
+        # # Create / load fine tuned labels
+        # if os.path.exists(fp):
+        #     fine_tuned_labels_df = pd.read_csv(fp)
+        #     print("Loaded fine tuned labels df")
+        #     for idx, row in fine_tuned_labels_df.iterrows():
+        #         attr_labels = []
+        #         for i in range(multi_block.number_blocks):
+        #             attr_labels.append(row[f"{attribute}_{i}"])
+        #         fine_tuned_labels[row["text_id"]] = np.array(attr_labels)
+        # else:
+        text_ids = list(full_df["text_id"])
+        y_full = np.array(full_df[attribute])
+        fine_tuned_labels_df = pd.DataFrame()
+        fine_tuned_labels_df["full_text"] = full_df["full_text"]
+        fine_tuned_labels_df["text_id"] = full_df["text_id"]
+        fine_tuned_labels_df[f"{attribute}_original"] = full_df[attribute]
+        sequence = []
+        for i in range(multi_block.number_blocks):
+            sequence.append(y_full)
 
-            sequence = []
-            for i in range(multi_block.number_blocks):
-                sequence.append(y_full)
+        y_fulls = np.concatenate(sequence).reshape(multi_block.number_blocks, -1)
+        for t in zip(text_ids, y_fulls):
+            fine_tuned_labels[t[0]] = t[1]
 
-            y_fulls = np.concatenate(sequence).reshape(multi_block.number_blocks, -1)
-            for i in range(len(text_ids)):
-                fine_tuned_labels[text_ids[i]] = y_fulls[:, i]
+        # Train the model
+        for fold in folds:
+            fine_tuned_labels[text_ids[i]] = y_fulls[:, i]
 
         equal_labels = 0
         different_labels = 0
@@ -260,99 +268,58 @@ def objective(trial=None, splitter_n=2):
         mean_original_score = np.mean(list(original_fold_scores.values()))
         print("Mean original score", mean_original_score)
 
-        # TODO: finish writing this block
+        best_mean_score = mean_original_score
+
         for idx, row in full_df.iterrows():
+            # Debug mode :)
+            if idx % 1000 != 0:
+                continue
+            print(idx)
             text_id = row["text_id"]
 
-            for fold in folds:
-                if fold.is_text_in_train_fold(text_id):
-                    pass
-    #     fine_tuned_labels = pd.DataFrame()
-    #     fine_tuned_labels["full_text"] = train_df["full_text"]
-    #     fine_tuned_labels["text_id"] = train_df["text_id"]
-    #     fine_tuned_labels[f"{attribute}_original"] = train_df[attribute]
+            current_labels = y_fulls[:, idx]
+            combos = combinations_to_try[idx]
+            print("Current labels", current_labels)
+            for combo in combos:
+                print("Testing combo", combo)
+                scores = 0.0
+                used_folds = 0
+                for fold in folds:
+                    if not fold.is_text_in_train_fold(text_id):
+                        continue
+                    used_folds += 1
+                    fold.replace_label(text_id, list(combo))
+                    fit_fold(fold, multi_block, attribute, averager_regressor)
+                    fold_score = score_fold(
+                        fold,
+                        multi_block,
+                        attribute,
+                        averager_regressor,
+                        average_function,
+                        weights,
+                    )
+                    # print(f"Fold {fold.fold_number} score: {fold_score}")
+                    scores += fold_score
+                    fold.restore_labels()
 
-    #         # print("Combinations to try ", existing_combinations)
-    #         # print(len(train_df), y_train.shape)
-    #         for idx, original_label in enumerate(y_train):
-    #             print("idx", idx)
-    #             fit_multi_block(
-    #                 multi_block,
-    #                 attribute,
-    #                 train_df,
-    #                 train,
-    #                 y_train,
-    #                 y_trains,
-    #                 averager_regressor,
-    #             )
+                mean_score = scores / used_folds
+                print("Mean score for combination: ", mean_score)
+                sys.exit(1)
+                if mean_score < best_mean_score:
+                    print("Found better combination (than {})".format(best_mean_score))
+                    best_mean_score = mean_score
+                    y_fulls[:, idx] = combo
+                    for fold in folds:
+                        if not fold.is_text_in_train_fold(text_id):
+                            continue
+                        fold.replace_label(text_id, list(combo))
+                        fold.save_labels()
+                        fold.restore_labels()
 
-    #             y_pred = predict_multi_block(multi_block, attribute, test_df, test)
+        for i in range(multi_block.number_blocks):
+            fine_tuned_labels_df[f"{attribute}_{i}"] = y_fulls[i]
 
-    #             original_score = score_multi_block(
-    #                 y_test,
-    #                 y_pred,
-    #                 averager_regressor,
-    #                 average_function,
-    #                 weights,
-    #             )
-    #             best_combination = None
-    #             print(f"Current score for {attribute} is {original_score}")
-    #             # print("Attempting to fine tune labels...")
-
-    #             best_score = 100.0
-    #             # print("Combinations to try ", combinations_to_try)
-    #             for combination in combinations_to_try:
-    #                 # print("Trying combination", combination)
-    #                 # print(y_trains.shape)
-    #                 # print(y_trains[:, idx].shape)
-    #                 y_trains_copy = y_trains.copy()
-    #                 y_trains_copy[:, idx] = np.array(combination)
-    #                 fit_multi_block(
-    #                     multi_block,
-    #                     attribute,
-    #                     train_df,
-    #                     train,
-    #                     y_train,
-    #                     y_trains_copy,
-    #                     averager_regressor,
-    #                 )
-
-    #                 y_pred = predict_multi_block(multi_block, attribute, test_df, test)
-
-    #                 new_score = score_multi_block(
-    #                     y_test,
-    #                     y_pred,
-    #                     averager_regressor,
-    #                     average_function,
-    #                     weights,
-    #                 )
-    #                 if new_score < best_score and new_score < original_score:
-    #                     best_score = new_score
-    #                     best_combination = combination
-    #                     print("Found better score", new_score)
-    #             if best_combination is not None:
-    #                 y_trains[:, idx] = np.array(best_combination)
-    #                 print("Original score", original_score)
-    #                 print("Best score", best_score)
-    #                 print("Best combination", best_combination)
-    #         for i in range(multi_block.number_blocks):
-    #             fine_tuned_labels[f"{attribute}_{i}"] = y_trains[i]
-    #         fine_tuned_labels.to_csv(
-    #             f"fine_tuned_labels_experiment_{attribute}_{strategy_name}.csv"
-    #         )
-
-    #         if attribute not in best_scores:
-    #             best_scores[attribute] = original_score
-    #         else:
-    #             best_scores[attribute] = min(original_score, best_scores[attribute])
-
-    # print("Best scores")
-    # print(best_scores)
-
-    # print("Average score")
-    # avg = np.mean(list(best_scores.values()))
-    # print(avg)
-    # return avg
+        fine_tuned_labels_df.to_csv(fp)
 
 
 use_optuna = False
