@@ -268,8 +268,8 @@ def objective(trial=None, splitter_n=2):
 
         for idx, row in full_df.iterrows():
             # Debug mode :)
-            if idx % 15 != 0:
-                continue
+            # if idx % 15 != 0:
+            #     continue
             print(idx)
             text_id = row["text_id"]
 
@@ -297,6 +297,9 @@ def objective(trial=None, splitter_n=2):
                     scores += fold_score
                     folds_scores[fold.fold_number] = fold_score
                     fold.restore_labels()
+
+                if len(used_folds) == 0:
+                    continue
 
                 mean_score = scores / len(used_folds)
                 previous_mean_folds_score = sum(
