@@ -6,12 +6,15 @@ import numpy as np
 import optuna
 import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
+from load_data import create_train_test_df
+import random
 
-from copy import deepcopy
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 from pre_trained_st_model import (
     MultiBlockRidgeCV,
+    predict_multi_block,
+    score_multi_block,
 )
 from seeds import KFOLD_RANDOM_STATE
 from splitter import (
@@ -27,7 +30,7 @@ from weight_strategy import WeightingStrategy, average_function
 from folding import Fold, fit_fold, score_fold
 
 
-def objective(trial=None, splitter_n=2):
+def objective(trial=None, splitter_n=4):
     # Window parameters
     use_sliding_window = False
 
@@ -48,8 +51,12 @@ def objective(trial=None, splitter_n=2):
     # if splitter_n is None and trial is not None:
     #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
 
-    test_size = 0.2
-    splits = 5
+    val_size = 0.2
+    test_size = 0.4
+    splits = 1
+
+    use_random_choices = True
+    random_choices = 2
 
     def splitter(text):
         return split_text_into_n_parts(text, splitter_n, minimum_chunk_length)
@@ -63,9 +70,9 @@ def objective(trial=None, splitter_n=2):
         )
 
     strategy_name = (
-        f"splitter_window-{window_size}-{step_size}"
+        f"debug-2-with-val-splitter_window-{window_size}-{step_size}"
         if use_sliding_window
-        else f"splitter-{splitter_n}"
+        else f"debug-2-with-val-splitter-{splitter_n}"
     )
     if use_data_augmentation:
         strategy_name += (
@@ -77,11 +84,20 @@ def objective(trial=None, splitter_n=2):
         )
     else:
         splitting_strategy = SplittingStrategy(splitter=splitter, name=strategy_name)
+        val_splitting_strategy = SplittingStrategy(
+            splitter=splitter, name=strategy_name + "-val"
+        )
 
     sentence_csv_dir = "./sentence_csvs"
 
     # Load the model
-    full_df = pd.read_csv("/data/feedback-prize/train.csv")
+    full_df, val_df = create_train_test_df(val_size, "full")
+
+    full_df.reset_index(drop=True, inplace=True)
+    val_df.reset_index(drop=True, inplace=True)
+
+    original_length = len(full_df)
+    original_val_length = len(val_df)
     print("Original len(full_df)", len(full_df))
 
     if use_data_augmentation:
@@ -105,24 +121,29 @@ def objective(trial=None, splitter_n=2):
         labels=attributes,
     )
 
-    for _ in range(2):
-        try:
-            smart_blockenizer(
-                full_df,
-                sentence_csv_dir,
-                columns_mapping={
-                    "text": "sentence_text",
-                    "full_text": "full_text",
-                    "id": "text_id",
-                    "labels": attributes,
-                },
-                multi_head=multi_block,
-                splitting_strategy=splitting_strategy,
-            )
-            break
-        except KeyError:
-            print("KeyError, retrying")
-            pass
+    for strategy, df in [
+        (splitting_strategy, full_df),
+        (val_splitting_strategy, val_df),
+    ]:
+        print("Blockenizing", strategy)
+        for _ in range(2):
+            try:
+                smart_blockenizer(
+                    df,
+                    sentence_csv_dir,
+                    columns_mapping={
+                        "text": "sentence_text",
+                        "full_text": "full_text",
+                        "id": "text_id",
+                        "labels": attributes,
+                    },
+                    multi_head=multi_block,
+                    splitting_strategy=strategy,
+                )
+                break
+            except KeyError:
+                print("KeyError, retrying")
+                pass
 
     if use_sliding_window:
         multi_block.set_number_blocks(max(full_df["number_blocks"]))
@@ -137,6 +158,9 @@ def objective(trial=None, splitter_n=2):
 
     print("Full DF POST Merge \n\n ------------------")
     print(full_df)
+
+    assert len(full_df) == original_length
+    assert len(val_df) == original_val_length
 
     X = full_df["full_text"]
 
@@ -155,6 +179,7 @@ def objective(trial=None, splitter_n=2):
 
         folds = []
         idx = 0
+
         # Creates the folds
         for train, test in skf.split(X, y):
             # Filter train DF
@@ -192,7 +217,7 @@ def objective(trial=None, splitter_n=2):
 
         fine_tuned_labels = {}
         fp = f"fine_tuned_labels_kfold_experiment_{attribute}_{strategy_name}.csv"
-        import os
+        # import os
 
         # # Create / load fine tuned labels
         # if os.path.exists(fp):
@@ -204,6 +229,7 @@ def objective(trial=None, splitter_n=2):
         #             attr_labels.append(row[f"{attribute}_{i}"])
         #         fine_tuned_labels[row["text_id"]] = np.array(attr_labels)
         # else:
+
         text_ids = list(full_df["text_id"])
         y_full = np.array(full_df[attribute])
         fine_tuned_labels_df = pd.DataFrame()
@@ -264,9 +290,12 @@ def objective(trial=None, splitter_n=2):
         mean_original_score = np.mean(list(original_fold_scores.values()))
         # print("Mean original score", mean_original_score)
 
+        previous_mean_folds_score = mean_original_score
+
         best_fold_scores = original_fold_scores.copy()
 
         for idx, row in full_df.iterrows():
+
             # Debug mode :)
             # if idx % 15 != 0:
             #     continue
@@ -274,7 +303,11 @@ def objective(trial=None, splitter_n=2):
             text_id = row["text_id"]
 
             combos = combinations_to_try[idx]
-            for combo in combos:
+            if use_random_choices:
+                used_combos = [random.choice(combos) for _ in range(random_choices)]
+            else:
+                used_combos = combos
+            for combo in used_combos:
                 scores = 0.0
                 used_folds = []
                 folds_scores = {}
@@ -325,10 +358,26 @@ def objective(trial=None, splitter_n=2):
                         fold.save_labels()
                         fold.restore_labels()
 
-        for i in range(multi_block.number_blocks):
-            fine_tuned_labels_df[f"{attribute}_{i}"] = y_fulls[i]
+                    val_y = np.array(val_df[attribute])
+                    val_indices = val_df.index
+                    val_pred = predict_multi_block(
+                        multi_block, attribute, val_df, val_indices
+                    )
+                    val_score = score_multi_block(
+                        val_y, val_pred, averager_regressor, average_function, weights
+                    )
+                    print("Val score: ", val_score)
 
-        fine_tuned_labels_df.to_csv(fp)
+                    with open(f"scores_{strategy_name}_{attribute}.txt", "a") as f:
+                        f.write(
+                            f"{idx};{combo};{val_score};{previous_mean_folds_score}\n"
+                        )
+
+            for i in range(multi_block.number_blocks):
+                fine_tuned_labels_df[f"{attribute}_{i}"] = y_fulls[i]
+
+            idx_fp = f"/data/iterations/{idx}_fine_tuned_labels_kfold_experiment_{attribute}_{strategy_name}.csv"
+            fine_tuned_labels_df.drop(columns=["full_text"]).to_csv(idx_fp)
 
 
 use_optuna = False
