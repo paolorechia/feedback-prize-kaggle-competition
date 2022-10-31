@@ -22,29 +22,78 @@ from my_nets import LinearNet
 
 
 def fit_multi_block(
-    multi_block, attribute, train_df, train, y_train, averager_regressor=None
+    multi_block,
+    attribute,
+    train_df,
+    train,
+    y_train,
+    averager_regressor=None,
+    sliding_window=False,
 ):
-    for i in range(multi_block.number_blocks):
-        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
-        multi_block.fit(i, attribute, embeddings, y_train)
+    if sliding_window:
+        X_blocks = []
+        y_blocks = []
+        for i in range(multi_block.number_blocks):
+            X_blocks.append([])
+            y_blocks.append([])
 
-    train_preds = []
-    for i in range(multi_block.number_blocks):
-        embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(len(train), -1)
-        train_preds.append(multi_block.predict(i, attribute, embeddings))
+        for _, row in train_df.iterrows():
+            for i in range(row["number_blocks"]):
+                X_blocks[i].append(row[f"embeddings_{i}"])
+                y_blocks[i].append(row[attribute])
 
-    if averager_regressor is not None:
-        train_preds = np.array(train_preds).transpose()
-        averager_regressor.fit(train_preds, y_train)
-    return train_preds
+        for i in range(multi_block.number_blocks):
+            embeddings = X_blocks[i]
+            y_block = y_blocks[i]
+            multi_block.fit(i, attribute, embeddings, y_block)
+
+        if averager_regressor is not None:
+            raise NotImplementedError("Not implemented for sliding window")
+    else:
+        for i in range(multi_block.number_blocks):
+            embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(
+                len(train), -1
+            )
+            multi_block.fit(i, attribute, embeddings, y_train)
+
+        train_preds = []
+        for i in range(multi_block.number_blocks):
+            embeddings = np.array(list(train_df[f"embeddings_{i}"])).reshape(
+                len(train), -1
+            )
+            train_preds.append(multi_block.predict(i, attribute, embeddings))
+
+        if averager_regressor is not None:
+            train_preds = np.array(train_preds).transpose()
+            averager_regressor.fit(train_preds, y_train)
+        return train_preds
 
 
-def predict_multi_block(multi_block, attribute, test_df, test):
-    y_pred = []
-    for i in range(multi_block.number_blocks):
-        embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(len(test), -1)
-        y_pred.append(multi_block.predict(i, attribute, embeddings))
-    return y_pred
+def predict_multi_block(multi_block, attribute, test_df, test, sliding_window=False):
+    if sliding_window:
+        y_pred_rows = []
+        for _, row in test_df.iterrows():
+            y_pred_row = []
+            for i in range(row["number_blocks"]):
+                embeddings = np.array(row[f"embeddings_{i}"])
+                block_pred = multi_block.predict(
+                    i, attribute, embeddings.reshape(1, -1)
+                )
+                assert len(block_pred) == 1
+                y_pred_row.append(block_pred)
+            assert len(y_pred_row) == row["number_blocks"]
+            y_pred_rows.append(y_pred_row)
+
+        assert len(y_pred_rows) == len(test_df)
+        return y_pred_rows
+    else:
+        y_pred = []
+        for i in range(multi_block.number_blocks):
+            embeddings = np.array(list(test_df[f"embeddings_{i}"])).reshape(
+                len(test), -1
+            )
+            y_pred.append(multi_block.predict(i, attribute, embeddings))
+        return y_pred
 
 
 def score_multi_block(
@@ -57,22 +106,42 @@ def score_multi_block(
     averager_regressor=None,
     average_function=np.mean,
     weights=None,
+    sliding_window=False,
 ):
-    if averager_regressor is not None:
-        y_pred = np.array(y_pred).transpose()
-        y_pred = averager_regressor.predict(y_pred)
-    else:
-        if weights is None:
-            y_pred = average_function(y_pred, axis=0)
-        y_pred = average_function(y_pred, weights)
+    if sliding_window:
+        if averager_regressor is not None:
+            raise NotImplementedError("Not implemented for sliding window")
 
-    score = calculate_rmse_score_single(y_test, y_pred)
-    return score
+        final_preds = []
+        print(y_pred[0])
+        print(len(y_pred))
+
+        for preds in y_pred:
+            print("Preds", preds)
+            if weights is None:
+                pred = average_function(preds)
+            else:
+                pred = average_function(preds, weights)
+            final_preds.append(pred)
+
+        score = calculate_rmse_score_single(y_test, final_preds)
+        return
+    else:
+        if averager_regressor is not None:
+            y_pred = np.array(y_pred).transpose()
+            y_pred = averager_regressor.predict(y_pred)
+        else:
+            if weights is None:
+                y_pred = average_function(y_pred, axis=0)
+            y_pred = average_function(y_pred, weights)
+
+        score = calculate_rmse_score_single(y_test, y_pred)
+        return score
 
 
 def objective(trial=None, splitter_n=2):
     # Window parameters
-    use_sliding_window = False
+    use_sliding_window = True
 
     use_data_augmentation = False
     augmentation_csvs = [
@@ -248,10 +317,18 @@ def objective(trial=None, splitter_n=2):
             y_test = np.array(test_df[attribute])
 
             fit_multi_block(
-                multi_block, attribute, train_df, train, y_train, averager_regressor
+                multi_block,
+                attribute,
+                train_df,
+                train,
+                y_train,
+                averager_regressor,
+                use_sliding_window,
             )
 
-            y_pred = predict_multi_block(multi_block, attribute, test_df, test)
+            y_pred = predict_multi_block(
+                multi_block, attribute, test_df, test, use_sliding_window
+            )
 
             score = score_multi_block(
                 multi_block,
@@ -263,6 +340,7 @@ def objective(trial=None, splitter_n=2):
                 averager_regressor,
                 average_function,
                 weights,
+                use_sliding_window,
             )
             print(f"Score for {attribute} is {score}")
 
