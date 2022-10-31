@@ -113,19 +113,18 @@ def score_multi_block(
             raise NotImplementedError("Not implemented for sliding window")
 
         final_preds = []
-        print(y_pred[0])
-        print(len(y_pred))
-
         for preds in y_pred:
-            print("Preds", preds)
             if weights is None:
                 pred = average_function(preds)
             else:
                 pred = average_function(preds, weights)
+            # print(preds, pred)
             final_preds.append(pred)
 
         score = calculate_rmse_score_single(y_test, final_preds)
-        return
+        # for t in zip(y_test, final_preds, y_pred):
+        #     print(t)
+        return score
     else:
         if averager_regressor is not None:
             y_pred = np.array(y_pred).transpose()
@@ -160,15 +159,20 @@ def objective(trial=None, splitter_n=2):
     # if splitter_n is None and trial is not None:
     #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
 
-    test_size = 0.2
-    splits = 1
+    test_size = 0.1
+    splits = 5
 
     def average_function(preds, weights):
+        # print("Input preds", preds, "weights", weights)
         sum_ = 0.0
-        denonimator = sum(weights)
+        used_weights = weights[0 : len(preds)]
+        denonimator = sum(used_weights)
         for idx, p in enumerate(preds):
-            sum_ += weights[idx] * p
-        return sum_ / denonimator
+            sum_ += used_weights[idx] * p
+
+        result = sum_ / denonimator
+        # print("Average result", result)
+        return result
 
     class WeightingStrategy:
         def linear(n):
@@ -284,7 +288,7 @@ def objective(trial=None, splitter_n=2):
     else:
         assert multi_block.number_blocks == max(full_df["number_blocks"])
 
-    weighting_strategy = WeightingStrategy.uniform
+    weighting_strategy = WeightingStrategy.step_decrease
     weights = weighting_strategy(multi_block.number_blocks)
 
     print("Weights >>>>", weights)
