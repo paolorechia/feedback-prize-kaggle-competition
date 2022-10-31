@@ -147,10 +147,10 @@ def objective(trial=None, splitter_n=2):
         "gpt_neo_full_2022-10-27-20-36-14.csv",
     ]
 
-    # block_size = trial.suggest_int("block_size", low=128, high=2048, step=128)
-    block_size = 1152
+    # block_size = trial.suggest_int("block_size", low=512, high=2048, step=128)
+    block_size = 1408
     # step_size = trial.suggest_int("step_size", low=32, high=block_size, step=32)
-    step_size = block_size // 2
+    step_size = 256
 
     minimum_chunk_length = 10
     window_size = block_size
@@ -159,8 +159,8 @@ def objective(trial=None, splitter_n=2):
     # if splitter_n is None and trial is not None:
     #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
 
-    test_size = 0.1
-    splits = 5
+    test_size = 0.2
+    splits = 1
 
     def average_function(preds, weights):
         # print("Input preds", preds, "weights", weights)
@@ -177,6 +177,9 @@ def objective(trial=None, splitter_n=2):
     class WeightingStrategy:
         def linear(n):
             return [i / n for i in range(n)]
+
+        def linear_2(n):
+            return [n / (i + 1) for i in range(n)]
 
         def lasso_cv(*args, **kwargs):
             return []
@@ -288,7 +291,7 @@ def objective(trial=None, splitter_n=2):
     else:
         assert multi_block.number_blocks == max(full_df["number_blocks"])
 
-    weighting_strategy = WeightingStrategy.step_decrease
+    weighting_strategy = WeightingStrategy.linear_2
     weights = weighting_strategy(multi_block.number_blocks)
 
     print("Weights >>>>", weights)
@@ -366,9 +369,7 @@ use_optuna = False
 
 if use_optuna:
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
-    study_name = (
-        "sliding-window-block-1152-lassocv-deberta"  # Unique identifier of the study.
-    )
+    study_name = "sliding-window-block-n-step-size-n-linear-mean-deberta"  # Unique identifier of the study.
     storage_name = "sqlite:///exploration_dbs/{}.db".format(study_name)
     study = optuna.create_study(
         study_name=study_name,
