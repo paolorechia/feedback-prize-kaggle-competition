@@ -1,21 +1,21 @@
 from dataclasses import dataclass
-from itertools import product
 import numpy as np
 import pandas as pd
 from load_data import create_train_test_df
 import random
 import gzip
 import json
+import string
 
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
 from pre_trained_st_model import (
     MultiBlockRidgeCV,
     predict_multi_block,
-    score_multi_block,
     fit_multi_block,
 )
 from utils import attributes, calculate_rmse_score_single, possible_labels
+import re
 
 
 def load_train_dataset(head=3000):
@@ -158,7 +158,67 @@ class GeneticAlgorithm:
                 )
             self.save_best_individual(self.best_individual, self.best_fitness, epoch)
 
-# TODO: write text degradation
+
+def _degradate_by_random_typos(text, p=0.1):
+    text = list(text)
+    for i in range(len(text)):
+        if random.random() < p:
+            text[i] = random.choice(string.ascii_lowercase)
+    return "".join(text)
+
+
+def _degradate_by_deleting_random_word(text, p=0.1):
+    text = text.split()
+    for i in range(len(text)):
+        if random.random() < p:
+            text[i] = ""
+    return " ".join(text)
+
+
+def _degradate_by_deleting_random_char(text, p=0.1):
+    text = list(text)
+    for i in range(len(text)):
+        if random.random() < p:
+            text[i] = ""
+    return "".join(text)
+
+
+def _degradate_by_changing_word_order(text, p=0.1):
+    text = text.split()
+    if random.random() < p:
+        random.shuffle(text)
+    return " ".join(text)
+
+
+def degradate_text(text):
+    if random.random() < 0.25:
+        text = _degradate_by_random_typos(text)
+    if random.random() < 0.25:
+        text = _degradate_by_deleting_random_word(text)
+    if random.random() < 0.25:
+        text = _degradate_by_deleting_random_char(text)
+    if random.random() < 0.25:
+        text = _degradate_by_changing_word_order(text)
+    return text
+
+
+def degradate_df_text(df: pd.DataFrame, text_label: str, degradation_rate: float):
+    new_df = df.copy()
+    texts = df[text_label]
+    new_texts = []
+    for text in texts:
+        if random.random() > degradation_rate:
+            new_texts.append(text)
+        else:
+            degradated_text = degradate_text(text)
+            new_texts.append(degradated_text)
+    new_df[text_label] = new_texts
+    return new_df
+
+
+def remove_repeated_whitespaces(text):
+    return re.sub(r"\s+", " ", text)
+
 
 def main():
     # Load the model
@@ -167,8 +227,8 @@ def main():
     full_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 1000
-    epochs = 5000
+    dataset_size = 10000
+    epochs = 100
 
     model_info = ModelCatalog.DebertaV3
     multi_block_class = MultiBlockRidgeCV
@@ -181,20 +241,26 @@ def main():
         number_blocks=1,
         labels=attributes,
     )
-
-    X_test = multi_block.encode(full_df["full_text"], cache_type="full-0.9")
+    full_df["full_text"] = full_df["full_text"].apply(remove_repeated_whitespaces)
+    X_test = multi_block.encode(full_df["full_text"], cache_type="no-ws-full-0.9")
     full_df["embeddings_0"] = [np.array(e) for e in X_test]
     test_indices = full_df.index.values
 
-    X_val = multi_block.encode(val_df["full_text"], cache_type="val-0.1")
+    val_df["full_text"] = val_df["full_text"].apply(remove_repeated_whitespaces)
+    X_val = multi_block.encode(val_df["full_text"], cache_type="no-ws-val-0.1")
     val_df["embeddings_0"] = [np.array(e) for e in X_val]
     val_indices = val_df.index.values
 
     train_dataset = load_train_dataset(head=dataset_size - 1)
     train_df = pd.DataFrame(train_dataset)
 
+    train_df["review_text"] = train_df["review_text"].apply(remove_repeated_whitespaces)
+    train_df = degradate_df_text(train_df, "review_text", degradation_rate=0.9)
+    print(train_df.review_text.head())
+
     X_train = multi_block.encode(
-        train_df["review_text"], cache_type=f"review-dataset-{dataset_size}"
+        train_df["review_text"],
+        cache_type=f"no-ws-degraded-review-dataset-{dataset_size}",
     )
 
     train_df["embeddings_0"] = [np.array(e) for e in X_train]
@@ -219,7 +285,7 @@ def main():
         )
 
         genetic = GeneticAlgorithm(
-            population_size=20, n_labels=dataset_size, dataset_context=dataset_context
+            population_size=10, n_labels=dataset_size, dataset_context=dataset_context
         )
         genetic.initialize_population()
         genetic.run(num_generations=epochs)
