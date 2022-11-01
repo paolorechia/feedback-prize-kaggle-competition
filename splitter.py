@@ -17,12 +17,16 @@ def _split_text_into_sentences(text):
 
 
 def split_text_into_n_parts(text, n, minimum_chunk_length):
-    part_length = int(len(text) // n)
-    sentences = []
-    for i in range(0, len(text), part_length):
-        part = text[i : i + part_length]
-        if len(part.strip()) > minimum_chunk_length:
-            sentences.append(part)
+    try:
+        part_length = int(len(text) // n)
+        sentences = []
+        for i in range(0, len(text), part_length):
+            part = text[i : i + part_length]
+            if len(part.strip()) > minimum_chunk_length:
+                sentences.append(part)
+    except TypeError:
+        print("Error splitting text into n parts")
+        return []
     return sentences
 
 
@@ -52,7 +56,6 @@ def split_df_into_sentences(
         columns_mapping["id"],
         "sentence_text",
         "sentence_length",
-        
     ]
     new_columns.extend(columns_mapping["labels"])
     if binary_label:
@@ -394,3 +397,7 @@ def smart_blockenizer(
     for j in range(num_blocks):
         input_df[f"block_{j}"] = block_columns[j]
         input_df[f"embeddings_{j}"] = block_embeddings[j]
+
+    print("Finished splitting")
+    print(input_df)
+    print(input_df.columns)

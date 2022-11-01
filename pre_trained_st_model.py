@@ -1,7 +1,7 @@
 from typing import Dict, List, Union
 
 from sentence_transformers import SentenceTransformer
-from sklearn.linear_model import RidgeCV
+from sklearn.linear_model import RidgeCV, Ridge, SGDRegressor, BayesianRidge
 from sklearn.preprocessing import StandardScaler
 from utils import (
     round_border_score,
@@ -84,7 +84,7 @@ class MultiHeadSentenceTransformerModel:
         self.heads_scores = {}
 
     def fit_best_model(self, attribute, X_train, y_train, X_test, y_test):
-        new_model = RidgeCV()
+        new_model = self.head_model()
         new_model.fit(X_train, y_train)
         preds = new_model.predict(X_test)
         predictions = [round_border_score(p) for p in preds]
@@ -299,6 +299,37 @@ class MultiBlockRidgeCV(MultiBlockMultiHeadSentenceTransformerModel):
         # print(model, number_blocks, labels)
         super().__init__(model, number_blocks, labels=labels, head_model=RidgeCV)
 
+
+class MultiBlockRidge(MultiBlockMultiHeadSentenceTransformerModel):
+    def __init__(
+        self,
+        model: Union[str, SentenceTransformer, "ModelStack"],
+        number_blocks,
+        labels,
+    ) -> None:
+        # print(model, number_blocks, labels)
+        super().__init__(model, number_blocks, labels=labels, head_model=Ridge)
+
+class MultiBlockSGD(MultiBlockMultiHeadSentenceTransformerModel):
+    def __init__(
+        self,
+        model: Union[str, SentenceTransformer, "ModelStack"],
+        number_blocks,
+        labels,
+    ) -> None:
+        # print(model, number_blocks, labels)
+        super().__init__(model, number_blocks, labels=labels, head_model=SGDRegressor)
+
+
+class MultiBlockBayensianRidge(MultiBlockMultiHeadSentenceTransformerModel):
+    def __init__(
+        self,
+        model: Union[str, SentenceTransformer, "ModelStack"],
+        number_blocks,
+        labels,
+    ) -> None:
+        # print(model, number_blocks, labels)
+        super().__init__(model, number_blocks, labels=labels, head_model=BayesianRidge)
 
 def fit_multi_block(
     multi_block, attribute, train_df, train, y_train, y_trains, averager_regressor=None

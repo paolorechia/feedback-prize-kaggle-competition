@@ -140,11 +140,12 @@ def score_multi_block(
 
 def objective(trial=None, splitter_n=2):
     # Window parameters
-    use_sliding_window = True
+    use_sliding_window = False
 
-    use_data_augmentation = False
+    use_data_augmentation = True
     augmentation_csvs = [
-        "gpt_neo_full_2022-10-27-20-36-14.csv",
+        # "gpt_neo_full_2022-10-27-20-36-14.csv",
+        "best_fit_cohesion_score_0.4274352927913856.csv",
     ]
 
     # block_size = trial.suggest_int("block_size", low=512, high=2048, step=128)
@@ -230,7 +231,7 @@ def objective(trial=None, splitter_n=2):
     )
     if use_data_augmentation:
         strategy_name += (
-            f"-augmentation-{augmentation_csvs[0]}-2-{len(augmentation_csvs)}"
+            f"-augmentation-{augmentation_csvs[0]}-4-{len(augmentation_csvs)}"
         )
     if use_sliding_window:
         splitting_strategy = SplittingStrategy(
@@ -247,8 +248,10 @@ def objective(trial=None, splitter_n=2):
 
     if use_data_augmentation:
         for csv in augmentation_csvs:
-            path = f"./generated_csvs/{csv}"
-            full_df = pd.concat([full_df, pd.read_csv(path)], ignore_index=True)
+            # path = f"./generated_csvs/{csv}"
+            path = csv
+            aug_df = pd.read_csv(path)
+            full_df = pd.concat([full_df, aug_df], ignore_index=True)
         print("Augmented len(full_df)", len(full_df))
 
     print(full_df)
@@ -285,6 +288,7 @@ def objective(trial=None, splitter_n=2):
             print("KeyError, retrying")
             pass
 
+    print(full_df)
     if use_sliding_window:
         multi_block.set_number_blocks(max(full_df["number_blocks"]))
         print("Max number of blocks", multi_block.number_blocks)
