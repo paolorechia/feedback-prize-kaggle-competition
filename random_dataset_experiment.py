@@ -62,9 +62,11 @@ class GeneticAlgorithm:
         self.best_individual = None
         self.best_fitness = None
         self.dataset_context = dataset_context
-        self.number_of_survivals = 5
-        self.number_of_cross_over = 10
-        self.number_of_randoms = 5
+        self.number_of_survivals = 2
+        self.number_of_randoms = 2
+        self.number_of_cross_over = (
+            population_size - self.number_of_survivals - self.number_of_randoms
+        )
 
     def initialize_population(self):
         for _ in range(self.population_size):
@@ -114,7 +116,7 @@ class GeneticAlgorithm:
 
     def mutate(self, individual):
         for i in range(self.n_labels):
-            if random.random() < 0.1:
+            if random.random() < 0.2:
                 individual[i] = random.random() * 4 + 1
 
     def save_best_individual(self, individual, fitness, epoch):
@@ -124,7 +126,7 @@ class GeneticAlgorithm:
             json.dump(individual, fout)
 
     def run(self, num_generations=100):
-        for i in range(num_generations):
+        for epoch in range(num_generations):
             self.fitness = []
             for idx, individual in enumerate(self.population):
                 score = self.evaluate_fitness(individual)
@@ -136,7 +138,7 @@ class GeneticAlgorithm:
                 self.best_individual = self.population[self.fitness[0][1]].copy()
                 self.best_fitness = self.fitness[0][0].copy()
 
-            print("Generation: {} || Best Fitness: {}".format(i, self.best_fitness))
+            print("Generation: {} || Best Fitness: {}".format(epoch, self.best_fitness))
             survivals = []
 
             for i in range(self.number_of_survivals):
@@ -154,8 +156,9 @@ class GeneticAlgorithm:
                 self.population.append(
                     [random.random() * 4 + 1 for _ in range(self.n_labels)]
                 )
-            self.save_best_individual(self.best_individual, self.best_fitness, i)
+            self.save_best_individual(self.best_individual, self.best_fitness, epoch)
 
+# TODO: write text degradation
 
 def main():
     # Load the model
@@ -165,7 +168,7 @@ def main():
     val_df.reset_index(drop=True, inplace=True)
 
     dataset_size = 1000
-    epochs = 20
+    epochs = 5000
 
     model_info = ModelCatalog.DebertaV3
     multi_block_class = MultiBlockRidgeCV
@@ -191,7 +194,7 @@ def main():
     train_df = pd.DataFrame(train_dataset)
 
     X_train = multi_block.encode(
-        train_df["review_text"], cache_type="review-dataset-1000"
+        train_df["review_text"], cache_type=f"review-dataset-{dataset_size}"
     )
 
     train_df["embeddings_0"] = [np.array(e) for e in X_train]
@@ -216,7 +219,7 @@ def main():
         )
 
         genetic = GeneticAlgorithm(
-            population_size=100, n_labels=1000, dataset_context=dataset_context
+            population_size=20, n_labels=dataset_size, dataset_context=dataset_context
         )
         genetic.initialize_population()
         genetic.run(num_generations=epochs)
