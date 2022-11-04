@@ -7,6 +7,7 @@ import random
 import gzip
 import json
 import string
+import os
 
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
@@ -31,7 +32,61 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def load_train_dataset(head=3000):
+def load_bbc_news(head=3000):
+    filepath = "/data/text-datasets/bbc"
+    dirs_ = os.listdir(filepath)
+    data = []
+    count = 0
+    for dir_ in dirs_:
+        files = os.listdir(os.path.join(filepath, dir_))
+        for file in files:
+            if count > head:
+                break
+            with open(os.path.join(filepath, dir_, file), "r") as f:
+                try:
+                    text = f.read()
+                    data.append({"review_text": text, "label": dir_})
+                    count += 1
+                except UnicodeDecodeError:
+                    pass
+    return data
+
+
+def load_amazon_reviews(head=3000):
+    filepath_1 = "/data/text-datasets/amazon_review/train.ft.txt"
+    filepath_2 = "/data/text-datasets/amazon_review/test.ft.txt"
+    data = []
+    count = 0
+    for filepath in [filepath_1, filepath_2]:
+        with open(filepath, "r") as f:
+            for line in f:
+                if count > head:
+                    break
+                line = line.strip()
+                label, text = line.split(" ", 1)
+                text = remove_repeated_whitespaces(text)
+                data.append({"review_text": text, "label": label})
+                count += 1
+    return data
+
+
+def load_steam_reviews(head=3000):
+    filepath = "/data/text-datasets/steam_reviews.json.gz"
+    g = gzip.open(filepath, "r")
+    data = []
+    count = 0
+    for l in g:
+        if count > head:
+            break
+        d = eval(l)
+        d["review_text"] = d["text"]
+        del d["text"]
+        data.append(d)
+        count += 1
+    return data
+
+
+def load_goodreads_reviews(head=3000):
     filepath = "/data/text-datasets/goodreads_reviews_dedup.json.gz"
     count = 0
     data = []
@@ -289,8 +344,8 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 100000
-    epochs = 10000
+    dataset_size = 1000000
+    epochs = 1000
     degradation_rate = 0.9
     population_size = 10
 
@@ -317,8 +372,21 @@ def main():
     val_df["embeddings_0"] = [np.array(e) for e in X_val]
     val_indices = val_df.index.values
 
-    train_dataset = load_train_dataset(head=dataset_size - 1)
-    train_df = pd.DataFrame(train_dataset)
+    texts = []
+    bbc_texts = load_bbc_news(head=dataset_size - 1)
+
+    amazon_reviews = load_amazon_reviews(head=dataset_size - 1)
+    steam_reviews = load_steam_reviews(head=dataset_size - 1)
+    goodreads = load_goodreads_reviews(head=dataset_size - 1)
+
+    texts.extend(bbc_texts)
+    texts.extend(amazon_reviews)
+    texts.extend(steam_reviews)
+    texts.extend(goodreads)
+
+    print(len(texts))
+
+    train_df = pd.DataFrame(texts)
 
     train_df["review_text"] = train_df["review_text"].apply(remove_repeated_whitespaces)
     train_df = degradate_df_text(
@@ -328,7 +396,7 @@ def main():
 
     X_train = multi_block.encode(
         train_df["review_text"],
-        cache_type=f"no-ws-degraded-v4-{degradation_rate}-review-dataset-{dataset_size}",
+        cache_type=f"no-ws-degraded-v1-{degradation_rate}-review-all-datasets-{dataset_size}",
     )
 
     train_df["embeddings_0"] = [np.array(e) for e in X_train]
@@ -389,7 +457,7 @@ def main():
             population_size=population_size,
             n_labels=len(train_df),
             dataset_context=dataset_context,
-            first_ancestor=first_pred,
+            # first_ancestor=first_pred,
         )
         genetic.initialize_population()
         genetic.run(num_generations=epochs)
