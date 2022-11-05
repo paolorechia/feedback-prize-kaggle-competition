@@ -126,16 +126,24 @@ class GeneticAlgorithm:
         population_size=20,
         n_labels=1000,
         first_ancestor=None,
+        cache_key=None,
     ):
         self.dataset_context = dataset_context
         self.population_size = population_size
         self.n_labels = n_labels
         self.first_ancestor = first_ancestor
+        self.cache_key = cache_key
 
         self.population = []
 
         if first_ancestor is not None:
             self.population.append(first_ancestor)
+
+        if cache_key is not None:
+            first_ancestor = self.load_first_ancestor(cache_key)
+            if first_ancestor is not None:
+                print("Loaded first ancestor")
+                self.population.append(first_ancestor)
 
         self.best_individual = None
         self.best_fitness = None
@@ -149,10 +157,7 @@ class GeneticAlgorithm:
     def initialize_population(self):
         for _ in range(self.population_size):
             self.population.append(
-                [
-                    fit_float_score_to_nearest_valid_point(random.random() * 4 + 1)
-                    for _ in range(self.n_labels)
-                ]
+                [random.random() * 4 + 1 for _ in range(self.n_labels)]
             )
 
     def evaluate_fitness(self, individual, evaluate_val=False):
@@ -203,17 +208,31 @@ class GeneticAlgorithm:
     def mutate(self, individual):
         for i in range(self.n_labels):
             if random.random() < 0.2:
-                individual[i] = fit_float_score_to_nearest_valid_point(
-                    random.random() * 4 + 1
-                )
+                individual[i] = random.random() * 4 + 1
 
     def save_best_individual(self, individual, fitness, epoch):
         with open(
-            "best_individuals/individual_{}_{}.json".format(fitness, epoch), "w"
+            "best_individuals/{}_fitness_{}_epoch_{}.json".format(
+                self.cache_key, fitness, epoch
+            ),
+            "w",
         ) as fout:
-            ind = [fit_float_score_to_nearest_valid_point(x) for x in individual]
-            # print(ind)
-            json.dump(ind, fout)
+            json.dump(individual, fout)
+
+        with open(
+            "best_individuals/{}_best_individual.json".format(self.cache_key),
+            "w",
+        ) as fout:
+            json.dump(individual, fout)
+
+    def load_first_ancestor(self, cache_key):
+        try:
+            with open(
+                "best_individuals/{}_best_individual.json".format(cache_key), "r"
+            ) as fin:
+                return json.load(fin)
+        except FileNotFoundError:
+            return None
 
     def run(self, num_generations=100):
         for epoch in range(num_generations):
@@ -243,10 +262,7 @@ class GeneticAlgorithm:
 
             for i in range(self.number_of_randoms):
                 self.population.append(
-                    [
-                        fit_float_score_to_nearest_valid_point(random.random()) * 4 + 1
-                        for _ in range(self.n_labels)
-                    ]
+                    [random.random() * 4 + 1 for _ in range(self.n_labels)]
                 )
             if epoch % (num_generations // 10) == 0:
                 print(
@@ -344,8 +360,8 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 1000000
-    epochs = 1000
+    dataset_size = 100
+    epochs = 10
     degradation_rate = 0.9
     population_size = 10
 
@@ -372,73 +388,87 @@ def main():
     val_df["embeddings_0"] = [np.array(e) for e in X_val]
     val_indices = val_df.index.values
 
-    texts = []
-    bbc_texts = load_bbc_news(head=dataset_size - 1)
+    train_df_cache_key = f"train-{dataset_size}-degradation-{degradation_rate}"
 
-    amazon_reviews = load_amazon_reviews(head=dataset_size - 1)
-    steam_reviews = load_steam_reviews(head=dataset_size - 1)
-    goodreads = load_goodreads_reviews(head=dataset_size - 1)
+    used_datasets = [
+        ("bbc", load_bbc_news, True),
+        ("amazon", load_amazon_reviews, True),
+        ("steam", load_steam_reviews, True),
+        ("goodreads", load_goodreads_reviews, True),
+    ]
+    for name, _, _ in used_datasets:
+        train_df_cache_key += f"-{name}"
 
-    texts.extend(bbc_texts)
-    texts.extend(amazon_reviews)
-    texts.extend(steam_reviews)
-    texts.extend(goodreads)
+    train_csv_path = f"{train_df_cache_key}.csv"
+    if os.path.exists(train_csv_path):
+        train_df = pd.read_csv(train_csv_path)
+    else:
+        texts = []
+        for name, load_func, is_used in used_datasets:
+            if not is_used:
+                continue
 
-    print(len(texts))
+            text = load_func(head=dataset_size - 1)
+            texts.extend(text)
 
-    train_df = pd.DataFrame(texts)
+        train_df = pd.DataFrame(texts)
+        train_df["review_text"] = train_df["review_text"].apply(
+            remove_repeated_whitespaces
+        )
+        train_df = degradate_df_text(
+            train_df, "review_text", degradation_rate=degradation_rate
+        )
+        train_df.to_csv(train_csv_path, index=False)
 
-    train_df["review_text"] = train_df["review_text"].apply(remove_repeated_whitespaces)
-    train_df = degradate_df_text(
-        train_df, "review_text", degradation_rate=degradation_rate
-    )
     print(train_df.review_text.head())
+    print(len(train_df))
 
     X_train = multi_block.encode(
         train_df["review_text"],
-        cache_type=f"no-ws-degraded-v1-{degradation_rate}-review-all-datasets-{dataset_size}",
+        cache_type=train_df_cache_key,
     )
 
     train_df["embeddings_0"] = [np.array(e) for e in X_train]
 
     train_indices = train_df.index.values
 
-    initial_fit_df = test_df
-
     for attribute in ["cohesion"]:
         print("Attribute", attribute)
         y_test = np.array(test_df[attribute])
         y_val = np.array(val_df[attribute])
-        y_initial = np.array(initial_fit_df[attribute])
-        y_initials = [y_initial]
 
-        fit_multi_block(
-            multi_block,
-            attribute,
-            initial_fit_df,
-            initial_fit_df.index.values,
-            y_initial,
-            y_initials,
-        )
+        # Uncomment to use the initial fit
+        # initial_fit_df = test_df
 
-        first_pred = predict_multi_block(
-            multi_block, attribute, train_df, train_indices
-        )
-        first_pred = first_pred[0]
-        fit_multi_block(
-            multi_block,
-            attribute,
-            train_df,
-            train_indices,
-            first_pred,
-            [first_pred],
-        )
-        second_pred = predict_multi_block(multi_block, attribute, test_df, test_indices)
-        second_pred = second_pred[0]
-        second_pred = [fit_float_score_to_nearest_valid_point(x) for x in second_pred]
+        # y_initial = np.array(initial_fit_df[attribute])
+        # y_initials = [y_initial]
 
-        initial_score = calculate_rmse_score_single(y_test, second_pred)
-        print("Initial score: ", initial_score)
+        # fit_multi_block(
+        #     multi_block,
+        #     attribute,
+        #     initial_fit_df,
+        #     initial_fit_df.index.values,
+        #     y_initial,
+        #     y_initials,
+        # )
+
+        # first_pred = predict_multi_block(
+        #     multi_block, attribute, train_df, train_indices
+        # )
+        # first_pred = first_pred[0]
+        # fit_multi_block(
+        #     multi_block,
+        #     attribute,
+        #     train_df,
+        #     train_indices,
+        #     first_pred,
+        #     [first_pred],
+        # )
+        # second_pred = predict_multi_block(multi_block, attribute, test_df, test_indices)
+        # second_pred = second_pred[0]
+
+        # initial_score = calculate_rmse_score_single(y_test, second_pred)
+        # print("Initial score: ", initial_score)
 
         dataset_context = DatasetContext(
             train_df=train_df,
@@ -457,7 +487,7 @@ def main():
             population_size=population_size,
             n_labels=len(train_df),
             dataset_context=dataset_context,
-            # first_ancestor=first_pred,
+            cache_key=train_df_cache_key,
         )
         genetic.initialize_population()
         genetic.run(num_generations=epochs)
