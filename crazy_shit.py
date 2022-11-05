@@ -41,13 +41,13 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 100
-    degradation_rate = 0.5
+    dataset_size = 1000000
+    degradation_rate = 0.1
     population_size = 10
-    epochs = 10
+    epochs = 0
 
     model_info = ModelCatalog.DebertaV3
-    multi_block_class = MultiBlockRidge
+    multi_block_class = MultiBlockRidgeCV
     multi_block = multi_block_class(
         model=ModelStack(
             [
@@ -151,7 +151,7 @@ def main():
         initial_score = calculate_rmse_score_single(y_test, second_pred)
         print("Initial score: ", initial_score)
         best = second_pred
-
+        previous_score = 100.00
         for i in range(epochs):
             new_initial_labels = predict_multi_block(
                 multi_block, attribute, initial_fit_df, initial_fit_df.index.values
@@ -184,6 +184,10 @@ def main():
             best = second_pred
             score = calculate_rmse_score_single(y_test, second_pred)
             print("Second pred score: ", score)
+
+            # if score > previous_score:
+            #     break
+            previous_score = score
 
         train_df[attribute] = [
             fit_float_score_to_nearest_valid_point(x) for x in first_pred

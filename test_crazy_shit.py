@@ -35,7 +35,7 @@ warnings.filterwarnings("ignore")
 def main():
     # Load the model
     model_info = ModelCatalog.DebertaV3
-    multi_block_class = MultiBlockRidge
+    multi_block_class = MultiBlockRidgeCV
     multi_block = multi_block_class(
         model=ModelStack(
             [
@@ -54,20 +54,33 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    augmented_csv = "train-100-degradation-0.5-bbc-amazon-steam-goodreads.csv"
+    augmented_csv = "train-10000-degradation-0.1-bbc-amazon-steam-goodreads.csv"
     augmented_df = pd.read_csv(augmented_csv)
 
-    train_df = pd.concat([test_df, augmented_df], ignore_index=True)
+    used_csvs = [
+        # ("test", test_df),
+        ("augmented", augmented_df),
+        # Keep this like this, please
+    ]
 
-    X_test = multi_block.encode(
-        train_df["full_text"], cache_type=f"test-crazy-shit-{augmented_csv}"
-    )
+    cache_suffix = "-".join([t[0] for t in used_csvs])
+    cache_key = f"test-crazy-shit-{augmented_csv}-{cache_suffix}"
+
+    dfs = []
+    for _, df in used_csvs:
+        dfs.append(df)
+
+    train_df = pd.concat(dfs, ignore_index=True)
+    train_df["full_text"] = train_df["full_text"].astype(str)
+    train_df["full_text"] = train_df["full_text"].apply(remove_repeated_whitespaces)
+
+    X_test = multi_block.encode(train_df["full_text"], cache_type=cache_key)
     train_df["embeddings_0"] = [np.array(e) for e in X_test]
 
     val_df["full_text"] = val_df["full_text"].apply(remove_repeated_whitespaces)
 
     X_val = multi_block.encode(
-        val_df["full_text"], cache_type=f"val-crazy-shit-{augmented_csv}"
+        val_df["full_text"], cache_type=f"val-crazy-shit-2-{augmented_csv}"
     )
     val_df["embeddings_0"] = [np.array(e) for e in X_val]
 
