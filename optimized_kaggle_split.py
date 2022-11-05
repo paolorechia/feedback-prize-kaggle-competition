@@ -144,10 +144,9 @@ def objective(trial=None, splitter_n=1):
 
     use_data_augmentation = True
     augmentation_csvs = [
-        # "best_fit_cohesion_score_0.7159863243695793.csv",
-        # "best_fit_cohesion_score_0.5549022701484796.csv",
-        # "best_fit_cohesion_score_0.6022725173550482.csv",
-        "best_fit_cohesion_score_0.5119262475875783.csv",
+        # "train-100-degradation-0.5-bbc-amazon-steam-goodreads.csv",
+        # "train-1000-degradation-0.5-bbc-amazon-steam-goodreads.csv",
+        "train-10000-degradation-0.5-bbc-amazon-steam-goodreads.csv",
     ]
 
     # block_size = trial.suggest_int("block_size", low=512, high=2048, step=128)
@@ -163,7 +162,7 @@ def objective(trial=None, splitter_n=1):
     #     splitter_n = trial.suggest_int("splitter_n", 1, 10)
 
     test_size = 0.2
-    splits = 1
+    splits = 5
 
     def average_function(preds, weights):
         # print("Input preds", preds, "weights", weights)
