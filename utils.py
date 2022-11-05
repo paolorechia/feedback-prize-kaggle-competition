@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
+import re
 
 attributes = [
     "cohesion",
@@ -14,6 +15,11 @@ attributes = [
 ]
 
 possible_labels = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+
+
+def remove_repeated_whitespaces(text):
+    res = re.sub(r"\s+", " ", text)
+    return res
 
 
 def fit_float_score_to_nearest_valid_point(float_score: float):

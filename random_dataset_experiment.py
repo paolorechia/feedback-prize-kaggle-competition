@@ -24,8 +24,8 @@ from utils import (
     calculate_rmse_score_single,
     fit_float_score_to_nearest_valid_point,
     possible_labels,
+    remove_repeated_whitespaces,
 )
-import re
 
 import warnings
 
@@ -348,10 +348,6 @@ def degradate_df_text(
     return new_df
 
 
-def remove_repeated_whitespaces(text):
-    return re.sub(r"\s+", " ", text)
-
-
 def main():
     # Load the model
     train_size = 0.2
@@ -361,10 +357,10 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 1000
+    dataset_size = 10000
     degradation_rate = 0.9
     population_size = 10
-    epochs = 1000
+    epochs = 10
 
     model_info = ModelCatalog.DebertaV3
     multi_block_class = MultiBlockRidge

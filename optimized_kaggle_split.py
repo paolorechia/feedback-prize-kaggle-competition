@@ -8,7 +8,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 
 from model_catalog import ModelCatalog
 from model_stacker import ModelStack
-from pre_trained_st_model import MultiBlockRidgeCV
+from pre_trained_st_model import MultiBlockRidgeCV, MultiBlockRidge
 from seeds import KFOLD_RANDOM_STATE
 from splitter import (
     SplittingStrategy,
@@ -16,7 +16,7 @@ from splitter import (
     split_text_into_n_parts,
     split_text_into_sliding_windows,
 )
-from utils import attributes, calculate_rmse_score_single
+from utils import attributes, calculate_rmse_score_single, remove_repeated_whitespaces
 from sklearn.linear_model import LassoCV
 from my_nets import LinearNet
 
@@ -138,14 +138,16 @@ def score_multi_block(
         return score
 
 
-def objective(trial=None, splitter_n=2):
+def objective(trial=None, splitter_n=1):
     # Window parameters
     use_sliding_window = False
 
     use_data_augmentation = True
     augmentation_csvs = [
         # "best_fit_cohesion_score_0.7159863243695793.csv",
-        "best_fit_cohesion_score_0.5549022701484796.csv",
+        # "best_fit_cohesion_score_0.5549022701484796.csv",
+        # "best_fit_cohesion_score_0.6022725173550482.csv",
+        "best_fit_cohesion_score_0.5119262475875783.csv",
     ]
 
     # block_size = trial.suggest_int("block_size", low=512, high=2048, step=128)
@@ -225,9 +227,9 @@ def objective(trial=None, splitter_n=2):
         )
 
     strategy_name = (
-        f"splitter_window-{window_size}-{step_size}"
+        f"nows-splitter_window-{window_size}-{step_size}"
         if use_sliding_window
-        else f"splitter-{splitter_n}"
+        else f"nows-splitter-{splitter_n}"
     )
     if use_data_augmentation:
         strategy_name += (
@@ -254,7 +256,13 @@ def objective(trial=None, splitter_n=2):
             full_df = pd.concat([full_df, aug_df], ignore_index=True)
         print("Augmented len(full_df)", len(full_df))
 
-    print(full_df)
+    # print(">>>1>>>", full_df)
+
+    full_df["full_text"] = full_df["full_text"].astype(str)
+    # print(">>>2>>>", full_df)
+
+    full_df["full_text"] = full_df["full_text"].apply(remove_repeated_whitespaces)
+    # print(">>>3>>>", full_df)
 
     model_info = ModelCatalog.DebertaV3
     multi_block_class = MultiBlockRidgeCV
@@ -288,7 +296,8 @@ def objective(trial=None, splitter_n=2):
             print("KeyError, retrying")
             pass
 
-    print(full_df)
+    # print(">>>4>>>", full_df)
+    # print(full_df)
     if use_sliding_window:
         multi_block.set_number_blocks(max(full_df["number_blocks"]))
         print("Max number of blocks", multi_block.number_blocks)

@@ -315,6 +315,8 @@ def smart_blockenizer(
     sentence_df_path = (
         f"{sentence_csv_dir}/full_optimized_{splitting_strategy.name}.csv"
     )
+    print("Length of input_df: ", len(input_df))
+    print(columns_mapping)
     try:
         full_sentence_df = pd.read_csv(sentence_df_path)
     except Exception:
@@ -322,7 +324,7 @@ def smart_blockenizer(
             input_df, columns_mapping, splitting_strategy.splitter
         )
         full_sentence_df.to_csv(sentence_df_path, index=False)
-
+    
     print("Length of full_sentence_df", len(full_sentence_df))
     print(full_sentence_df)
 
@@ -388,7 +390,7 @@ def smart_blockenizer(
                 blocks_ = blocks_dict[str(text_id)]
             except KeyError:
                 print("Could not find text_id", text_id)
-                print("Blocks dict keys", blocks_dict.keys())
+                # print("Blocks dict keys", blocks_dict.keys())
                 blocks_ = []
 
         n_blocks_column.append(len(blocks_))
