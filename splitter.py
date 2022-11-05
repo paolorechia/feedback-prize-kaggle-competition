@@ -381,7 +381,16 @@ def smart_blockenizer(
 
     for idx, row in input_df.iterrows():
         text_id = row[cm["id"]]
-        blocks_ = blocks_dict[text_id]
+        try:
+            blocks_ = blocks_dict[text_id]
+        except KeyError:
+            try:
+                blocks_ = blocks_dict[str(text_id)]
+            except KeyError:
+                print("Could not find text_id", text_id)
+                print("Blocks dict keys", blocks_dict.keys())
+                blocks_ = []
+
         n_blocks_column.append(len(blocks_))
         # Pad with empty strings
         while len(blocks_) < required_length:

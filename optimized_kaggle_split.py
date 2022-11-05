@@ -144,8 +144,8 @@ def objective(trial=None, splitter_n=2):
 
     use_data_augmentation = True
     augmentation_csvs = [
-        # "gpt_neo_full_2022-10-27-20-36-14.csv",
-        "best_fit_cohesion_score_0.4274352927913856.csv",
+        # "best_fit_cohesion_score_0.7159863243695793.csv",
+        "best_fit_cohesion_score_0.5549022701484796.csv",
     ]
 
     # block_size = trial.suggest_int("block_size", low=512, high=2048, step=128)

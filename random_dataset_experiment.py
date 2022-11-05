@@ -148,11 +148,9 @@ class GeneticAlgorithm:
         self.best_individual = None
         self.best_fitness = None
 
-        self.number_of_survivals = int(self.population_size * 0.2) - 1
+        self.number_of_survivals = int(self.population_size * 0.8) - 1
         self.number_of_randoms = int(self.population_size * 0.1)
-        self.number_of_cross_over = (
-            population_size - self.number_of_survivals - self.number_of_randoms
-        )
+        self.number_of_cross_over = population_size - self.number_of_survivals
 
     def initialize_population(self):
         for _ in range(self.population_size):
@@ -181,6 +179,7 @@ class GeneticAlgorithm:
         y_pred = y_pred[0]
         score = calculate_rmse_score_single(self.dataset_context.y_test, y_pred)
 
+        val_score = None
         if evaluate_val:
             val_pred = predict_multi_block(
                 self.dataset_context.multi_block,
@@ -194,7 +193,7 @@ class GeneticAlgorithm:
             print("Test Score: {} || Val Score: {}".format(score, val_score))
         else:
             print("Test Score: {}".format(score))
-        return score
+        return score, val_score
 
     def crossover(self, parent1, parent2):
         child = []
@@ -207,13 +206,13 @@ class GeneticAlgorithm:
 
     def mutate(self, individual):
         for i in range(self.n_labels):
-            if random.random() < 0.2:
+            if random.random() < 0.05:
                 individual[i] = random.random() * 4 + 1
 
-    def save_best_individual(self, individual, fitness, epoch):
+    def save_best_individual(self, individual, fitness, val_score, epoch):
         with open(
-            "best_individuals/{}_fitness_{}_epoch_{}.json".format(
-                self.cache_key, fitness, epoch
+            "best_individuals/{}_fitness_{}_val_score_{}_epoch_{}.json".format(
+                self.cache_key, fitness, val_score, epoch
             ),
             "w",
         ) as fout:
@@ -235,10 +234,10 @@ class GeneticAlgorithm:
             return None
 
     def run(self, num_generations=100):
-        for epoch in range(num_generations):
+        for epoch in range(num_generations + 1):
             self.fitness = []
             for idx, individual in enumerate(self.population):
-                score = self.evaluate_fitness(individual)
+                score, _ = self.evaluate_fitness(individual)
                 self.fitness.append((score, idx))
                 self.fitness.sort(key=lambda x: x[0])
 
@@ -253,27 +252,29 @@ class GeneticAlgorithm:
                 survivals.append(self.population[self.fitness[i][1]])
 
             self.population = survivals.copy()
+            options = survivals
+            for i in range(self.number_of_randoms):
+                options.append([random.random() * 4 + 1 for _ in range(self.n_labels)])
+
             for i in range(self.number_of_cross_over):
                 parent1 = random.choice(survivals)
-                parent2 = random.choice(survivals)
+                parent2 = random.choice(options)
                 child = self.crossover(parent1, parent2)
                 self.mutate(child)
                 self.population.append(child)
 
-            for i in range(self.number_of_randoms):
-                self.population.append(
-                    [random.random() * 4 + 1 for _ in range(self.n_labels)]
-                )
             if epoch % (num_generations // 10) == 0:
                 print(
                     "Generation: {} || Best Fitness: {}".format(
                         epoch, self.best_fitness
                     )
                 )
-                self.evaluate_fitness(self.best_individual, evaluate_val=True)
+                score, val_score = self.evaluate_fitness(
+                    self.best_individual, evaluate_val=True
+                )
                 print("------------------------\n\n")
                 self.save_best_individual(
-                    self.best_individual, self.best_fitness, epoch
+                    self.best_individual, self.best_fitness, val_score, epoch
                 )
 
 
@@ -360,10 +361,10 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 100
-    epochs = 10
+    dataset_size = 1000
     degradation_rate = 0.9
     population_size = 10
+    epochs = 1000
 
     model_info = ModelCatalog.DebertaV3
     multi_block_class = MultiBlockRidge
