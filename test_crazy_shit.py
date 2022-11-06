@@ -54,17 +54,39 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    augmented_csv = "train-10000-degradation-0.1-bbc-amazon-steam-goodreads.csv"
+    use_fine_tuning = True
+
+    augmented_csv = "train-1000-degradation-0.1-bbc-amazon-steam-goodreads"
+    if use_fine_tuning:
+        augmented_csv += "_fine_tuned"
+    augmented_csv += ".csv"
     augmented_df = pd.read_csv(augmented_csv)
 
+    if use_fine_tuning:
+        N = pd.read_csv("train-1000-degradation-0.1-bbc-amazon-steam-goodreads.csv")
+        A = pd.read_csv(augmented_csv)
+
+        for attribute in attributes:
+            print(attribute)
+            print("normal, fine_tuned")
+            equals = 0
+            different = 0
+            for n, a in zip(N[attribute], A[attribute]):
+                if n == a:
+                    equals += 1
+                else:
+                    different += 1
+            print("Equals: ", equals)
+            print("Different: ", different)
+
     used_csvs = [
-        # ("test", test_df),
+        ("test", test_df),
         ("augmented", augmented_df),
         # Keep this like this, please
     ]
 
     cache_suffix = "-".join([t[0] for t in used_csvs])
-    cache_key = f"test-crazy-shit-{augmented_csv}-{cache_suffix}"
+    cache_key = f"test-crazy-fine-tuned-{augmented_csv}-{cache_suffix}"
 
     dfs = []
     for _, df in used_csvs:

@@ -1,9 +1,20 @@
+# Cache
+scores/
+best_individuals/
+
+# Models
+*.pt
+# TXT files
+*.txt
+# CSV files
+*.csv
 # SQLITE
 *.db
 
 # Secrets
 .mongo_url
 .mongo_api_key
+*.model_api_key
 
 # Generated data
 models/
