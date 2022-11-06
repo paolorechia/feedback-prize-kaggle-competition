@@ -49,16 +49,17 @@ def main():
     # Load the data
     train_size = 0.2
     val_size = 1 - train_size
+    fine_tuning_interval = 10
     test_df, val_df = create_train_test_df(train_size, "full")
 
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    use_fine_tuning = True
+    use_fine_tuning = False
 
     augmented_csv = "train-1000-degradation-0.1-bbc-amazon-steam-goodreads"
     if use_fine_tuning:
-        augmented_csv += "_fine_tuned"
+        augmented_csv += f"_fine_tuned_{fine_tuning_interval}"
     augmented_csv += ".csv"
     augmented_df = pd.read_csv(augmented_csv)
 
@@ -80,13 +81,17 @@ def main():
             print("Different: ", different)
 
     used_csvs = [
-        ("test", test_df),
+        # ("test", test_df),
         ("augmented", augmented_df),
         # Keep this like this, please
     ]
 
     cache_suffix = "-".join([t[0] for t in used_csvs])
-    cache_key = f"test-crazy-fine-tuned-{augmented_csv}-{cache_suffix}"
+    cache_key = (
+        f"test-crazy-fine-tuned-{augmented_csv}-{cache_suffix}"
+        if use_fine_tuning
+        else f"test-crazy-shit-{augmented_csv}-{cache_suffix}"
+    )
 
     dfs = []
     for _, df in used_csvs:

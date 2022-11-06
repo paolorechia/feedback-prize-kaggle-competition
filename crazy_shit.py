@@ -41,10 +41,10 @@ def main():
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 1000
+    dataset_size = 100000
     degradation_rate = 0.1
-    population_size = 10
     epochs = 0
+    use_fine_tuning = False
 
     model_info = ModelCatalog.DebertaV3
     multi_block_class = MultiBlockRidgeCV
@@ -114,7 +114,7 @@ def main():
     train_indices = train_df.index.values
 
     fined_tuned = {}
-    fine_tuning_interval = 100
+    fine_tuning_interval = 10
     for attribute in attributes:
         print("Attribute", attribute)
         y_test = np.array(test_df[attribute])
@@ -199,52 +199,56 @@ def main():
         train_df.drop(columns=["embeddings_0"]).to_csv(
             train_df_cache_key + ".csv", index=False
         )
-        print("Saved to", train_df_cache_key)
+        print("Saved to", train_df_cache_key + ".csv")
 
         # Begin label fine tuning
-        print("Begin label fine tuning")
-        y_train = np.array(train_df[attribute])
-        print("Len(y_train)", len(y_train))
-        best_score = previous_score
+        if use_fine_tuning:
+            print("Begin label fine tuning")
+            y_train = np.array(train_df[attribute])
+            print("Len(y_train)", len(y_train))
+            best_score = previous_score
 
-        for idx, row in train_df.iterrows():
-            if idx % fine_tuning_interval != 0:
-                continue
-            print("Idx: ", idx)
+            for idx, _ in train_df.iterrows():
+                if idx % fine_tuning_interval != 0:
+                    continue
+                print("Idx: ", idx)
 
-            best_label = y_train[idx]
-            for label in possible_labels:
-                y_train[idx] = label
-                fit_multi_block(
-                    multi_block,
-                    attribute,
-                    train_df,
-                    train_indices,
-                    y_train,
-                    [y_train],
-                )
-                second_pred = predict_multi_block(
-                    multi_block, attribute, test_df, test_indices
-                )
-                second_pred = second_pred[0]
-                score = calculate_rmse_score_single(y_test, second_pred)
-                print("Fine tuning score: ", score)
-                if score < best_score:
-                    print("New best score: ", score)
-                    best_label = label
-                    best_score = score
-            y_train[idx] = best_label
-            fined_tuned[attribute] = y_train
+                best_label = y_train[idx]
+                for label in possible_labels:
+                    y_train[idx] = label
+                    fit_multi_block(
+                        multi_block,
+                        attribute,
+                        train_df,
+                        train_indices,
+                        y_train,
+                        [y_train],
+                    )
+                    second_pred = predict_multi_block(
+                        multi_block, attribute, test_df, test_indices
+                    )
+                    second_pred = second_pred[0]
+                    score = calculate_rmse_score_single(y_test, second_pred)
+                    print("Fine tuning score: ", score)
+                    if score < best_score:
+                        print("New best score: ", score)
+                        best_label = label
+                        best_score = score
+                y_train[idx] = best_label
+                fined_tuned[attribute] = y_train
 
-    for attribute in attributes:
-        train_df[attribute] = fined_tuned[attribute]
-    train_df[attribute] = y_train
-    train_df.drop(columns=["embeddings_0"]).to_csv(
-        train_df_cache_key + f"_fine_tuned_{fine_tuning_interval}" + ".csv", index=False
-    )
-    print(
-        "Saved to", train_df_cache_key + f"_fine_tuned_{fine_tuning_interval}" + ".csv"
-    )
+    if use_fine_tuning:
+        for attribute in attributes:
+            train_df[attribute] = fined_tuned[attribute]
+        train_df[attribute] = y_train
+        train_df.drop(columns=["embeddings_0"]).to_csv(
+            train_df_cache_key + f"_fine_tuned_{fine_tuning_interval}" + ".csv",
+            index=False,
+        )
+        print(
+            "Saved to",
+            train_df_cache_key + f"_fine_tuned_{fine_tuning_interval}" + ".csv",
+        )
 
 
 if __name__ == "__main__":
