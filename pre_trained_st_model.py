@@ -2,6 +2,7 @@ from typing import Dict, List, Union
 
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import RidgeCV, Ridge, SGDRegressor, BayesianRidge
+from sklearn.svm import SVR
 from sklearn.preprocessing import StandardScaler
 from utils import (
     round_border_score,
@@ -330,6 +331,16 @@ class MultiBlockBayensianRidge(MultiBlockMultiHeadSentenceTransformerModel):
     ) -> None:
         # print(model, number_blocks, labels)
         super().__init__(model, number_blocks, labels=labels, head_model=BayesianRidge)
+
+class MultiBlockSVR(MultiBlockMultiHeadSentenceTransformerModel):
+    def __init__(
+        self,
+        model: Union[str, SentenceTransformer, "ModelStack"],
+        number_blocks,
+        labels,
+    ) -> None:
+        # print(model, number_blocks, labels)
+        super().__init__(model, number_blocks, labels=labels, head_model=SVR)
 
 def fit_multi_block(
     multi_block, attribute, train_df, train, y_train, y_trains, averager_regressor=None

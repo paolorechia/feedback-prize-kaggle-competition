@@ -32,16 +32,14 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def main():
+def run(train_size, dataset_size):
     # Load the model
-    train_size = 0.2
     val_size = 1 - train_size
     test_df, val_df = create_train_test_df(train_size, "full")
 
     test_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
 
-    dataset_size = 100000
     degradation_rate = 0.1
     epochs = 0
     use_fine_tuning = False
@@ -69,7 +67,9 @@ def main():
     val_df["embeddings_0"] = [np.array(e) for e in X_val]
     val_indices = val_df.index.values
 
-    train_df_cache_key = f"train-{dataset_size}-degradation-{degradation_rate}"
+    train_df_cache_key = (
+        f"train-{train_size}-dss-{dataset_size}-degradation-{degradation_rate}"
+    )
 
     used_datasets = [
         ("bbc", load_bbc_news, True),
@@ -252,4 +252,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    dataset_size = 100000
+    # for ts in [0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275]:
+        # run(ts)
+    run(0.2, dataset_size)
