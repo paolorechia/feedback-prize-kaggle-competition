@@ -377,10 +377,7 @@ def get_max_num_children(spacy_tokens):
 
 
 for extra_ds, name in [
-    (load_extra_datasets.load_bbc_news(head=30000), "bbc"),
     (load_extra_datasets.load_amazon_reviews(head=30000), "amazon"),
-    (load_extra_datasets.load_goodreads_reviews(head=30000), "goodreads"),
-    (load_extra_datasets.load_steam_reviews(head=30000), "steam"),
 ]:
     print("Loading extra... ", name)
     word_set = set()
