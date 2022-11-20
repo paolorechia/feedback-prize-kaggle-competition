@@ -13,10 +13,13 @@ corpuses = [
     "genesis",
     "brown",
     "nps_chat",
+    "gutenberg",
+    "udhr2",
 ]
 
 corpuses_words = {}
 for corpus in corpuses:
+    nltk.download(corpus)
     words = set(getattr(nltk.corpus, corpus).words())
     corpuses_words[corpus] = words
 
