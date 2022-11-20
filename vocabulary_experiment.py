@@ -6,6 +6,7 @@ import tqdm
 import json
 import os
 
+
 import functions_vocabulary as fv
 
 
@@ -72,7 +73,6 @@ def generate_spacy_tokens(texts, type="train"):
 train_df, test_df = load_data.create_train_test_df(test_size=0.2, dataset="full")
 
 train_text = train_df["full_text"]
-y_train = train_df["vocabulary"]
 
 print("Generating train features")
 X_train = generate_features(train_text, used_features_functions)
@@ -85,7 +85,6 @@ if used_spacy_features:
     X_train = np.hstack([X_train, X_train_spacy_features])
 
 test_text = test_df["full_text"]
-y_test = test_df["vocabulary"]
 
 print("Generating test features")
 X_test = generate_features(test_text, used_features_functions)
@@ -97,9 +96,12 @@ if used_spacy_features:
 
 ridge = sk.linear_model.RidgeCV()
 
-print("Fitting")
-ridge.fit(X_train, y_train)
-preds = ridge.predict(X_test)
-score = utils.calculate_rmse_score_single(y_test, preds)
-print("Score on vocabulary: ", score)
+for attribute in utils.attributes:
+    y_train = train_df[attribute]
+    y_test = test_df[attribute]
 
+    print("Fitting")
+    ridge.fit(X_train, y_train)
+    preds = ridge.predict(X_test)
+    score = utils.calculate_rmse_score_single(y_test, preds)
+    print(f"Score on {attribute}: ", score)
