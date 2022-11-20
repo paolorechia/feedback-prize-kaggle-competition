@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer, losses
 from sentence_pairing import CosineNormalizedSimilarityCalculator
@@ -8,12 +8,14 @@ from model_catalog import ModelDescription
 @dataclass
 class ModelBenchmark:
     rmse_score: float
+    attribute_specific_scores: Dict[str, float]
     model_name: str
     time_to_encode_in_seconds: float
 
     def __dict__(self):
         return {
             "rmse_score": self.rmse_score,
+            "attribute_specific_scores": self.attribute_specific_scores,
             "model_name": self.model_name,
             "time_to_encode_in_seconds": self.time_to_encode_in_seconds,
         }

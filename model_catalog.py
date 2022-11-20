@@ -156,7 +156,49 @@ class ModelCatalog:
         model_name="cross-encoder/nli-deberta-v3-base",
         model_truncate_length=256,
         recommended_batch_size=16,
-        is_from_library=True,
+        is_from_library=False,
+    )
+
+    DebertaV3NDugar = ModelDescription(
+        model_name="NDugar/debertav3-mnli-snli-anli",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )
+
+    DebertaV3DebiasedNLI = ModelDescription(
+        model_name="tomhosking/deberta-v3-base-debiased-nli",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )
+
+    DebertaV3TwitterEmotion = ModelDescription(
+        model_name="Emanuel/twitter-emotion-deberta-v3-base",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )
+
+    DebertaV3GoEmotions = ModelDescription(
+        model_name="mrm8488/deberta-v3-base-goemotions",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )
+
+    DebertaV3SetFit = ModelDescription(
+        model_name="SetFit/deberta-v3-base__sst2__all-train",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )
+
+    DebertaV3Cola = ModelDescription(
+        model_name="yevheniimaslov/deberta-v3-base-cola",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
     )
 
     BartBase = ModelDescription(

@@ -13,7 +13,7 @@ from pre_trained_st_model import (
     MultiEncodingStack,
 )
 from experiment_schemas import ModelBenchmark
-from utils import attributes, calculate_rmse_score
+from utils import attributes, calculate_rmse_score, calculate_rmse_score_single
 from datetime import datetime
 
 from sklearn.linear_model import LassoCV, RidgeCV
@@ -48,13 +48,14 @@ def benchmark_stack(
     preds_df["text_id"] = test_df["text_id"]
     preds_df["full_text"] = test_df["full_text"]
 
+    attr_scores = {}
     for attribute in attributes:
-        # print("Evaluating on attribute: ", attribute)
         multi_head.fit(attribute, X_train_embeddings, train_df[attribute])
-        s = multi_head.score(attribute, X_test_embeddings, test_df[attribute])
-        print("Regressor Score:", s)
         preds = multi_head.predict(attribute, X_test_embeddings)
         preds_df[attribute] = preds
+        attr_score = calculate_rmse_score_single(test_df[attribute], preds)
+        print(f"{attribute} Score: ", attr_score)
+        attr_scores[attribute] = attr_score
 
     score = calculate_rmse_score(
         test_df[attributes].values, preds_df[attributes].values
@@ -62,6 +63,7 @@ def benchmark_stack(
     print("RMSE Score:", score)
     return ModelBenchmark(
         rmse_score=score,
+        attribute_specific_scores=attr_scores,
         model_name="-".join([s.info.model_name for s in stack.stack]),
         time_to_encode_in_seconds=time_to_encode_in_seconds,
     )
@@ -78,6 +80,7 @@ def benchmark_list_of_models(
 
     model_scores = []
     for model in model_list:
+        print("Testing model", model)
         stack = ModelStack([model])
         multi_head = multi_head_class(stack)
         result = benchmark_stack(
@@ -95,6 +98,8 @@ if __name__ == "__main__":
     benchmark_list_of_models(
         model_list=[
             ModelCatalog.DebertaV3,
+            ModelCatalog.DebertaV3Cola,
+            ModelCatalog.DebertaV3SetFit,
         ],
         multi_head_class=MultiHeadClass,
     )
