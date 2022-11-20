@@ -221,6 +221,7 @@ def get_tag_count(spacy_tokens):
         nouns_count.append(len(set(tags)))
     return np.array(nouns_count).reshape(-1, 1)
 
+
 def get_noun_count(spacy_tokens):
     nouns_count = []
     for tokens in spacy_tokens:
@@ -259,7 +260,6 @@ def get_noun_third_person_count(spacy_tokens):
 
 
 used_features_functions = [
-    # Don't reorder this
     get_stop_word_count,
     get_text_length,
     get_lexical_diversity,
@@ -272,10 +272,10 @@ used_features_functions = [
 ]
 
 used_spacy_features = [
-    # get_verb_count,
+    # get_unique_verb_count,
     # get_noun_ratio,
     # get_verb_morph_count,
-    # get_unique_verb_count,
+    get_verb_count,
     get_noun_third_person_count,
     get_verb_ratio,
     get_noun_count,
