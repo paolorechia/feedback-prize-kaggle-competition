@@ -143,6 +143,25 @@ def small_word_count(texts):
     return np.array(small_words).reshape(-1, 1)
 
 
+def get_adjective_suffix_count(texts):
+    suffix = set(["ible", "ical", "ish", "y"])
+    counts = []
+    for text in texts:
+        words = text_to_words(text)
+        found = 0
+        for word in words:
+            if word[-2:-1] in suffix:
+                found += 1
+            if word[-3:-1] in suffix:
+                found += 1
+            if word[-4:-1] in suffix:
+                found += 1
+            if word[-5:-1] in suffix:
+                found += 1
+        counts.append(found)
+    return np.array(counts).reshape(-1, 1)
+
+
 def get_vogal_count(texts):
     letters = "aeiou"
     counts = []
@@ -335,6 +354,7 @@ used_features_functions = [
     small_word_count,
     get_vogal_count,
     get_consoant_count,
+    get_adjective_suffix_count,
 ]
 
 used_spacy_features = [
