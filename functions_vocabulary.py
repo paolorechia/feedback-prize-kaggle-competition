@@ -15,6 +15,9 @@ corpuses = [
     "nps_chat",
     "gutenberg",
     "udhr2",
+    "comparative_sentences",
+    "subjectivity",
+    "conll2002",
 ]
 
 corpuses_words = {}
