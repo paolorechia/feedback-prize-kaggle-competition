@@ -25,6 +25,7 @@ def _spacy_tokenizer(text):
     for token in doc:
         tokens.append(
             {
+                "text": token.text,
                 "pos": token.pos_,
                 "tag": token.tag_,
                 "lemma": token.lemma_,
@@ -152,6 +153,17 @@ def get_verb_count(spacy_tokens):
     return np.array(verbs_count).reshape(-1, 1)
 
 
+def get_unique_verb_count(spacy_tokens):
+    verbs_count = []
+    for tokens in spacy_tokens:
+        verb_set = set()
+        for token in tokens:
+            if token["pos"] == "VERB":
+                verb_set.add(token["text"])
+        verbs_count.append(len(verb_set))
+    return np.array(verbs_count).reshape(-1, 1)
+
+
 def get_verb_ratio(spacy_tokens):
     verbs_count = []
     for tokens in spacy_tokens:
@@ -166,6 +178,7 @@ def get_verb_ratio(spacy_tokens):
             verbs_count.append(len(tokens) / verbs)
     return np.array(verbs_count).reshape(-1, 1)
 
+
 def get_verb_morph_count(spacy_tokens):
     verbs_count = []
     for tokens in spacy_tokens:
@@ -178,6 +191,36 @@ def get_verb_morph_count(spacy_tokens):
     return np.array(verbs_count).reshape(-1, 1)
 
 
+def get_lemma_count(spacy_tokens):
+    nouns_count = []
+    for tokens in spacy_tokens:
+        lemmas = []
+        for token in tokens:
+            lemmas.append(token["lemma"])
+        nouns_count.append(len(set(lemmas)))
+    return np.array(nouns_count).reshape(-1, 1)
+
+
+def get_bigram_lemma_count(spacy_tokens):
+    nouns_count = []
+    for tokens in spacy_tokens:
+        lemmas = []
+        for token in tokens:
+            lemmas.append(token["lemma"])
+        unique_bigrams = set(list(nltk.bigrams(lemmas)))
+        nouns_count.append(len(unique_bigrams))
+    return np.array(nouns_count).reshape(-1, 1)
+
+
+def get_tag_count(spacy_tokens):
+    nouns_count = []
+    for tokens in spacy_tokens:
+        tags = []
+        for token in tokens:
+            tags.append(token["tag"])
+        nouns_count.append(len(set(tags)))
+    return np.array(nouns_count).reshape(-1, 1)
+
 def get_noun_count(spacy_tokens):
     nouns_count = []
     for tokens in spacy_tokens:
@@ -187,6 +230,7 @@ def get_noun_count(spacy_tokens):
                 nouns += 1
         nouns_count.append(nouns)
     return np.array(nouns_count).reshape(-1, 1)
+
 
 def get_noun_ratio(spacy_tokens):
     nouns_count = []
@@ -214,9 +258,6 @@ def get_noun_third_person_count(spacy_tokens):
     return np.array(nouns_count).reshape(-1, 1)
 
 
-def get_unique_verb_count(tuple_):
-    pass
-
 used_features_functions = [
     # Don't reorder this
     get_stop_word_count,
@@ -234,13 +275,13 @@ used_spacy_features = [
     # get_verb_count,
     # get_noun_ratio,
     # get_verb_morph_count,
+    # get_unique_verb_count,
     get_noun_third_person_count,
     get_verb_ratio,
     get_noun_count,
-]
-
-used_hybrid_features = [
-
+    get_lemma_count,
+    get_tag_count,
+    get_bigram_lemma_count,
 ]
 
 
@@ -280,11 +321,10 @@ X_train = generate_features(train_text, used_features_functions)
 
 X_train_spacy_tokens = generate_spacy_tokens(train_text, "train")
 if used_spacy_features:
-    X_train_spacy_features = generate_features(X_train_spacy_tokens, used_spacy_features)
+    X_train_spacy_features = generate_features(
+        X_train_spacy_tokens, used_spacy_features
+    )
     X_train = np.hstack([X_train, X_train_spacy_features])
-    if used_hybrid_features:
-        X_train_mixed = generate_features(zip(X_train_spacy_features, train_text), used_hybrid_features)
-        X_train = np.hstack([X_train, X_train_mixed])
 
 test_text = test_df["full_text"]
 y_test = test_df["vocabulary"]
@@ -296,9 +336,6 @@ X_test_spacy_tokens = generate_spacy_tokens(test_text, "test")
 if used_spacy_features:
     X_test_spacy_features = generate_features(X_test_spacy_tokens, used_spacy_features)
     X_test = np.hstack([X_test, X_test_spacy_features])
-    if used_hybrid_features:
-        X_test_mixed = generate_features(zip(X_test_spacy_features, test_text), used_hybrid_features)
-        X_test = np.hstack([X_test, X_test_mixed])
 
 ridge = sk.linear_model.RidgeCV()
 
