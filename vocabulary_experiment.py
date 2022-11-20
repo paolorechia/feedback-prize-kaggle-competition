@@ -30,6 +30,7 @@ def _spacy_tokenizer(text):
                 "tag": token.tag_,
                 "lemma": token.lemma_,
                 "dep": token.dep_,
+                "n_children": len([child for child in token.children]),
                 "morph_case": token.morph.get("Case"),
                 "morph_person": token.morph.get("Person"),
                 "morph_verb_form": token.morph.get("VerbForm"),
@@ -140,6 +141,20 @@ def small_word_count(texts):
         counts = len([len(word) for word in words if len(word) < small_word_threshold])
         small_words.append(counts)
     return np.array(small_words).reshape(-1, 1)
+
+
+def get_ratio_letters(texts):
+    letters = "aeiou"
+    counts = []
+    for text in texts:
+        words = text_to_words(text)
+        text_ = " ".join(words)
+        n_letters = 0
+        for char in text_:
+            if char in letters:
+                n_letters += 1
+        counts.append(n_letters)
+    return np.array(counts).reshape(-1, 1)
 
 
 def get_verb_count(spacy_tokens):
@@ -259,6 +274,26 @@ def get_noun_third_person_count(spacy_tokens):
     return np.array(nouns_count).reshape(-1, 1)
 
 
+def get_avg_num_children(spacy_tokens):
+    nouns_count = []
+    for tokens in spacy_tokens:
+        n_children = []
+        for token in tokens:
+            n_children.append(token["n_children"])
+        nouns_count.append(sum(n_children) / len(n_children))
+    return np.array(nouns_count).reshape(-1, 1)
+
+
+def get_max_num_children(spacy_tokens):
+    nouns_count = []
+    for tokens in spacy_tokens:
+        n_children = []
+        for token in tokens:
+            n_children.append(token["n_children"])
+        nouns_count.append(max(n_children))
+    return np.array(nouns_count).reshape(-1, 1)
+
+
 used_features_functions = [
     get_stop_word_count,
     get_text_length,
@@ -269,6 +304,7 @@ used_features_functions = [
     avg_word_length,
     big_word_count,
     small_word_count,
+    get_ratio_letters,
 ]
 
 used_spacy_features = [
@@ -282,6 +318,8 @@ used_spacy_features = [
     get_lemma_count,
     get_tag_count,
     get_bigram_lemma_count,
+    get_avg_num_children,
+    get_max_num_children,
 ]
 
 
