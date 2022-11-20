@@ -1,0 +1,7 @@
+sklearn
+torch
+torchvision
+torchaudio
+sentence-transformers
+iterative-stratification
+black

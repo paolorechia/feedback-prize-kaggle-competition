@@ -117,6 +117,48 @@ class ModelCatalog:
         is_from_library=False,
     )
 
+    DebertaV3Squad2 = ModelDescription(
+        model_name="deepset/deberta-v3-base-squad2",
+        model_truncate_length=256,
+        recommended_batch_size=32,
+        is_from_library=False,
+    )
+
+    DebertaV3LargeMNLI = ModelDescription(
+        model_name="MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )
+
+    DebertaV3ABSA = ModelDescription(
+        model_name="yangheng/deberta-v3-base-absa-v1.1",
+        model_truncate_length=256,
+        recommended_batch_size=32,
+        is_from_library=False,
+    )
+
+    DebertaV3ArgumentativeWriting = ModelDescription(
+        model_name="kitkeat/deberta-v3-base-argumentativewriting",
+        model_truncate_length=256,
+        recommended_batch_size=32,
+        is_from_library=False,
+    )
+
+    DebertaV3MNLI = ModelDescription(
+        model_name="MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=False,
+    )
+
+    DebertaV3NLI = ModelDescription(
+        model_name="cross-encoder/nli-deberta-v3-base",
+        model_truncate_length=256,
+        recommended_batch_size=16,
+        is_from_library=True,
+    )
+
     BartBase = ModelDescription(
         model_name="facebook/bart-base",
         model_truncate_length=1024,

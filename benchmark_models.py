@@ -34,13 +34,11 @@ def benchmark_stack(
 
     t0 = datetime.now()
     X_train_embeddings = multi_head.encode(
-        X_train, batch_size=32, type_path="train", use_cache=use_cache
+        X_train, batch_size=32, cache_type="train", use_cache=use_cache
     )
-    # print(X_train_embeddings.shape)
     X_test_embeddings = multi_head.encode(
-        X_test, batch_size=32, type_path="test", use_cache=use_cache
+        X_test, batch_size=32, cache_type="test", use_cache=use_cache
     )
-    # print(X_test_embeddings.shape)
 
     t1 = datetime.now()
     time_to_encode_in_seconds = (t1 - t0).total_seconds()
@@ -94,30 +92,9 @@ def benchmark_list_of_models(
 if __name__ == "__main__":
 
     MultiHeadClass = MultiHeadSentenceTransformerFactory.create_class(RidgeCV)
-    # MultiHeadLassoCV = MultiHeadSentenceTransformerFactory.create_class(LassoCV)
-    # MultiHead = MultiHeadSentenceTransformerFactory.create_class(svm.SVR)
     benchmark_list_of_models(
         model_list=[
-            # ModelCatalog.AllMiniLML6v2,
-            # ModelCatalog.AllMpnetBasev2,
-            # ModelCatalog.AllMpnetBasev1,
-            # ModelCatalog.AllDistilrobertaV1,
-            # ModelCatalog.RobertaLarge,
-            # ModelCatalog.BertBaseUncased,
-            # ModelCatalog.DebertaV3,
-            # ModelCatalog.DebertaV3Large,
-            # ModelCatalog.DebertaV3Small,
-            # ModelCatalog.DebertaV3XSmall,
-            # ModelCatalog.BartBase,
-            # ModelCatalog.BartLarge,
-            # ModelCatalog.AlbertV2,
-            # ModelCatalog.T5Base,
-            # ModelCatalog.T5Large,
-            # ModelCatalog.T5V1Base,
-            # ModelCatalog.T5V1Large,
-            # ModelCatalog.T03B,
-            ModelCatalog.WordEmbeddingsGlove,
-            ModelCatalog.WordEmbeddingsKomminos,
+            ModelCatalog.DebertaV3,
         ],
         multi_head_class=MultiHeadClass,
     )
