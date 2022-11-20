@@ -11,7 +11,11 @@ import json
 import os
 
 nltk.download("stopwords")
-english_stop_words: T.List[str] = nltk.corpus.stopwords.words("english")
+nltk.download("reuters")
+english_stop_words: T.Set[str] = set(nltk.corpus.stopwords.words("english"))
+reuters_words = set(nltk.corpus.reuters.words())
+print(type(reuters_words))
+
 nlp = None
 
 
@@ -204,6 +208,18 @@ def get_vogal_ratio(texts):
     return np.array(counts).reshape(-1, 1)
 
 
+def get_reuters_word_count(texts):
+    counts = []
+    for text in texts:
+        words = text_to_words(text)
+        n = 0
+        for word in words:
+            if word in reuters_words:
+                n += 1
+        counts.append(n)
+    return np.array(counts).reshape(-1, 1)
+
+
 def get_verb_count(spacy_tokens):
     verbs_count = []
     for tokens in spacy_tokens:
@@ -355,6 +371,7 @@ used_features_functions = [
     get_vogal_count,
     get_consoant_count,
     get_adjective_suffix_count,
+    get_reuters_word_count,
 ]
 
 used_spacy_features = [
