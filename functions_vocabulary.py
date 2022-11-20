@@ -3,6 +3,7 @@ import nltk
 import spacy
 import re
 import typing as T
+import load_extra_datasets
 
 nltk.download("stopwords")
 english_stop_words: T.Set[str] = set(nltk.corpus.stopwords.words("english"))
@@ -22,7 +23,7 @@ corpuses = [
 
 corpuses_words = {}
 for corpus in corpuses:
-    nltk.download(corpus)
+    # nltk.download(corpus)
     words = set(getattr(nltk.corpus, corpus).words())
     corpuses_words[corpus] = words
 
@@ -374,3 +375,19 @@ def get_max_num_children(spacy_tokens):
         nouns_count.append(max(n_children))
     return np.array(nouns_count).reshape(-1, 1)
 
+
+for extra_ds, name in [
+    (load_extra_datasets.load_bbc_news(head=30000), "bbc"),
+    (load_extra_datasets.load_amazon_reviews(head=30000), "amazon"),
+    (load_extra_datasets.load_goodreads_reviews(head=30000), "goodreads"),
+    (load_extra_datasets.load_steam_reviews(head=30000), "steam"),
+]:
+    print("Loading extra... ", name)
+    word_set = set()
+    for obj in extra_ds:
+        words = text_to_words(obj["review_text"])
+        for word in words:
+            word_set.add(word)
+
+    corpuses.append(name)
+    corpuses_words[name] = word_set
