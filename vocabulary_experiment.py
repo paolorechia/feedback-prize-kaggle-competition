@@ -23,10 +23,9 @@ used_features_functions = [
     fv.get_vogal_count,
     fv.get_consoant_count,
     fv.get_adjective_suffix_count,
-    fv.get_reuters_word_count,
-    fv.get_genesis_word_count,
-    fv.get_brown_word_count,
 ]
+for corpus in fv.corpuses:
+    used_features_functions.append(fv.get_corpus_word_count_factory(corpus))
 
 used_spacy_features = [
     # get_unique_verb_count,
@@ -70,7 +69,6 @@ def generate_spacy_tokens(texts, type="train"):
 
 
 train_df, test_df = load_data.create_train_test_df(test_size=0.2, dataset="full")
-
 
 train_text = train_df["full_text"]
 y_train = train_df["vocabulary"]

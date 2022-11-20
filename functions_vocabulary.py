@@ -5,14 +5,40 @@ import re
 import typing as T
 
 nltk.download("stopwords")
-nltk.download("reuters")
-nltk.download("genesis")
-nltk.download("brown")
-
 english_stop_words: T.Set[str] = set(nltk.corpus.stopwords.words("english"))
-reuters_words = set(nltk.corpus.reuters.words())
-genesis_words = set(nltk.corpus.genesis.words())
-brown_words = set(nltk.corpus.brown.words())
+
+corpuses = [
+    # DONT REFORMAT THIS PLEASE
+    "reuters",
+    "genesis",
+    "brown",
+    "nps_chat",
+]
+
+corpuses_words = {}
+for corpus in corpuses:
+    words = set(getattr(nltk.corpus, corpus).words())
+    corpuses_words[corpus] = words
+
+
+def get_corpus_word_count_factory(corpus_name):
+    if corpus_name not in corpuses_words:
+        raise IndexError(f"{corpus_name} not found in {corpuses_words.keys()}.")
+    corpus = corpuses_words[corpus_name]
+
+    def get_corpus_word_count(texts):
+        counts = []
+        for text in texts:
+            words = text_to_words(text)
+            n = 0
+            for word in words:
+                if word in corpus:
+                    n += 1
+            counts.append(n)
+        return np.array(counts).reshape(-1, 1)
+
+    return get_corpus_word_count
+
 
 nlp = None
 
@@ -206,42 +232,6 @@ def get_vogal_ratio(texts):
     return np.array(counts).reshape(-1, 1)
 
 
-def get_reuters_word_count(texts):
-    counts = []
-    for text in texts:
-        words = text_to_words(text)
-        n = 0
-        for word in words:
-            if word in reuters_words:
-                n += 1
-        counts.append(n)
-    return np.array(counts).reshape(-1, 1)
-
-
-def get_genesis_word_count(texts):
-    counts = []
-    for text in texts:
-        words = text_to_words(text)
-        n = 0
-        for word in words:
-            if word in genesis_words:
-                n += 1
-        counts.append(n)
-    return np.array(counts).reshape(-1, 1)
-
-
-def get_brown_word_count(texts):
-    counts = []
-    for text in texts:
-        words = text_to_words(text)
-        n = 0
-        for word in words:
-            if word in brown_words:
-                n += 1
-        counts.append(n)
-    return np.array(counts).reshape(-1, 1)
-
-
 def get_verb_count(spacy_tokens):
     verbs_count = []
     for tokens in spacy_tokens:
@@ -377,3 +367,4 @@ def get_max_num_children(spacy_tokens):
             n_children.append(token["n_children"])
         nouns_count.append(max(n_children))
     return np.array(nouns_count).reshape(-1, 1)
+
