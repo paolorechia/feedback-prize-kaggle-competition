@@ -5,3 +5,6 @@ torchaudio
 sentence-transformers
 iterative-stratification
 black
+nltk
+spacy
+tqdm
