@@ -26,6 +26,7 @@ used_features_functions = [
 ]
 for corpus in fv.corpuses:
     used_features_functions.append(fv.get_corpus_word_count_factory(corpus))
+    used_features_functions.append(fv.get_corpus_bigram_count_factory(corpus))
 
 used_spacy_features = [
     # get_unique_verb_count,

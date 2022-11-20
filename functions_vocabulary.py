@@ -22,10 +22,14 @@ corpuses = [
 ]
 
 corpuses_words = {}
+corpuses_bigrams = {}
 for corpus in corpuses:
     # nltk.download(corpus)
     words = set(getattr(nltk.corpus, corpus).words())
     corpuses_words[corpus] = words
+
+    bigrams = set(list(nltk.bigrams(words)))
+    corpuses_bigrams[corpus] = bigrams
 
 
 def get_corpus_word_count_factory(corpus_name):
@@ -40,6 +44,26 @@ def get_corpus_word_count_factory(corpus_name):
             n = 0
             for word in words:
                 if word in corpus:
+                    n += 1
+            counts.append(n)
+        return np.array(counts).reshape(-1, 1)
+
+    return get_corpus_word_count
+
+
+def get_corpus_bigram_count_factory(corpus_name):
+    if corpus_name not in corpuses_words:
+        raise IndexError(f"{corpus_name} not found in {corpuses_words.keys()}.")
+    corpus = corpuses_bigrams[corpus_name]
+
+    def get_corpus_word_count(texts):
+        counts = []
+        for text in texts:
+            words = text_to_words(text)
+            n = 0
+            bigrams = list(nltk.bigrams(words))
+            for bigram in bigrams:
+                if bigram in corpus:
                     n += 1
             counts.append(n)
         return np.array(counts).reshape(-1, 1)
@@ -381,10 +405,16 @@ for extra_ds, name in [
 ]:
     print("Loading extra... ", name)
     word_set = set()
+    bigrams_set = set()
     for obj in extra_ds:
         words = text_to_words(obj["review_text"])
         for word in words:
             word_set.add(word)
 
+        bigrams = list(nltk.bigrams(words))
+        for bigram in bigrams:
+            bigrams_set.add(bigram)
+
     corpuses.append(name)
     corpuses_words[name] = word_set
+    corpuses_bigrams[name] = bigrams_set
