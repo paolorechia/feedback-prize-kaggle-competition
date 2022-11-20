@@ -143,7 +143,7 @@ def small_word_count(texts):
     return np.array(small_words).reshape(-1, 1)
 
 
-def get_ratio_letters(texts):
+def get_vogal_count(texts):
     letters = "aeiou"
     counts = []
     for text in texts:
@@ -154,6 +154,34 @@ def get_ratio_letters(texts):
             if char in letters:
                 n_letters += 1
         counts.append(n_letters)
+    return np.array(counts).reshape(-1, 1)
+
+
+def get_consoant_count(texts):
+    letters = "bcdefghjklmnpqrstvxywz"
+    counts = []
+    for text in texts:
+        words = text_to_words(text)
+        text_ = " ".join(words)
+        n_letters = 0
+        for char in text_:
+            if char in letters:
+                n_letters += 1
+        counts.append(n_letters)
+    return np.array(counts).reshape(-1, 1)
+
+
+def get_vogal_ratio(texts):
+    letters = "aeiou"
+    counts = []
+    for text in texts:
+        words = text_to_words(text)
+        text_ = " ".join(words)
+        n_letters = 0
+        for char in text_:
+            if char in letters:
+                n_letters += 1
+        counts.append(len(text_) / n_letters)
     return np.array(counts).reshape(-1, 1)
 
 
@@ -295,6 +323,7 @@ def get_max_num_children(spacy_tokens):
 
 
 used_features_functions = [
+    # get_vogal_ratio,
     get_stop_word_count,
     get_text_length,
     get_lexical_diversity,
@@ -304,7 +333,8 @@ used_features_functions = [
     avg_word_length,
     big_word_count,
     small_word_count,
-    get_ratio_letters,
+    get_vogal_count,
+    get_consoant_count,
 ]
 
 used_spacy_features = [
